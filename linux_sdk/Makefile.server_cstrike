@@ -1,0 +1,665 @@
+_SRC_DIR=./../dlls
+_OBJ_DIR=obj/$(NAME)_$(ARCH)/.
+COMMON_SRC_DIR=./../common
+COMMON_OBJ_DIR=obj/$(NAME)_$(ARCH)/./common
+GAME_SHARED_SRC_DIR=./../game_shared
+GAME_SHARED_OBJ_DIR=obj/$(NAME)_$(ARCH)/./game_shared
+GAME_SHARED_CSTRIKE_SRC_DIR=./../game_shared/cstrike
+GAME_SHARED_CSTRIKE_OBJ_DIR=obj/$(NAME)_$(ARCH)/./game_shared/cstrike
+GAME_SHARED_CSTRIKE_BOT_SRC_DIR=./../game_shared/cstrike/bot
+GAME_SHARED_CSTRIKE_BOT_OBJ_DIR=obj/$(NAME)_$(ARCH)/./game_shared/cstrike/bot
+GAME_SHARED_HL2_SRC_DIR=./../game_shared/hl2
+GAME_SHARED_HL2_OBJ_DIR=obj/$(NAME)_$(ARCH)/./game_shared/hl2
+GAME_SHARED_PORTAL_SRC_DIR=./../game_shared/portal
+GAME_SHARED_PORTAL_OBJ_DIR=obj/$(NAME)_$(ARCH)/./game_shared/portal
+PUBLIC_SRC_DIR=./../public
+PUBLIC_OBJ_DIR=obj/$(NAME)_$(ARCH)/./public
+PUBLIC_HAPTICS_SRC_DIR=./../public/haptics
+PUBLIC_HAPTICS_OBJ_DIR=obj/$(NAME)_$(ARCH)/./public/haptics
+PUBLIC_KEYFRAME_SRC_DIR=./../public/keyframe
+PUBLIC_KEYFRAME_OBJ_DIR=obj/$(NAME)_$(ARCH)/./public/keyframe
+PUBLIC_TIER0_SRC_DIR=./../public/tier0
+PUBLIC_TIER0_OBJ_DIR=obj/$(NAME)_$(ARCH)/./public/tier0
+PUBLIC_VGUI_CONTROLS_SRC_DIR=./../public/vgui_controls
+PUBLIC_VGUI_CONTROLS_OBJ_DIR=obj/$(NAME)_$(ARCH)/./public/vgui_controls
+CSTRIKE_SRC_DIR=./../dlls/cstrike
+CSTRIKE_OBJ_DIR=obj/$(NAME)_$(ARCH)/./cstrike
+CSTRIKE_BOT_SRC_DIR=./../dlls/cstrike/bot
+CSTRIKE_BOT_OBJ_DIR=obj/$(NAME)_$(ARCH)/./cstrike/bot
+CSTRIKE_BOT_STATES_SRC_DIR=./../dlls/cstrike/bot/states
+CSTRIKE_BOT_STATES_OBJ_DIR=obj/$(NAME)_$(ARCH)/./cstrike/bot/states
+CSTRIKE_HOSTAGE_SRC_DIR=./../dlls/cstrike/hostage
+CSTRIKE_HOSTAGE_OBJ_DIR=obj/$(NAME)_$(ARCH)/./cstrike/hostage
+HL2_DLL_SRC_DIR=./../dlls/hl2_dll
+HL2_DLL_OBJ_DIR=obj/$(NAME)_$(ARCH)/./hl2_dll
+
+INCLUDES=-I./.. -I./../common -I./../dlls -I./../dlls/cstrike -I./../dlls/cstrike/bot -I./../dlls/cstrike/bot/states -I./../dlls/cstrike/hostage -I./../game_shared -I./../game_shared/cstrike -I./../game_shared/cstrike/bot -I./../public -I./../public/tier0 -I./../public/tier1 -DGAME_DLL -DVECTOR -DBOTS -DCSTRIKE_DLL
+
+DO_CC=$(CPLUS) -w $(INCLUDES) $(CFLAGS) -o $@ -c $<
+
+_OBJS= \
+	$(_OBJ_DIR)/ai_activity.o \
+	$(_OBJ_DIR)/ai_baseactor.o \
+	$(_OBJ_DIR)/ai_basehumanoid.o \
+	$(_OBJ_DIR)/ai_basenpc.o \
+	$(_OBJ_DIR)/ai_basenpc_flyer.o \
+	$(_OBJ_DIR)/ai_basenpc_flyer_new.o \
+	$(_OBJ_DIR)/ai_basenpc_movement.o \
+	$(_OBJ_DIR)/ai_basenpc_physicsflyer.o \
+	$(_OBJ_DIR)/ai_basenpc_schedule.o \
+	$(_OBJ_DIR)/ai_basenpc_squad.o \
+	$(_OBJ_DIR)/ai_behavior.o \
+	$(_OBJ_DIR)/ai_behavior_assault.o \
+	$(_OBJ_DIR)/ai_behavior_follow.o \
+	$(_OBJ_DIR)/ai_behavior_lead.o \
+	$(_OBJ_DIR)/ai_behavior_rappel.o \
+	$(_OBJ_DIR)/ai_behavior_standoff.o \
+	$(_OBJ_DIR)/ai_blended_movement.o \
+	$(_OBJ_DIR)/ai_concommands.o \
+	$(_OBJ_DIR)/ai_condition.o \
+	$(_OBJ_DIR)/AI_Criteria.o \
+	$(_OBJ_DIR)/ai_default.o \
+	$(_OBJ_DIR)/ai_dynamiclink.o \
+	$(_OBJ_DIR)/ai_event.o \
+	$(_OBJ_DIR)/ai_goalentity.o \
+	$(_OBJ_DIR)/ai_hint.o \
+	$(_OBJ_DIR)/ai_hull.o \
+	$(_OBJ_DIR)/ai_initutils.o \
+	$(_OBJ_DIR)/AI_Interest_Target.o \
+	$(_OBJ_DIR)/ai_link.o \
+	$(_OBJ_DIR)/ai_localnavigator.o \
+	$(_OBJ_DIR)/ai_looktarget.o \
+	$(_OBJ_DIR)/ai_memory.o \
+	$(_OBJ_DIR)/ai_motor.o \
+	$(_OBJ_DIR)/ai_moveprobe.o \
+	$(_OBJ_DIR)/ai_moveshoot.o \
+	$(_OBJ_DIR)/ai_movesolver.o \
+	$(_OBJ_DIR)/ai_namespaces.o \
+	$(_OBJ_DIR)/ai_navigator.o \
+	$(_OBJ_DIR)/ai_network.o \
+	$(_OBJ_DIR)/ai_networkmanager.o \
+	$(_OBJ_DIR)/ai_node.o \
+	$(_OBJ_DIR)/ai_pathfinder.o \
+	$(_OBJ_DIR)/ai_planesolver.o \
+	$(_OBJ_DIR)/ai_playerally.o \
+	$(_OBJ_DIR)/AI_ResponseSystem.o \
+	$(_OBJ_DIR)/ai_route.o \
+	$(_OBJ_DIR)/ai_saverestore.o \
+	$(_OBJ_DIR)/ai_schedule.o \
+	$(_OBJ_DIR)/ai_scriptconditions.o \
+	$(_OBJ_DIR)/ai_senses.o \
+	$(_OBJ_DIR)/ai_sentence.o \
+	$(_OBJ_DIR)/ai_speech.o \
+	$(_OBJ_DIR)/ai_speechfilter.o \
+	$(_OBJ_DIR)/ai_squad.o \
+	$(_OBJ_DIR)/ai_squadslot.o \
+	$(_OBJ_DIR)/ai_tacticalservices.o \
+	$(_OBJ_DIR)/ai_task.o \
+	$(_OBJ_DIR)/ai_trackpather.o \
+	$(_OBJ_DIR)/ai_utils.o \
+	$(_OBJ_DIR)/ai_waypoint.o \
+	$(_OBJ_DIR)/base_transmit_proxy.o \
+	$(_OBJ_DIR)/baseanimating.o \
+	$(_OBJ_DIR)/BaseAnimatingOverlay.o \
+	$(_OBJ_DIR)/basecombatcharacter.o \
+	$(_OBJ_DIR)/basecombatweapon.o \
+	$(_OBJ_DIR)/baseentity.o \
+	$(_OBJ_DIR)/baseflex.o \
+	$(_OBJ_DIR)/baseviewmodel.o \
+	$(_OBJ_DIR)/bitstring.o \
+	$(_OBJ_DIR)/bmodels.o \
+	$(_OBJ_DIR)/buttons.o \
+	$(_OBJ_DIR)/cbase.o \
+	$(_OBJ_DIR)/client.o \
+	$(_OBJ_DIR)/colorcorrection.o \
+	$(_OBJ_DIR)/colorcorrectionvolume.o \
+	$(_OBJ_DIR)/CommentarySystem.o \
+	$(_OBJ_DIR)/controlentities.o \
+	$(_OBJ_DIR)/cplane.o \
+	$(_OBJ_DIR)/CRagdollMagnet.o \
+	$(_OBJ_DIR)/cterrainmorph.o \
+	$(_OBJ_DIR)/damagemodifier.o \
+	$(_OBJ_DIR)/doors.o \
+	$(_OBJ_DIR)/dynamiclight.o \
+	$(_OBJ_DIR)/effects.o \
+	$(_OBJ_DIR)/EffectsServer.o \
+	$(_OBJ_DIR)/entityblocker.o \
+	$(_OBJ_DIR)/EntityDissolve.o \
+	$(_OBJ_DIR)/EntityFlame.o \
+	$(_OBJ_DIR)/entitylist.o \
+	$(_OBJ_DIR)/EntityParticleTrail.o \
+	$(_OBJ_DIR)/env_debughistory.o \
+	$(_OBJ_DIR)/env_effectsscript.o \
+	$(_OBJ_DIR)/env_entity_maker.o \
+	$(_OBJ_DIR)/env_particlescript.o \
+	$(_OBJ_DIR)/env_player_surface_trigger.o \
+	$(_OBJ_DIR)/env_projectedtexture.o \
+	$(_OBJ_DIR)/env_screenoverlay.o \
+	$(_OBJ_DIR)/env_texturetoggle.o \
+	$(_OBJ_DIR)/env_tonemap_controller.o \
+	$(_OBJ_DIR)/env_zoom.o \
+	$(_OBJ_DIR)/EnvBeam.o \
+	$(_OBJ_DIR)/EnvFade.o \
+	$(_OBJ_DIR)/EnvHudHint.o \
+	$(_OBJ_DIR)/EnvLaser.o \
+	$(_OBJ_DIR)/EnvMessage.o \
+	$(_OBJ_DIR)/envmicrophone.o \
+	$(_OBJ_DIR)/EnvShake.o \
+	$(_OBJ_DIR)/EnvSpark.o \
+	$(_OBJ_DIR)/EventLog.o \
+	$(_OBJ_DIR)/explode.o \
+	$(_OBJ_DIR)/filters.o \
+	$(_OBJ_DIR)/fire.o \
+	$(_OBJ_DIR)/fire_smoke.o \
+	$(_OBJ_DIR)/fish.o \
+	$(_OBJ_DIR)/fogcontroller.o \
+	$(_OBJ_DIR)/fourwheelvehiclephysics.o \
+	$(_OBJ_DIR)/func_areaportal.o \
+	$(_OBJ_DIR)/func_areaportalbase.o \
+	$(_OBJ_DIR)/func_areaportalwindow.o \
+	$(_OBJ_DIR)/func_break.o \
+	$(_OBJ_DIR)/func_breakablesurf.o \
+	$(_OBJ_DIR)/func_dust.o \
+	$(_OBJ_DIR)/func_ladder_endpoint.o \
+	$(_OBJ_DIR)/func_lod.o \
+	$(_OBJ_DIR)/func_movelinear.o \
+	$(_OBJ_DIR)/func_occluder.o \
+	$(_OBJ_DIR)/func_smokevolume.o \
+	$(_OBJ_DIR)/game.o \
+	$(_OBJ_DIR)/game_ui.o \
+	$(_OBJ_DIR)/gamehandle.o \
+	$(_OBJ_DIR)/gameinterface.o \
+	$(_OBJ_DIR)/GameStats.o \
+	$(_OBJ_DIR)/gametrace_dll.o \
+	$(_OBJ_DIR)/genericactor.o \
+	$(_OBJ_DIR)/genericmonster.o \
+	$(_OBJ_DIR)/gib.o \
+	$(_OBJ_DIR)/globals.o \
+	$(_OBJ_DIR)/globalstate.o \
+	$(_OBJ_DIR)/guntarget.o \
+	$(_OBJ_DIR)/h_ai.o \
+	$(_OBJ_DIR)/h_cycler.o \
+	$(_OBJ_DIR)/h_export.o \
+	$(_OBJ_DIR)/hierarchy.o \
+	$(_OBJ_DIR)/hltvdirector.o \
+	$(_OBJ_DIR)/info_camera_link.o \
+	$(_OBJ_DIR)/init_factory.o \
+	$(_OBJ_DIR)/intermission.o \
+	$(_OBJ_DIR)/item_world.o \
+	$(_OBJ_DIR)/lightglow.o \
+	$(_OBJ_DIR)/lights.o \
+	$(_OBJ_DIR)/logic_measure_movement.o \
+	$(_OBJ_DIR)/logic_navigation.o \
+	$(_OBJ_DIR)/logicauto.o \
+	$(_OBJ_DIR)/logicentities.o \
+	$(_OBJ_DIR)/logicrelay.o \
+	$(_OBJ_DIR)/mapentities.o \
+	$(_OBJ_DIR)/maprules.o \
+	$(_OBJ_DIR)/MaterialModifyControl.o \
+	$(_OBJ_DIR)/message_entity.o \
+	$(_OBJ_DIR)/modelentities.o \
+	$(_OBJ_DIR)/movehelper_server.o \
+	$(_OBJ_DIR)/movement.o \
+	$(_OBJ_DIR)/nav_area.o \
+	$(_OBJ_DIR)/nav_colors.o \
+	$(_OBJ_DIR)/nav_edit.o \
+	$(_OBJ_DIR)/nav_file.o \
+	$(_OBJ_DIR)/nav_generate.o \
+	$(_OBJ_DIR)/nav_ladder.o \
+	$(_OBJ_DIR)/nav_mesh.o \
+	$(_OBJ_DIR)/nav_node.o \
+	$(_OBJ_DIR)/ndebugoverlay.o \
+	$(_OBJ_DIR)/npc_vehicledriver.o \
+	$(_OBJ_DIR)/particle_light.o \
+	$(_OBJ_DIR)/pathcorner.o \
+	$(_OBJ_DIR)/pathtrack.o \
+	$(_OBJ_DIR)/phys_controller.o \
+	$(_OBJ_DIR)/physconstraint.o \
+	$(_OBJ_DIR)/physics.o \
+	$(_OBJ_DIR)/physics_bone_follower.o \
+	$(_OBJ_DIR)/physics_cannister.o \
+	$(_OBJ_DIR)/physics_fx.o \
+	$(_OBJ_DIR)/physics_impact_damage.o \
+	$(_OBJ_DIR)/physics_main.o \
+	$(_OBJ_DIR)/physics_npc_solver.o \
+	$(_OBJ_DIR)/physics_prop_ragdoll.o \
+	$(_OBJ_DIR)/physobj.o \
+	$(_OBJ_DIR)/player.o \
+	$(_OBJ_DIR)/player_command.o \
+	$(_OBJ_DIR)/player_lagcompensation.o \
+	$(_OBJ_DIR)/player_pickup.o \
+	$(_OBJ_DIR)/player_resource.o \
+	$(_OBJ_DIR)/playerinfomanager.o \
+	$(_OBJ_DIR)/playerlocaldata.o \
+	$(_OBJ_DIR)/plugin_check.o \
+	$(_OBJ_DIR)/point_camera.o \
+	$(_OBJ_DIR)/point_devshot_camera.o \
+	$(_OBJ_DIR)/point_playermoveconstraint.o \
+	$(_OBJ_DIR)/point_spotlight.o \
+	$(_OBJ_DIR)/point_template.o \
+	$(_OBJ_DIR)/pointanglesensor.o \
+	$(_OBJ_DIR)/PointAngularVelocitySensor.o \
+	$(_OBJ_DIR)/pointhurt.o \
+	$(_OBJ_DIR)/pointteleport.o \
+	$(_OBJ_DIR)/props.o \
+	$(_OBJ_DIR)/ragdoll_manager.o \
+	$(_OBJ_DIR)/RagdollBoogie.o \
+	$(_OBJ_DIR)/recipientfilter.o \
+	$(_OBJ_DIR)/rope.o \
+	$(_OBJ_DIR)/saverestore_gamedll.o \
+	$(_OBJ_DIR)/sceneentity.o \
+	$(_OBJ_DIR)/scratchpad_gamedll_helpers.o \
+	$(_OBJ_DIR)/scripted.o \
+	$(_OBJ_DIR)/scriptedtarget.o \
+	$(_OBJ_DIR)/sendproxy.o \
+	$(_OBJ_DIR)/ServerNetworkProperty.o \
+	$(_OBJ_DIR)/shadowcontrol.o \
+	$(_OBJ_DIR)/simtimer.o \
+	$(_OBJ_DIR)/SkyCamera.o \
+	$(_OBJ_DIR)/sound.o \
+	$(_OBJ_DIR)/soundent.o \
+	$(_OBJ_DIR)/soundscape.o \
+	$(_OBJ_DIR)/soundscape_system.o \
+	$(_OBJ_DIR)/spotlightend.o \
+	$(_OBJ_DIR)/subs.o \
+	$(_OBJ_DIR)/sun.o \
+	$(_OBJ_DIR)/tanktrain.o \
+	$(_OBJ_DIR)/te_beamfollow.o \
+	$(_OBJ_DIR)/te_effect_dispatch.o \
+	$(_OBJ_DIR)/team.o \
+	$(_OBJ_DIR)/team_spawnpoint.o \
+	$(_OBJ_DIR)/TemplateEntities.o \
+	$(_OBJ_DIR)/tempmonster.o \
+	$(_OBJ_DIR)/terrainmodmgr.o \
+	$(_OBJ_DIR)/tesla.o \
+	$(_OBJ_DIR)/test_proxytoggle.o \
+	$(_OBJ_DIR)/test_stressentities.o \
+	$(_OBJ_DIR)/testfunctions.o \
+	$(_OBJ_DIR)/testtraceline.o \
+	$(_OBJ_DIR)/textstatsmgr.o \
+	$(_OBJ_DIR)/timedeventmgr.o \
+	$(_OBJ_DIR)/trains.o \
+	$(_OBJ_DIR)/triggers.o \
+	$(_OBJ_DIR)/util.o \
+	$(_OBJ_DIR)/variant_t.o \
+	$(_OBJ_DIR)/vehicle_base.o \
+	$(_OBJ_DIR)/vehicle_baseserver.o \
+	$(_OBJ_DIR)/vgui_gamedll_int.o \
+	$(_OBJ_DIR)/vguiscreen.o \
+	$(_OBJ_DIR)/waterbullet.o \
+	$(_OBJ_DIR)/wcedit.o \
+	$(_OBJ_DIR)/weight_button.o \
+	$(_OBJ_DIR)/world.o \
+	$(_OBJ_DIR)/stdafx.o \
+	$(_OBJ_DIR)/basetempentity.o \
+	$(_OBJ_DIR)/event_tempentity_tester.o \
+	$(_OBJ_DIR)/movie_explosion.o \
+	$(_OBJ_DIR)/particle_fire.o \
+	$(_OBJ_DIR)/particle_smokegrenade.o \
+	$(_OBJ_DIR)/plasma.o \
+	$(_OBJ_DIR)/smokestack.o \
+	$(_OBJ_DIR)/steamjet.o \
+	$(_OBJ_DIR)/te.o \
+	$(_OBJ_DIR)/te_armorricochet.o \
+	$(_OBJ_DIR)/te_basebeam.o \
+	$(_OBJ_DIR)/te_beamentpoint.o \
+	$(_OBJ_DIR)/te_beaments.o \
+	$(_OBJ_DIR)/te_beamlaser.o \
+	$(_OBJ_DIR)/te_beampoints.o \
+	$(_OBJ_DIR)/te_beamring.o \
+	$(_OBJ_DIR)/te_beamringpoint.o \
+	$(_OBJ_DIR)/te_beamspline.o \
+	$(_OBJ_DIR)/te_bloodsprite.o \
+	$(_OBJ_DIR)/te_bloodstream.o \
+	$(_OBJ_DIR)/te_breakmodel.o \
+	$(_OBJ_DIR)/te_bspdecal.o \
+	$(_OBJ_DIR)/te_bubbles.o \
+	$(_OBJ_DIR)/te_bubbletrail.o \
+	$(_OBJ_DIR)/te_decal.o \
+	$(_OBJ_DIR)/te_dynamiclight.o \
+	$(_OBJ_DIR)/te_energysplash.o \
+	$(_OBJ_DIR)/te_explosion.o \
+	$(_OBJ_DIR)/te_fizz.o \
+	$(_OBJ_DIR)/te_footprintdecal.o \
+	$(_OBJ_DIR)/te_glassshatter.o \
+	$(_OBJ_DIR)/te_glowsprite.o \
+	$(_OBJ_DIR)/te_impact.o \
+	$(_OBJ_DIR)/te_killplayerattachments.o \
+	$(_OBJ_DIR)/te_largefunnel.o \
+	$(_OBJ_DIR)/te_muzzleflash.o \
+	$(_OBJ_DIR)/te_particlesystem.o \
+	$(_OBJ_DIR)/te_physicsprop.o \
+	$(_OBJ_DIR)/te_playerdecal.o \
+	$(_OBJ_DIR)/te_projecteddecal.o \
+	$(_OBJ_DIR)/te_showline.o \
+	$(_OBJ_DIR)/te_smoke.o \
+	$(_OBJ_DIR)/te_sparks.o \
+	$(_OBJ_DIR)/te_sprite.o \
+	$(_OBJ_DIR)/te_spritespray.o \
+	$(_OBJ_DIR)/te_worlddecal.o \
+	$(_OBJ_DIR)/weapon_cubemap.o \
+	$(_OBJ_DIR)/entity_tools_server.o \
+	$(_OBJ_DIR)/toolframework_server.o \
+
+COMMON_OBJS= \
+	$(COMMON_OBJ_DIR)/randoverride.o \
+
+GAME_SHARED_OBJS= \
+	$(GAME_SHARED_OBJ_DIR)/activitylist.o \
+	$(GAME_SHARED_OBJ_DIR)/ammodef.o \
+	$(GAME_SHARED_OBJ_DIR)/animation.o \
+	$(GAME_SHARED_OBJ_DIR)/base_playeranimstate.o \
+	$(GAME_SHARED_OBJ_DIR)/basecombatcharacter_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/basecombatweapon_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/baseentity_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/basegrenade_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/baseparticleentity.o \
+	$(GAME_SHARED_OBJ_DIR)/baseplayer_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/baseviewmodel_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/beam_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/collisionproperty.o \
+	$(GAME_SHARED_OBJ_DIR)/death_pose.o \
+	$(GAME_SHARED_OBJ_DIR)/debugoverlay_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/decals.o \
+	$(GAME_SHARED_OBJ_DIR)/effect_dispatch_data.o \
+	$(GAME_SHARED_OBJ_DIR)/ehandle.o \
+	$(GAME_SHARED_OBJ_DIR)/entitylist_base.o \
+	$(GAME_SHARED_OBJ_DIR)/EntityParticleTrail_Shared.o \
+	$(GAME_SHARED_OBJ_DIR)/env_detail_controller.o \
+	$(GAME_SHARED_OBJ_DIR)/env_wind_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/eventlist.o \
+	$(GAME_SHARED_OBJ_DIR)/func_ladder.o \
+	$(GAME_SHARED_OBJ_DIR)/gamemovement.o \
+	$(GAME_SHARED_OBJ_DIR)/gamerules.o \
+	$(GAME_SHARED_OBJ_DIR)/gamerules_register.o \
+	$(GAME_SHARED_OBJ_DIR)/gamestringpool.o \
+	$(GAME_SHARED_OBJ_DIR)/gamevars_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/igamesystem.o \
+	$(GAME_SHARED_OBJ_DIR)/interval.o \
+	$(GAME_SHARED_OBJ_DIR)/mapentities_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/ModelSoundsCache.o \
+	$(GAME_SHARED_OBJ_DIR)/movevars_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/multiplay_gamerules.o \
+	$(GAME_SHARED_OBJ_DIR)/obstacle_pushaway.o \
+	$(GAME_SHARED_OBJ_DIR)/physics_main_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/physics_saverestore.o \
+	$(GAME_SHARED_OBJ_DIR)/physics_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/point_posecontroller.o \
+	$(GAME_SHARED_OBJ_DIR)/precache_register.o \
+	$(GAME_SHARED_OBJ_DIR)/predictableid.o \
+	$(GAME_SHARED_OBJ_DIR)/predicted_viewmodel.o \
+	$(GAME_SHARED_OBJ_DIR)/props_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/ragdoll_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/rope_helpers.o \
+	$(GAME_SHARED_OBJ_DIR)/saverestore.o \
+	$(GAME_SHARED_OBJ_DIR)/SceneCache.o \
+	$(GAME_SHARED_OBJ_DIR)/sceneentity_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/sequence_Transitioner.o \
+	$(GAME_SHARED_OBJ_DIR)/sheetsimulator.o \
+	$(GAME_SHARED_OBJ_DIR)/singleplay_gamerules.o \
+	$(GAME_SHARED_OBJ_DIR)/SoundEmitterSystem.o \
+	$(GAME_SHARED_OBJ_DIR)/soundenvelope.o \
+	$(GAME_SHARED_OBJ_DIR)/Sprite.o \
+	$(GAME_SHARED_OBJ_DIR)/studio_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/takedamageinfo.o \
+	$(GAME_SHARED_OBJ_DIR)/teamplay_gamerules.o \
+	$(GAME_SHARED_OBJ_DIR)/test_ehandle.o \
+	$(GAME_SHARED_OBJ_DIR)/usercmd.o \
+	$(GAME_SHARED_OBJ_DIR)/util_shared.o \
+	$(GAME_SHARED_OBJ_DIR)/voice_gamemgr.o \
+	$(GAME_SHARED_OBJ_DIR)/weapon_parse.o \
+	$(GAME_SHARED_OBJ_DIR)/weapon_proficiency.o \
+	$(GAME_SHARED_OBJ_DIR)/SpriteTrail.o \
+	$(GAME_SHARED_OBJ_DIR)/usermessages.o \
+
+GAME_SHARED_CSTRIKE_OBJS= \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/basecsgrenade_projectile.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/cs_ammodef.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/cs_blackmarket.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/cs_gamemovement.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/cs_gamerules.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/cs_player_shared.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/cs_playeranimstate.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/cs_shareddefs.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/cs_urlretrieveprices.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/cs_usermessages.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/cs_weapon_parse.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/flashbang_projectile.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/fx_cs_shared.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/hegrenade_projectile.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_ak47.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_aug.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_awp.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_basecsgrenade.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_c4.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_csbase.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_csbasegun.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_deagle.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_elite.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_famas.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_fiveseven.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_flashbang.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_g3sg1.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_galil.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_glock.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_hegrenade.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_knife.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_m249.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_m3.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_m4a1.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_mac10.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_mp5navy.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_p228.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_p90.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_scout.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_sg550.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_sg552.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_smokegrenade.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_tmp.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_ump45.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_usp.o \
+	$(GAME_SHARED_CSTRIKE_OBJ_DIR)/weapon_xm1014.o \
+
+GAME_SHARED_CSTRIKE_BOT_OBJS= \
+	$(GAME_SHARED_CSTRIKE_BOT_OBJ_DIR)/bot.o \
+	$(GAME_SHARED_CSTRIKE_BOT_OBJ_DIR)/bot_hide.o \
+	$(GAME_SHARED_CSTRIKE_BOT_OBJ_DIR)/bot_manager.o \
+	$(GAME_SHARED_CSTRIKE_BOT_OBJ_DIR)/bot_profile.o \
+	$(GAME_SHARED_CSTRIKE_BOT_OBJ_DIR)/bot_util.o \
+	$(GAME_SHARED_CSTRIKE_BOT_OBJ_DIR)/nav_path.o \
+	$(GAME_SHARED_CSTRIKE_BOT_OBJ_DIR)/shared_util.o \
+
+GAME_SHARED_HL2_OBJS= \
+	$(GAME_SHARED_HL2_OBJ_DIR)/survival_gamerules.o \
+
+GAME_SHARED_PORTAL_OBJS= \
+	$(GAME_SHARED_PORTAL_OBJ_DIR)/portal_shareddefs.o \
+
+PUBLIC_OBJS= \
+	$(PUBLIC_OBJ_DIR)/bone_setup.o \
+	$(PUBLIC_OBJ_DIR)/collisionutils.o \
+	$(PUBLIC_OBJ_DIR)/dt_send.o \
+	$(PUBLIC_OBJ_DIR)/dt_utlvector_common.o \
+	$(PUBLIC_OBJ_DIR)/dt_utlvector_send.o \
+	$(PUBLIC_OBJ_DIR)/editor_sendcommand.o \
+	$(PUBLIC_OBJ_DIR)/filesystem_helpers.o \
+	$(PUBLIC_OBJ_DIR)/IceKey.o \
+	$(PUBLIC_OBJ_DIR)/interpolatortypes.o \
+	$(PUBLIC_OBJ_DIR)/map_utils.o \
+	$(PUBLIC_OBJ_DIR)/networkvar.o \
+	$(PUBLIC_OBJ_DIR)/polyhedron.o \
+	$(PUBLIC_OBJ_DIR)/registry.o \
+	$(PUBLIC_OBJ_DIR)/rope_physics.o \
+	$(PUBLIC_OBJ_DIR)/scratchpad3d.o \
+	$(PUBLIC_OBJ_DIR)/ScratchPadUtils.o \
+	$(PUBLIC_OBJ_DIR)/server_class.o \
+	$(PUBLIC_OBJ_DIR)/simple_physics.o \
+	$(PUBLIC_OBJ_DIR)/SoundParametersInternal.o \
+	$(PUBLIC_OBJ_DIR)/stringregistry.o \
+	$(PUBLIC_OBJ_DIR)/studio.o \
+	$(PUBLIC_OBJ_DIR)/vmatrix.o \
+
+PUBLIC_HAPTICS_OBJS= \
+	$(PUBLIC_HAPTICS_OBJ_DIR)/haptic_utils.o \
+
+PUBLIC_KEYFRAME_OBJS= \
+	$(PUBLIC_KEYFRAME_OBJ_DIR)/keyframe.o \
+
+PUBLIC_TIER0_OBJS= \
+	$(PUBLIC_TIER0_OBJ_DIR)/memoverride.o \
+
+PUBLIC_VGUI_CONTROLS_OBJS= \
+	$(PUBLIC_VGUI_CONTROLS_OBJ_DIR)/vgui_controls.o \
+
+CSTRIKE_OBJS= \
+	$(CSTRIKE_OBJ_DIR)/cs_autobuy.o \
+	$(CSTRIKE_OBJ_DIR)/cs_client.o \
+	$(CSTRIKE_OBJ_DIR)/cs_eventlog.o \
+	$(CSTRIKE_OBJ_DIR)/cs_gameinterface.o \
+	$(CSTRIKE_OBJ_DIR)/cs_gamestats.o \
+	$(CSTRIKE_OBJ_DIR)/cs_hltvdirector.o \
+	$(CSTRIKE_OBJ_DIR)/cs_player.o \
+	$(CSTRIKE_OBJ_DIR)/cs_player_resource.o \
+	$(CSTRIKE_OBJ_DIR)/cs_playermove.o \
+	$(CSTRIKE_OBJ_DIR)/cs_team.o \
+	$(CSTRIKE_OBJ_DIR)/cs_vehicle_jeep.o \
+	$(CSTRIKE_OBJ_DIR)/func_bomb_target.o \
+	$(CSTRIKE_OBJ_DIR)/func_buy_zone.o \
+	$(CSTRIKE_OBJ_DIR)/func_hostage_rescue.o \
+	$(CSTRIKE_OBJ_DIR)/hintmessage.o \
+	$(CSTRIKE_OBJ_DIR)/info_view_parameters.o \
+	$(CSTRIKE_OBJ_DIR)/item_ammo.o \
+	$(CSTRIKE_OBJ_DIR)/item_assaultsuit.o \
+	$(CSTRIKE_OBJ_DIR)/item_defuser.o \
+	$(CSTRIKE_OBJ_DIR)/item_kevlar.o \
+	$(CSTRIKE_OBJ_DIR)/item_nvgs.o \
+	$(CSTRIKE_OBJ_DIR)/mapinfo.o \
+	$(CSTRIKE_OBJ_DIR)/point_surroundtest.o \
+	$(CSTRIKE_OBJ_DIR)/smokegrenade_projectile.o \
+	$(CSTRIKE_OBJ_DIR)/te_radioicon.o \
+	$(CSTRIKE_OBJ_DIR)/te_shotgun_shot.o \
+
+CSTRIKE_BOT_OBJS= \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_chatter.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_event.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_event_bomb.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_event_player.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_event_weapon.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_init.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_listen.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_manager.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_nav.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_pathfind.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_radio.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_statemachine.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_update.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_vision.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_weapon.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_bot_weapon_id.o \
+	$(CSTRIKE_BOT_OBJ_DIR)/cs_gamestate.o \
+
+CSTRIKE_BOT_STATES_OBJS= \
+	$(CSTRIKE_BOT_STATES_OBJ_DIR)/cs_bot_attack.o \
+	$(CSTRIKE_BOT_STATES_OBJ_DIR)/cs_bot_buy.o \
+	$(CSTRIKE_BOT_STATES_OBJ_DIR)/cs_bot_defuse_bomb.o \
+	$(CSTRIKE_BOT_STATES_OBJ_DIR)/cs_bot_escape_from_bomb.o \
+	$(CSTRIKE_BOT_STATES_OBJ_DIR)/cs_bot_fetch_bomb.o \
+	$(CSTRIKE_BOT_STATES_OBJ_DIR)/cs_bot_follow.o \
+	$(CSTRIKE_BOT_STATES_OBJ_DIR)/cs_bot_hide.o \
+	$(CSTRIKE_BOT_STATES_OBJ_DIR)/cs_bot_hunt.o \
+	$(CSTRIKE_BOT_STATES_OBJ_DIR)/cs_bot_idle.o \
+	$(CSTRIKE_BOT_STATES_OBJ_DIR)/cs_bot_investigate_noise.o \
+	$(CSTRIKE_BOT_STATES_OBJ_DIR)/cs_bot_move_to.o \
+	$(CSTRIKE_BOT_STATES_OBJ_DIR)/cs_bot_open_door.o \
+	$(CSTRIKE_BOT_STATES_OBJ_DIR)/cs_bot_plant_bomb.o \
+	$(CSTRIKE_BOT_STATES_OBJ_DIR)/cs_bot_use_entity.o \
+
+CSTRIKE_HOSTAGE_OBJS= \
+	$(CSTRIKE_HOSTAGE_OBJ_DIR)/cs_simple_hostage.o \
+
+HL2_DLL_OBJS= \
+	$(HL2_DLL_OBJ_DIR)/Func_Monitor.o \
+	$(HL2_DLL_OBJ_DIR)/te_gaussexplosion.o \
+	$(HL2_DLL_OBJ_DIR)/ai_behavior_operator.o \
+	$(HL2_DLL_OBJ_DIR)/WaterLODControl.o \
+
+all: dirs $(NAME)_$(ARCH).$(SHLIBEXT)
+
+dirs:
+	-mkdir -p $(_OBJ_DIR)
+	-mkdir -p $(COMMON_OBJ_DIR)
+	-mkdir -p $(GAME_SHARED_OBJ_DIR)
+	-mkdir -p $(GAME_SHARED_CSTRIKE_OBJ_DIR)
+	-mkdir -p $(GAME_SHARED_CSTRIKE_BOT_OBJ_DIR)
+	-mkdir -p $(GAME_SHARED_HL2_OBJ_DIR)
+	-mkdir -p $(GAME_SHARED_PORTAL_OBJ_DIR)
+	-mkdir -p $(PUBLIC_OBJ_DIR)
+	-mkdir -p $(PUBLIC_HAPTICS_OBJ_DIR)
+	-mkdir -p $(PUBLIC_KEYFRAME_OBJ_DIR)
+	-mkdir -p $(PUBLIC_TIER0_OBJ_DIR)
+	-mkdir -p $(PUBLIC_VGUI_CONTROLS_OBJ_DIR)
+	-mkdir -p $(CSTRIKE_OBJ_DIR)
+	-mkdir -p $(CSTRIKE_BOT_OBJ_DIR)
+	-mkdir -p $(CSTRIKE_BOT_STATES_OBJ_DIR)
+	-mkdir -p $(CSTRIKE_HOSTAGE_OBJ_DIR)
+	-mkdir -p $(HL2_DLL_OBJ_DIR)
+
+$(NAME)_$(ARCH).$(SHLIBEXT): $(_OBJS) $(COMMON_OBJS) $(GAME_SHARED_OBJS) $(GAME_SHARED_CSTRIKE_OBJS) $(GAME_SHARED_CSTRIKE_BOT_OBJS) $(GAME_SHARED_HL2_OBJS) $(GAME_SHARED_PORTAL_OBJS) $(PUBLIC_OBJS) $(PUBLIC_HAPTICS_OBJS) $(PUBLIC_KEYFRAME_OBJS) $(PUBLIC_TIER0_OBJS) $(PUBLIC_VGUI_CONTROLS_OBJS) $(CSTRIKE_OBJS) $(CSTRIKE_BOT_OBJS) $(CSTRIKE_BOT_STATES_OBJS) $(CSTRIKE_HOSTAGE_OBJS) $(HL2_DLL_OBJS)
+	$(CLINK) $(SHLIBLDFLAGS) $(DEBUG) -o $(BUILD_DIR)/$@ $(_OBJS) $(COMMON_OBJS) $(GAME_SHARED_OBJS) $(GAME_SHARED_CSTRIKE_OBJS) $(GAME_SHARED_CSTRIKE_BOT_OBJS) $(GAME_SHARED_HL2_OBJS) $(GAME_SHARED_PORTAL_OBJS) $(PUBLIC_OBJS) $(PUBLIC_HAPTICS_OBJS) $(PUBLIC_KEYFRAME_OBJS) $(PUBLIC_TIER0_OBJS) $(PUBLIC_VGUI_CONTROLS_OBJS) $(CSTRIKE_OBJS) $(CSTRIKE_BOT_OBJS) $(CSTRIKE_BOT_STATES_OBJS) $(CSTRIKE_HOSTAGE_OBJS) $(HL2_DLL_OBJS) $(LDFLAGS) $(CPP_LIB)
+
+$(_OBJ_DIR)/%.o: $(_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(COMMON_OBJ_DIR)/%.o: $(COMMON_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(GAME_SHARED_OBJ_DIR)/%.o: $(GAME_SHARED_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(GAME_SHARED_CSTRIKE_OBJ_DIR)/%.o: $(GAME_SHARED_CSTRIKE_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(GAME_SHARED_CSTRIKE_BOT_OBJ_DIR)/%.o: $(GAME_SHARED_CSTRIKE_BOT_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(GAME_SHARED_HL2_OBJ_DIR)/%.o: $(GAME_SHARED_HL2_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(GAME_SHARED_PORTAL_OBJ_DIR)/%.o: $(GAME_SHARED_PORTAL_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(PUBLIC_OBJ_DIR)/%.o: $(PUBLIC_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(PUBLIC_HAPTICS_OBJ_DIR)/%.o: $(PUBLIC_HAPTICS_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(PUBLIC_KEYFRAME_OBJ_DIR)/%.o: $(PUBLIC_KEYFRAME_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(PUBLIC_TIER0_OBJ_DIR)/%.o: $(PUBLIC_TIER0_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(PUBLIC_VGUI_CONTROLS_OBJ_DIR)/%.o: $(PUBLIC_VGUI_CONTROLS_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(CSTRIKE_OBJ_DIR)/%.o: $(CSTRIKE_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(CSTRIKE_BOT_OBJ_DIR)/%.o: $(CSTRIKE_BOT_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(CSTRIKE_BOT_STATES_OBJ_DIR)/%.o: $(CSTRIKE_BOT_STATES_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(CSTRIKE_HOSTAGE_OBJ_DIR)/%.o: $(CSTRIKE_HOSTAGE_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+$(HL2_DLL_OBJ_DIR)/%.o: $(HL2_DLL_SRC_DIR)/%.cpp
+	$(DO_CC)
+
+clean:
+	rm -rf obj/$(NAME)_$(ARCH)
+	rm -f $(NAME)_$(ARCH).$(SHLIBEXT)
+
