@@ -1,11 +1,11 @@
 //========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
-// Purpose: 
+// Purpose:
 //
 // $NoKeywords: $
 //
 //=============================================================================//
-	   
+
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
@@ -22,13 +22,17 @@
 
 // need this for _alloca
 #include <malloc.h>
+#ifdef _WIN32
 #include <new.h>
+#else
+#include <new>
+#endif
 
 // need this for memset
 #include <string.h>
 
 #ifdef _RETAIL
-#define IsRetail() true 
+#define IsRetail() true
 #else
 #define IsRetail() false
 #endif
@@ -123,11 +127,11 @@ typedef unsigned int uint;
 // This can be used to ensure the size of pointers to members when declaring
 // a pointer type for a class that has only been forward declared
 #ifdef _MSC_VER
-#define SINGLE_INHERITANCE __single_inheritance 
-#define MULTIPLE_INHERITANCE __multiple_inheritance 
+#define SINGLE_INHERITANCE __single_inheritance
+#define MULTIPLE_INHERITANCE __multiple_inheritance
 #else
-#define SINGLE_INHERITANCE  
-#define MULTIPLE_INHERITANCE 
+#define SINGLE_INHERITANCE
+#define MULTIPLE_INHERITANCE
 #endif
 
 #ifdef _MSC_VER
@@ -136,11 +140,11 @@ typedef unsigned int uint;
 #define NO_VTABLE
 #endif
 
-// This can be used to declare an abstract (interface only) class. 
+// This can be used to declare an abstract (interface only) class.
 // Classes marked abstract should not be instantiated.  If they are, and access violation will occur.
 //
 // Example of use:
-// 
+//
 // abstract_class CFoo
 // {
 //      ...
@@ -210,7 +214,7 @@ typedef void * HINSTANCE;
 #define _MAX_PATH PATH_MAX
 #endif // defined(_WIN32) && !defined(WINDED)
 
- 
+
 // Defines MAX_PATH
 #ifndef MAX_PATH
 #define MAX_PATH  260
@@ -228,7 +232,7 @@ typedef void * HINSTANCE;
 #ifndef EXPORT
 	#ifdef _WIN32
 		#define EXPORT	_declspec( dllexport )
-	#else 
+	#else
 		#define EXPORT	/* */
 	#endif
 #endif
@@ -262,38 +266,38 @@ typedef void * HINSTANCE;
 #if defined(_WIN32) && !defined(_XBOX)
 
 // Used for dll exporting and importing
-#define  DLL_EXPORT   extern "C" __declspec( dllexport ) 
+#define  DLL_EXPORT   extern "C" __declspec( dllexport )
 #define  DLL_IMPORT   extern "C" __declspec( dllimport )
 
 // Can't use extern "C" when DLL exporting a class
-#define  DLL_CLASS_EXPORT   __declspec( dllexport ) 
+#define  DLL_CLASS_EXPORT   __declspec( dllexport )
 #define  DLL_CLASS_IMPORT   __declspec( dllimport )
 
 // Can't use extern "C" when DLL exporting a global
-#define  DLL_GLOBAL_EXPORT   extern __declspec( dllexport ) 
+#define  DLL_GLOBAL_EXPORT   extern __declspec( dllexport )
 #define  DLL_GLOBAL_IMPORT   extern __declspec( dllimport )
 
 #elif defined _LINUX
 // Used for dll exporting and importing
-#define  DLL_EXPORT   extern "C" 
-#define  DLL_IMPORT   extern "C" 
+#define  DLL_EXPORT   extern "C"
+#define  DLL_IMPORT   extern "C"
 
 // Can't use extern "C" when DLL exporting a class
-#define  DLL_CLASS_EXPORT   
-#define  DLL_CLASS_IMPORT  
+#define  DLL_CLASS_EXPORT
+#define  DLL_CLASS_IMPORT
 
 // Can't use extern "C" when DLL exporting a global
 #define  DLL_GLOBAL_EXPORT   extern
-#define  DLL_GLOBAL_IMPORT   extern 
+#define  DLL_GLOBAL_IMPORT   extern
 
 #elif defined(_XBOX)
 
-#define  DLL_EXPORT				extern   
+#define  DLL_EXPORT				extern
 #define  DLL_IMPORT				extern
-#define  DLL_CLASS_EXPORT  
-#define  DLL_CLASS_IMPORT   
-#define  DLL_GLOBAL_EXPORT   
-#define  DLL_GLOBAL_IMPORT   
+#define  DLL_CLASS_EXPORT
+#define  DLL_CLASS_IMPORT
+#define  DLL_GLOBAL_EXPORT
+#define  DLL_GLOBAL_IMPORT
 
 #else
 #error "Unsupported Platform."
@@ -303,30 +307,30 @@ typedef void * HINSTANCE;
 #ifdef _WIN32
 	#define  STDCALL				__stdcall
 	#define  FASTCALL				__fastcall
-	#define  FORCEINLINE			__forceinline	
+	#define  FORCEINLINE			__forceinline
 	// GCC 3.4.1 has a bug in supporting forced inline of templated functions
 	// this macro lets us not force inlining in that case
-	#define  FORCEINLINE_TEMPLATE		__forceinline	
+	#define  FORCEINLINE_TEMPLATE		__forceinline
 #else
 	#define  STDCALL
-	#define  FASTCALL 
+	#define  FASTCALL
 	#define  FORCEINLINE			__attribute__ ((always_inline))
 	// GCC 3.4.1 has a bug in supporting forced inline of templated functions
 	// this macro lets us not force inlining in that case
 	#define  FORCEINLINE_TEMPLATE
-	#define  __stdcall			__attribute__ ((__stdcall__)) 
+	#define  __stdcall			__attribute__ ((__stdcall__))
 #endif
 
 // Force a function call site -not- to inlined. (useful for profiling)
 #define DONT_INLINE(a) (((int)(a)+1)?(a):(a))
 
 // Pass hints to the compiler to prevent it from generating unnessecary / stupid code
-// in certain situations.  Several compilers other than MSVC also have an equivilent 
+// in certain situations.  Several compilers other than MSVC also have an equivilent
 // construct.
 //
-// Essentially the 'Hint' is that the condition specified is assumed to be true at 
+// Essentially the 'Hint' is that the condition specified is assumed to be true at
 // that point in the compilation.  If '0' is passed, then the compiler assumes that
-// any subsequent code in the same 'basic block' is unreachable, and thus usually 
+// any subsequent code in the same 'basic block' is unreachable, and thus usually
 // removed.
 #ifdef _MSC_VER
 	#define HINT(THE_HINT)	__assume((THE_HINT))
@@ -338,7 +342,7 @@ typedef void * HINSTANCE;
 // and asserts if any attempt is made to execute it.
 #define UNREACHABLE() { Assert(0); HINT(0); }
 
-// In cases where no default is present or appropriate, this causes MSVC to generate 
+// In cases where no default is present or appropriate, this causes MSVC to generate
 // as little code as possible, and throw an assertion in debug.
 #define NO_DEFAULT default: UNREACHABLE();
 
@@ -400,8 +404,8 @@ typedef void * HINSTANCE;
 inline void SetupFPUControlWordForceExceptions()
 {
 	// use local to get and store control word
-	uint16 tmpCtrlW;              
-	__asm 
+	uint16 tmpCtrlW;
+	__asm
 	{
 		fnclex                     /* clear all current exceptions */
 		fnstcw word ptr [tmpCtrlW] /* get current control word */
@@ -412,7 +416,7 @@ inline void SetupFPUControlWordForceExceptions()
 }
 
 #ifdef CHECK_FLOAT_EXCEPTIONS
-	 
+
 inline void SetupFPUControlWord()
 {
 	SetupFPUControlWordForceExceptions();
@@ -424,7 +428,7 @@ inline void SetupFPUControlWord()
 {
 	// use local to get and store control word
 	uint16 tmpCtrlW;
-	__asm 
+	__asm
 	{
 		fnstcw word ptr [tmpCtrlW] /* get current control word */
 		and [tmpCtrlW], 0FCC0h     /* Keep infinity control + rounding control */
@@ -525,7 +529,7 @@ inline float DWordSwapAsm<float>( float f )
 #endif
 
 //-------------------------------------
-// The typically used methods. 
+// The typically used methods.
 //-------------------------------------
 
 #if defined(__i386__) || defined(_XBOX)
@@ -564,8 +568,8 @@ inline float DWordSwapAsm<float>( float f )
 
 #else
 
-// @Note (toml 05-02-02): this technique expects the compiler to 
-// optimize the expression and eliminate the other path. On any new 
+// @Note (toml 05-02-02): this technique expects the compiler to
+// optimize the expression and eliminate the other path. On any new
 // platform/compiler this should be tested.
 inline short BigShort( short val )		{ int test = 1; return ( *(char *)&test == 1 ) ? WordSwap( val )  : val; }
 inline uint16 BigWord( uint16 val )		{ int test = 1; return ( *(char *)&test == 1 ) ? WordSwap( val )  : val; }
@@ -594,7 +598,7 @@ inline float LittleFloat( float val )	{ int test = 1; return ( *(char *)&test ==
 #else	// BUILD_AS_DLL
 
 #define PLATFORM_INTERFACE	extern
-#define PLATFORM_OVERLOAD	
+#define PLATFORM_OVERLOAD
 
 #endif	// BUILD_AS_DLL
 
@@ -642,7 +646,7 @@ PLATFORM_INTERFACE void ShutdownPME();
 //-----------------------------------------------------------------------------
 // Thread related functions
 //-----------------------------------------------------------------------------
-// Registers the current thread with Tier0's thread management system. 
+// Registers the current thread with Tier0's thread management system.
 // This should be called on every thread created in the game.
 PLATFORM_INTERFACE unsigned long Plat_RegisterThread( const tchar *pName = _T("Source Thread"));
 
@@ -689,18 +693,18 @@ PLATFORM_INTERFACE void Plat_SetCommandLine( const char *cmdLine );
 // Ensure that the hardware key's drivers have been installed.
 PLATFORM_INTERFACE bool Plat_VerifyHardwareKeyDriver();
 
-// Ok, so this isn't a very secure way to verify the hardware key for now.  It 
+// Ok, so this isn't a very secure way to verify the hardware key for now.  It
 // is primarially depending on the fact that all the binaries have been wrapped
 // with the secure wrapper provided by the hardware keys vendor.
-PLATFORM_INTERFACE bool Plat_VerifyHardwareKey();	
+PLATFORM_INTERFACE bool Plat_VerifyHardwareKey();
 
-// The same as above, but notifies user with a message box when the key isn't in 
+// The same as above, but notifies user with a message box when the key isn't in
 // and gives him an opportunity to correct the situation.
 PLATFORM_INTERFACE bool Plat_VerifyHardwareKeyPrompt();
 
 // Can be called in real time, doesn't perform the verify every frame.  Mainly just
 // here to allow the game to drop out quickly when the key is removed, rather than
-// allowing the wrapper to pop up it's own blocking dialog, which the engine doesn't 
+// allowing the wrapper to pop up it's own blocking dialog, which the engine doesn't
 // like much.
 PLATFORM_INTERFACE bool Plat_FastVerifyHardwareKey();
 
@@ -730,19 +734,19 @@ PLATFORM_INTERFACE bool Plat_IsInDebugSession();
 // Methods to invoke the constructor, copy constructor, and destructor
 //-----------------------------------------------------------------------------
 
-template <class T> 
+template <class T>
 inline void Construct( T* pMemory )
 {
 	::new( pMemory ) T;
 }
 
-template <class T> 
+template <class T>
 inline void CopyConstruct( T* pMemory, T const& src )
 {
 	::new( pMemory ) T(src);
 }
 
-template <class T> 
+template <class T>
 inline void Destruct( T* pMemory )
 {
 	pMemory->~T();
@@ -770,7 +774,7 @@ inline void Destruct( T* pMemory )
 //				printf( "Outer is at 0x%x\n", GET_OUTER( COuter, m_Inner ) );
 //			}
 //		};
-//		
+//
 //		CInner m_Inner;
 //		friend class CInner;
 //	};
@@ -779,15 +783,15 @@ inline void Destruct( T* pMemory )
    ( ( OuterType * ) ( (uint8 *)this - offsetof( OuterType, OuterMember ) ) )
 
 
-/*	TEMPLATE_FUNCTION_TABLE() 
+/*	TEMPLATE_FUNCTION_TABLE()
 
-    (Note added to platform.h so platforms that correctly support templated 
+    (Note added to platform.h so platforms that correctly support templated
 	 functions can handle portions as templated functions rather than wrapped
 	 functions)
 
-	Helps automate the process of creating an array of function 
-	templates that are all specialized by a single integer.  
-	This sort of thing is often useful in optimization work.  
+	Helps automate the process of creating an array of function
+	templates that are all specialized by a single integer.
+	This sort of thing is often useful in optimization work.
 
 	For example, using TEMPLATE_FUNCTION_TABLE, this:
 
@@ -798,10 +802,10 @@ inline void Destruct( T* pMemory )
 
 	is equivilent to the following:
 
-	(NOTE: the function has to be wrapped in a class due to code 
-	generation bugs involved with directly specializing a function 
+	(NOTE: the function has to be wrapped in a class due to code
+	generation bugs involved with directly specializing a function
 	based on a constant.)
-	
+
 	template<int argument>
 	class FunctionWrapper
 	{
@@ -874,7 +878,7 @@ public:																	\
 const __MetaLooper_##NAME<COUNT> NAME::m;								\
 const __Type_##NAME* NAME::functions = (__Type_##NAME*)&m;				\
 template<const int nArgument>													\
-RETURN_TYPE FASTCALL __Function_##NAME<nArgument>::Run ARGS						
+RETURN_TYPE FASTCALL __Function_##NAME<nArgument>::Run ARGS
 
 
 #define LOOP_INTERCHANGE(BOOLEAN, CODE)\
