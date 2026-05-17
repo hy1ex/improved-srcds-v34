@@ -21,22 +21,22 @@ MOD_CONFIG=server_sdk_ReleaseSDKWin32
 GAME_DIR=~/valve/steam
 
 # compiler options (gcc 3.4.1 or above is required)
-CC=i686-unknown-linux-gnu-gcc
-CPLUS=i686-unknown-linux-gnu-g++
-CLINK=i686-unknown-linux-gnu-gcc
-CPP_LIB="/opt/crosstool/gcc-3.4.6-glibc-2.3.6/i686-unknown-linux-gnu/i686-unknown-linux-gnu/lib/libstdc++.a /opt/crosstool/gcc-3.4.6-glibc-2.3.6/i686-unknown-linux-gnu/lib/gcc/i686-unknown-linux-gnu/3.4.6/libgcc_eh.a"
+CC=gcc
+CPLUS=g++
+CLINK=gcc
+CPP_LIB=
 
 # put any compiler flags you want passed here
 USER_CFLAGS=-ffast-math -fomit-frame-pointer
-DEFINES=-DBUGFIXED
+DEFINES=-DBUGFIXED -D_LINUX
 
 # link flags for your mod, make sure to include any special libraries here
 LDFLAGS="-lm -ldl tier1_i486.a mathlib_i486.a choreoobjects_i486.a tier0_i486.so vstdlib_i486.so"
 
 # XERCES 2.6.0 or above ( http://xml.apache.org/xerces-c/ ) is used by the vcproj to makefile converter
 # it must be installed before being able to run this makefile
-XERCES_INC_DIR=/home/alfred/tmp/xerces-c-src_2_6_0/include
-XERCES_LIB_DIR=/home/alfred/tmp/xerces-c-src_2_6_0/lib
+XERCES_INC_DIR=/usr/include
+XERCES_LIB_DIR=/usr/lib
 # if you have xerces installed already you should be able to use the two lines below
 #XERCES_INC_DIR=/usr/include
 #XERCES_LIB_DIR=/usr/lib
