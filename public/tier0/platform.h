@@ -207,7 +207,7 @@ FIXME: Enable this when we no longer fear change =)
 #define __i386__	1
 #endif
 
-#elif _LINUX
+#elif _LINUX || defined(__linux__)
 typedef unsigned int DWORD;
 typedef unsigned short WORD;
 typedef void * HINSTANCE;
@@ -247,7 +247,7 @@ typedef void * HINSTANCE;
 #ifdef _WIN32
 	#define ALIGN16 __declspec(align(16))
 	#define ALIGN32 __declspec(align(32))
-#elif _LINUX
+#elif _LINUX || defined(__linux__)
 	#define ALIGN16 __attribute__((aligned(16)))
 	#define ALIGN32 __attribute__((aligned(32)))
 #elif
@@ -257,7 +257,7 @@ typedef void * HINSTANCE;
 
 #ifdef _WIN32
 	#define SELECTANY __declspec(selectany)
-#elif _LINUX
+#elif _LINUX || defined(__linux__)
 	#define SELECTANY __attribute__((weak))
 #else
 	#define SELECTANY static
@@ -277,7 +277,7 @@ typedef void * HINSTANCE;
 #define  DLL_GLOBAL_EXPORT   extern __declspec( dllexport )
 #define  DLL_GLOBAL_IMPORT   extern __declspec( dllimport )
 
-#elif defined _LINUX
+#elif defined _LINUX || defined(__linux__)
 // Used for dll exporting and importing
 #define  DLL_EXPORT   extern "C"
 #define  DLL_IMPORT   extern "C"
@@ -350,7 +350,7 @@ typedef void * HINSTANCE;
 // Alloca defined for this platform
 #define  stackalloc( _size ) _alloca( _size )
 #define  stackfree( _p )   0
-#elif _LINUX
+#elif _LINUX || defined(__linux__)
 // Alloca defined for this platform
 #define  stackalloc( _size ) alloca( _size )
 #define  stackfree( _p )   0
