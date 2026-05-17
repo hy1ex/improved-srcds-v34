@@ -59,7 +59,7 @@
 #define IsConsole() true
 #define IsXbox() true
 #endif
-#elif defined(_LINUX)
+#elif defined(_LINUX) || defined(__linux__)
 #define IsPC() true
 #define IsConsole() false
 #define IsXbox() false

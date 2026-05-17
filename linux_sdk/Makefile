@@ -28,7 +28,7 @@ CPP_LIB=
 
 # put any compiler flags you want passed here
 USER_CFLAGS=-ffast-math -fomit-frame-pointer
-DEFINES=-DBUGFIXED -D_LINUX
+DEFINES=-DBUGFIXED
 
 # link flags for your mod, make sure to include any special libraries here
 LDFLAGS="-lm -ldl tier1_i486.a mathlib_i486.a choreoobjects_i486.a tier0_i486.so vstdlib_i486.so"
@@ -101,7 +101,7 @@ mathlib:
 
 choreoobjects:
 	$(MAKE) -f $(MAKE_CHOREO) $(BASE_DEFINES)
-	
+
 clean:
 	$(MAKE) -f $(MAKE_SERVER_CSTRIKE) $(BASE_DEFINES) clean
 	$(MAKE) -f $(MAKE_TIER1) $(BASE_DEFINES) clean
