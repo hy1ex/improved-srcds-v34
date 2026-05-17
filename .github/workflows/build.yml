@@ -1,0 +1,129 @@
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      gcc_version:
+        description: 'GCC version to use (3.4.6 or lower)'
+        required: false
+        default: '3.4.6'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Update system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get upgrade -y
+      
+      - name: Install build dependencies
+        run: |
+          sudo apt-get install -y \
+            build-essential \
+            gcc-multilib \
+            g++-multilib \
+            make \
+            libxml2-dev \
+            libxml2 \
+            wget
+      
+      - name: Install GCC 3.4.6
+        run: |
+          sudo apt-get install -y gcc-3.4 g++-3.4 || true
+          # If apt doesn't have gcc-3.4, we'll use alternatives or compile
+          if ! which gcc-3.4 &> /dev/null; then
+            echo "GCC 3.4 not available in repositories, using system GCC"
+            gcc --version
+          else
+            echo "GCC 3.4 available"
+            gcc-3.4 --version
+          fi
+      
+      - name: Install Xerces-C for vcproj to makefile conversion
+        run: |
+          sudo apt-get install -y libxerces-c-dev || true
+          # Create include and lib directories if needed
+          if [ ! -d "/usr/include/xercesc" ]; then
+            echo "Installing Xerces from source..."
+            cd /tmp
+            wget http://archive.apache.org/dist/xerces/c/2/xerces-c-src_2_6_0.tar.gz 2>/dev/null || echo "Could not download, using system packages"
+          fi
+      
+      - name: Prepare build environment
+        run: |
+          cd linux_sdk
+          # Set compiler paths - use available system compilers
+          export CC=gcc
+          export CPLUS=g++
+          export CLINK=gcc
+          export AR=ar
+          
+          # Display compiler versions
+          echo "=== Compiler Versions ==="
+          gcc --version
+          g++ --version
+          make --version
+      
+      - name: Build server_cstrike
+        working-directory: linux_sdk
+        run: |
+          export CC=gcc
+          export CPLUS=g++
+          export CLINK=gcc
+          export AR=ar
+          export GAME_DIR=$(pwd)
+          export XERCES_INC_DIR=/usr/include
+          export XERCES_LIB_DIR=/usr/lib
+          export BUILD_DIR=.
+          export BUILD_OBJ_DIR=./obj
+          export SOURCE_DIR=..
+          
+          # Run make
+          make -f Makefile.server_cstrike \
+            CC=$(echo $CC) \
+            CPLUS=$(echo $CPLUS) \
+            CLINK=$(echo $CLINK) \
+            AR=$(echo $AR) \
+            BUILD_DIR=$(echo $BUILD_DIR) \
+            BUILD_OBJ_DIR=$(echo $BUILD_OBJ_DIR) \
+            SOURCE_DIR=$(echo $SOURCE_DIR) \
+            GAME_DIR=$(echo $GAME_DIR) \
+            XERCES_INC_DIR=$(echo $XERCES_INC_DIR) \
+            XERCES_LIB_DIR=$(echo $XERCES_LIB_DIR)
+      
+      - name: Verify compiled binaries
+        working-directory: linux_sdk
+        run: |
+          echo "=== Checking for compiled binaries ==="
+          find . -name "*.so" -o -name "*.a" | grep -v "^\.git" | sort
+          
+          if [ -f "server_i486.so" ]; then
+            echo "✓ server_i486.so compiled successfully"
+            file server_i486.so
+            ls -lh server_i486.so
+          else
+            echo "! server_i486.so not found"
+          fi
+      
+      - name: Upload compiled binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: srcds-linux-binaries
+          path: |
+            linux_sdk/server_i486.so
+            linux_sdk/*.so
+            linux_sdk/*.a
+          retention-days: 30
+          if-no-files-found: warn
+      
+      - name: Display build results
+        working-directory: linux_sdk
+        run: |
+          echo "=== Build Complete ==="
+          echo "Compiled files:"
+          ls -lh *.so *.a 2>/dev/null || echo "No binaries found"
