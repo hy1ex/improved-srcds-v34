@@ -18,6 +18,7 @@ This is the open source server part of the game Counter-Strike: Source v34 based
 * mp_ignore_round_win_conditions <0> - Ignore conditions which would end the current round
 * mp_round_restart_delay <5.0> - Number of seconds to delay before restarting a round after a win
 * sv_enablebunnyhopping <0> - Allow player speed to exceed maximum running speed
+* sv_shootpositionfix <1> - Fixes shoot position. https://github.com/ValveSoftware/source-sdk-2013/pull/442
 ## Building
 To compile, you need to use <b>GCC 3.4.6</b> or lower. First, go to the <b>linux_sdk</b> directory and open the <b>Makefile</b>, then edit it for your system. Type <b>make</b> to build. 
 After compilation, the binary file will be located in the working directory.

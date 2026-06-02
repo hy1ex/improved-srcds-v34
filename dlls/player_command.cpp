@@ -1,6 +1,6 @@
 //========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
-// Purpose: 
+// Purpose:
 //
 //=============================================================================//
 
@@ -25,10 +25,11 @@ extern ConVar sv_noclipduringpause;
 #ifdef BUGFIXED
 static ConVar sv_maxusrcmdprocessticks_warning( "sv_maxusrcmdprocessticks_warning", "-1", FCVAR_NONE, "Print a warning when user commands get dropped due to insufficient usrcmd ticks allocated, number of seconds to throttle, negative disabled" );
 static ConVar sv_maxusrcmdprocessticks_holdaim( "sv_maxusrcmdprocessticks_holdaim", "1", FCVAR_NONE, "Hold client aim for multiple server sim ticks when client-issued usrcmd contains multiple actions (0: off; 1: hold this server tick; 2+: hold multiple ticks)" );
+static ConVar sv_shootpositionfix( "sv_shootpositionfix", "1", FCVAR_NONE, "Fixes shoot position. https://github.com/ValveSoftware/source-sdk-2013/pull/442" );
 #endif
 
 //-----------------------------------------------------------------------------
-// Purpose: 
+// Purpose:
 //-----------------------------------------------------------------------------
 CPlayerMove::CPlayerMove( void )
 {
@@ -37,8 +38,8 @@ CPlayerMove::CPlayerMove( void )
 //-----------------------------------------------------------------------------
 // Purpose: We're about to run this usercmd for the specified player.  We can set up groupinfo and masking here, etc.
 //  This is the time to examine the usercmd for anything extra.  This call happens even if think does not.
-// Input  : *player - 
-//			*cmd - 
+// Input  : *player -
+//			*cmd -
 //-----------------------------------------------------------------------------
 void CPlayerMove::StartCommand( CBasePlayer *player, CUserCmd *cmd )
 {
@@ -51,7 +52,7 @@ void CPlayerMove::StartCommand( CBasePlayer *player, CUserCmd *cmd )
 	player->m_pCurrentCommand = cmd;
 	CBaseEntity::SetPredictionRandomSeed( cmd );
 	CBaseEntity::SetPredictionPlayer( player );
-	
+
 #if defined (HL2_DLL)
 	// pull out backchannel data and move this out
 
@@ -75,7 +76,7 @@ void CPlayerMove::StartCommand( CBasePlayer *player, CUserCmd *cmd )
 
 //-----------------------------------------------------------------------------
 // Purpose: We've finished running a user's command
-// Input  : *player - 
+// Input  : *player -
 //-----------------------------------------------------------------------------
 void CPlayerMove::FinishCommand( CBasePlayer *player )
 {
@@ -87,10 +88,10 @@ void CPlayerMove::FinishCommand( CBasePlayer *player )
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: Checks if the player is standing on a moving entity and adjusts velocity and 
+// Purpose: Checks if the player is standing on a moving entity and adjusts velocity and
 //  basevelocity appropriately
-// Input  : *player - 
-//			frametime - 
+// Input  : *player -
+//			frametime -
 //-----------------------------------------------------------------------------
 void CPlayerMove::CheckMovingGround( CBasePlayer *player, double frametime )
 {
@@ -126,11 +127,11 @@ void CPlayerMove::CheckMovingGround( CBasePlayer *player, double frametime )
 
 //-----------------------------------------------------------------------------
 // Purpose: Prepares for running movement
-// Input  : *player - 
-//			*ucmd - 
-//			*pHelper - 
-//			*move - 
-//			time - 
+// Input  : *player -
+//			*ucmd -
+//			*pHelper -
+//			*move -
+//			time -
 //-----------------------------------------------------------------------------
 void CPlayerMove::SetupMove( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper *pHelper, CMoveData *move )
 {
@@ -140,7 +141,7 @@ void CPlayerMove::SetupMove( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper *p
 	move->m_bFirstRunOfFunctions = true;
 
 	// Prepare the usercmd fields
-	move->m_nImpulseCommand		= ucmd->impulse;	
+	move->m_nImpulseCommand		= ucmd->impulse;
 	move->m_vecViewAngles		= ucmd->viewangles;
 
 	CBaseEntity *pMoveParent = player->GetMoveParent();
@@ -195,10 +196,10 @@ void CPlayerMove::SetupMove( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper *p
 
 //-----------------------------------------------------------------------------
 // Purpose: Finishes running movement
-// Input  : *player - 
-//			*move - 
-//			*ucmd - 
-//			time - 
+// Input  : *player -
+//			*move -
+//			*ucmd -
+//			time -
 //-----------------------------------------------------------------------------
 void CPlayerMove::FinishMove( CBasePlayer *player, CUserCmd *ucmd, CMoveData *move )
 {
@@ -240,8 +241,8 @@ void CPlayerMove::FinishMove( CBasePlayer *player, CUserCmd *ucmd, CMoveData *mo
 
 //-----------------------------------------------------------------------------
 // Purpose: Called before player thinks
-// Input  : *player - 
-//			thinktime - 
+// Input  : *player -
+//			thinktime -
 //-----------------------------------------------------------------------------
 void CPlayerMove::RunPreThink( CBasePlayer *player )
 {
@@ -268,9 +269,9 @@ void CPlayerMove::RunPreThink( CBasePlayer *player )
 //  function will be called, because it is called before any movement is done
 //  in a frame.  Not used for pushmove objects, because they must be exact.
 //  Returns false if the entity removed itself.
-// Input  : *ent - 
-//			frametime - 
-//			clienttimebase - 
+// Input  : *ent -
+//			frametime -
+//			clienttimebase -
 // Output : void CPlayerMove::RunThink
 //-----------------------------------------------------------------------------
 void CPlayerMove::RunThink (CBasePlayer *player, double frametime )
@@ -280,7 +281,7 @@ void CPlayerMove::RunThink (CBasePlayer *player, double frametime )
 
 	if ( thinktick <= 0 || thinktick > player->m_nTickBase )
 		return;
-		
+
 	//gpGlobals->curtime = thinktime;
 	player->SetNextThink( TICK_NEVER_THINK );
 
@@ -290,9 +291,9 @@ void CPlayerMove::RunThink (CBasePlayer *player, double frametime )
 
 //-----------------------------------------------------------------------------
 // Purpose: Called after player movement
-// Input  : *player - 
-//			thinktime - 
-//			frametime - 
+// Input  : *player -
+//			thinktime -
+//			frametime -
 //-----------------------------------------------------------------------------
 void CPlayerMove::RunPostThink( CBasePlayer *player )
 {
@@ -304,9 +305,9 @@ void CPlayerMove::RunPostThink( CBasePlayer *player )
 
 //-----------------------------------------------------------------------------
 // Purpose: Runs movement commands for the player
-// Input  : *player - 
-//			*ucmd - 
-//			*moveHelper - 
+// Input  : *player -
+//			*ucmd -
+//			*moveHelper -
 // Output : void CPlayerMove::RunCommand
 //-----------------------------------------------------------------------------
 void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper *moveHelper )
@@ -331,7 +332,7 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 		return; // Don't process this command
 	}
 #endif
-	
+
 	StartCommand( player, ucmd );
 
 	// Set globals appropriately
@@ -343,7 +344,7 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 		// If no clipping and cheats enabled and noclipduring game enabled, then leave
 		//  forwardmove and angles stuff in usercmd
 		if ( player->GetMoveType() == MOVETYPE_NOCLIP &&
-			 sv_cheats->GetBool() && 
+			 sv_cheats->GetBool() &&
 			 sv_noclipduringpause.GetBool() )
 		{
 			gpGlobals->frametime = TICK_INTERVAL;
@@ -404,6 +405,16 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 		player->pl.v_angle = ucmd->viewangles + player->pl.anglechange;
 	}
 
+#ifdef BUGFIXED
+	if ( sv_shootpositionfix.GetBool() )
+	{
+	    // Let server invoke any needed impact functions
+	    VPROF_SCOPE_BEGIN( "moveHelper->ProcessImpacts" );
+	    moveHelper->ProcessImpacts();
+	    VPROF_SCOPE_END();
+	}
+#endif
+
 	// Call standard client pre-think
 	RunPreThink( player );
 
@@ -425,7 +436,14 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 		VPROF( "pVehicle->ProcessMovement()" );
 		pVehicle->ProcessMovement( player, g_pMoveData );
 	}
-			
+
+#ifdef BUGFIXED
+	if ( sv_shootpositionfix.GetBool() )
+	{
+	    RunPostThink( player );
+    }
+#endif
+
 	// Copy output
 	FinishMove( player, ucmd, g_pMoveData );
 
@@ -434,18 +452,22 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 	{
 		player->pl.v_angle = player->GetLockViewanglesData();
 	}
-#endif
-	
-	// Let server invoke any needed impact functions
-	VPROF_SCOPE_BEGIN( "moveHelper->ProcessImpacts" );
-	moveHelper->ProcessImpacts();
-	VPROF_SCOPE_END();
 
-	RunPostThink( player );
+	if ( !sv_shootpositionfix.GetBool() )
+	{
+#endif
+	    // Let server invoke any needed impact functions
+	    VPROF_SCOPE_BEGIN( "moveHelper->ProcessImpacts" );
+		moveHelper->ProcessImpacts();
+		VPROF_SCOPE_END();
+
+	    RunPostThink( player );
+#ifdef BUGFIXED
+	}
+#endif
 
 	FinishCommand( player );
 
 	// Let time pass
 	player->m_nTickBase++;
 }
-
