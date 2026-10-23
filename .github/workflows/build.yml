@@ -1,0 +1,149 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (leave empty to auto-generate)'
+        required: false
+        default: ''
+      prerelease:
+        description: 'Mark the release as a pre-release'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Compile server_i486.so (GCC 3.4.6)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # This code base only compiles with GCC <= 3.4.6 (it includes <new.h> and
+      # other pre-C++11 headers), and the binary must be 32-bit i386 to match
+      # the game's tier0/vstdlib libraries. Modern runners have neither, so we
+      # assemble an i386 Debian Etch sysroot from the archived packages and
+      # compile inside a chroot of it. The package set is exactly gcc/g++ 3.4.6
+      # with glibc 2.3.6 - the same era toolchain the Makefile was written for.
+      - name: Set up Debian Etch (GCC 3.4.6) chroot
+        run: |
+          set -eu
+          BASE=http://archive.debian.org/debian
+          DEBS="
+            pool/main/g/gcc-3.4/gcc-3.4-base_3.4.6-5_i386.deb
+            pool/main/g/gcc-3.4/cpp-3.4_3.4.6-5_i386.deb
+            pool/main/g/gcc-3.4/gcc-3.4_3.4.6-5_i386.deb
+            pool/main/g/gcc-3.4/g++-3.4_3.4.6-5_i386.deb
+            pool/main/g/gcc-3.4/libstdc++6-dev_3.4.6-5_i386.deb
+            pool/main/g/gcc-4.1/gcc-4.1-base_4.1.1-21_i386.deb
+            pool/main/g/gcc-4.1/libgcc1_4.1.1-21_i386.deb
+            pool/main/g/gcc-4.1/libstdc++6_4.1.1-21_i386.deb
+            pool/main/g/gcc-3.3/libstdc++5_3.3.6-15_i386.deb
+            pool/main/b/binutils/binutils_2.17-3+etch1_i386.deb
+            pool/main/g/glibc/libc6_2.3.6.ds1-13etch10+b1_i386.deb
+            pool/main/g/glibc/libc6-dev_2.3.6.ds1-13etch10+b1_i386.deb
+            pool/main/l/linux-kernel-headers/linux-kernel-headers_2.6.18-7_i386.deb
+            pool/main/b/bash/bash_3.1dfsg-8_i386.deb
+            pool/main/m/make-dfsg/make_3.81-2_i386.deb
+            pool/main/c/coreutils/coreutils_5.97-5.3_i386.deb
+            pool/main/s/sed/sed_4.1.5-1_i386.deb
+            pool/main/d/debianutils/debianutils_2.17_i386.deb
+            pool/main/f/findutils/findutils_4.2.28-1etch1_i386.deb
+            pool/main/g/gzip/gzip_1.3.5-15+etch1_i386.deb
+            pool/main/n/ncurses/libncurses5_5.5-5_i386.deb
+            pool/main/a/acl/libacl1_2.2.41-1_i386.deb
+            pool/main/a/attr/libattr1_2.4.32-1_i386.deb
+            pool/main/libs/libselinux/libselinux1_1.32-3_i386.deb
+            pool/main/libs/libsepol/libsepol1_1.14-2_i386.deb
+          "
+          work=$(mktemp -d)
+          cd "$work"
+          for f in $DEBS; do
+            echo "Downloading $f"
+            curl -fsSLO --retry 5 --retry-delay 5 "$BASE/$f"
+          done
+          sudo mkdir -p /opt/etch
+          for d in *.deb; do
+            sudo dpkg-deb -x "$d" /opt/etch
+          done
+          sudo mkdir -p /opt/etch/tmp /opt/etch/proc /opt/etch/dev /opt/etch/build
+          sudo chmod 1777 /opt/etch/tmp
+          sudo mount -t proc proc /opt/etch/proc
+          sudo mount --bind /dev /opt/etch/dev
+          sudo mount --bind "$GITHUB_WORKSPACE" /opt/etch/build
+
+      - name: Compile server_i486.so
+        run: |
+          set -eu
+          sudo chroot /opt/etch /bin/bash -s <<'CHROOT'
+          set -eux
+          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          cd /build/linux_sdk
+          # The sub-makefile does not order its 'dirs' target before
+          # compilation, so with a parallel build the object directories must
+          # already exist.
+          mkdir -p \
+            obj/server_i486 obj/server_i486/common obj/server_i486/game_shared \
+            obj/server_i486/game_shared/cstrike obj/server_i486/game_shared/cstrike/bot \
+            obj/server_i486/game_shared/hl2 obj/server_i486/game_shared/portal \
+            obj/server_i486/public obj/server_i486/public/haptics \
+            obj/server_i486/public/keyframe obj/server_i486/public/tier0 \
+            obj/server_i486/public/vgui_controls obj/server_i486/cstrike \
+            obj/server_i486/cstrike/bot obj/server_i486/cstrike/bot/states \
+            obj/server_i486/cstrike/hostage obj/server_i486/hl2_dll
+          # The Makefile's stock compiler names point at a crosstool install we
+          # do not have; override them for the Etch toolchain. CPP_LIB keeps the
+          # original behavior of statically linking libstdc++/libgcc_eh so the
+          # released binary does not depend on a particular libstdc++ at
+          # runtime. (The literal quotes are part of the value the Makefile
+          # expects - see how CPP_LIB is passed through BASE_DEFINES.)
+          make -j4 \
+            CC=gcc-3.4 CPLUS=g++-3.4 CLINK=gcc-3.4 \
+            'CPP_LIB="/usr/lib/gcc/i486-linux-gnu/3.4.6/libstdc++.a /usr/lib/gcc/i486-linux-gnu/3.4.6/libgcc_eh.a"'
+          CHROOT
+          sudo chown "$(id -u):$(id -g)" linux_sdk/server_i486.so
+          file linux_sdk/server_i486.so
+          file linux_sdk/server_i486.so | grep -q 'ELF 32-bit.*Intel 80386'
+
+      - name: Collect artifacts
+        run: |
+          set -eu
+          mkdir -p dist
+          cp linux_sdk/server_i486.so dist/
+          (cd dist && sha256sum server_i486.so > SHA256SUMS.txt)
+          cat dist/SHA256SUMS.txt
+          ls -la dist
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -eu
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+          else
+            TAG="v34-$(date -u +%Y%m%d)-r${{ github.run_number }}"
+          fi
+          extra=()
+          if [ "$INPUT_PRERELEASE" = "true" ]; then
+            extra+=(--prerelease)
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists, refreshing its assets"
+            gh release upload "$TAG" dist/server_i486.so dist/SHA256SUMS.txt --clobber
+          else
+            gh release create "$TAG" dist/server_i486.so dist/SHA256SUMS.txt \
+              --target "$GITHUB_SHA" \
+              --title "$TAG" \
+              --notes "Counter-Strike: Source v34 dedicated server binary (server_i486.so), compiled with GCC 3.4.6 from $(git rev-parse --short HEAD)." \
+              "${extra[@]}"
+          fi
+          echo "Released $TAG"
