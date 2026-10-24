@@ -19,5 +19,58 @@ This is the open source server part of the game Counter-Strike: Source v34 based
 * mp_round_restart_delay <5.0> - Number of seconds to delay before restarting a round after a win
 * sv_enablebunnyhopping <0> - Allow player speed to exceed maximum running speed
 ## Building
+The server binary (`linux_sdk/server_i486.so`) is a **32-bit i386** Linux library and must be compiled with **GCC 3.4.6 or lower** — the code uses pre-C++11 headers such as `<new.h>` which newer compilers no longer ship.
+
+You can build it in two ways:
+
+* **with Docker** — works on any machine, no toolchain setup required (step-by-step guide below)
+* **with a native GCC 3.4.6 installation** — see [Building natively](#building-natively)
+
+You can also let GitHub Actions build it without any local setup: **Actions** → **Build and Release** → **Run workflow**.
+
+### Building with Docker (step by step)
+
+The repository's [`Dockerfile`](Dockerfile) builds an image with the original-era toolchain — i386 Debian Etch with GCC 3.4.6 and glibc 2.3.6, fetched from archive.debian.org — and compiles the code inside a chroot of it. This is the same environment the GitHub Actions workflow uses.
+
+**1. Install [Docker](https://docs.docker.com/get-docker/)** if you don't have it yet.
+
+**2. Clone the repository** and enter it (skip if you already have it):
+
+```bash
+git clone https://github.com/hy1ex/improved-srcds-v34.git
+cd improved-srcds-v34
+```
+
+**3. Build the image** (the first run downloads the toolchain, later runs reuse the cache):
+
+```bash
+docker build --platform linux/amd64 -t srcds-v34-builder .
+```
+
+**4. Compile:**
+
+```bash
+docker run --rm \
+    --platform linux/amd64 \
+    -v "$PWD":/opt/etch/build \
+    -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) \
+    srcds-v34-builder
+```
+
+* **Windows (PowerShell):** `docker run --rm --platform linux/amd64 -v "${PWD}:/opt/etch/build" srcds-v34-builder`
+* `HOST_UID`/`HOST_GID` fix ownership of the build output on Linux; on macOS/Windows Docker Desktop they can be omitted (`id -u` does not exist in PowerShell either).
+* The `--platform linux/amd64` flag makes sure the x86_64 image is used even on ARM Macs.
+* Optional: add `-e JOBS=8` to change the build parallelism (default `4`).
+* Running the command again only rebuilds what changed. For a clean rebuild, first delete the outputs (`rm -rf linux_sdk/obj linux_sdk/server_i486.so`), then run it again.
+
+**5. The result** is `linux_sdk/server_i486.so`. Verify it:
+
+```bash
+file linux_sdk/server_i486.so
+# linux_sdk/server_i486.so: ELF 32-bit LSB shared object, Intel 80386, ...
+```
+
+### Building natively
+
 To compile, you need to use <b>GCC 3.4.6</b> or lower. First, go to the <b>linux_sdk</b> directory and open the <b>Makefile</b>, then edit it for your system. Type <b>make</b> to build. 
 After compilation, the binary file will be located in the working directory.

@@ -15,6 +15,7 @@ server.lib
 
 server.so
 server.so.dbg
+server_i486.so
 server_srv.so
 server_srv.so.dbg
 
