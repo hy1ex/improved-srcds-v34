@@ -1170,6 +1170,17 @@ int CBaseEntity::OnTakeDamage( const CTakeDamageInfo &info )
 //-----------------------------------------------------------------------------
 void CBaseEntity::TakeDamage( const CTakeDamageInfo &inputInfo )
 {
+#ifdef BUGFIXED
+	// Security fix: damage can be applied while the game rules are not set
+	// up (e.g. during map change or level shutdown); the g_pGameRules->
+	// AllowDamage check below would crash the server. Skip the damage
+	// entirely (same protection as the ProtectCmds "TakeDamageFix" extension).
+	if ( g_pGameRules == NULL )
+	{
+		return;
+	}
+#endif
+
 	if ( !( inputInfo.GetDamageType() & DMG_NO_PHYSICS_FORCE ) && inputInfo.GetDamageType() != DMG_GENERIC )
 	{
 		// If you hit this assert, you've called TakeDamage with a damage type that requires a physics damage
