@@ -1,0 +1,6 @@
+.git
+.gitignore
+.github
+linux_sdk/obj
+linux_sdk/server_i486.so
+linux_sdk/server_i486.so_map.txt
