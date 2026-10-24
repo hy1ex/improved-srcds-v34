@@ -127,6 +127,17 @@ void CGameUI::InputDeactivate( inputdata_t &inputdata )
 //-----------------------------------------------------------------------------
 void CGameUI::Deactivate( CBaseEntity *pActivator )
 {
+#ifdef BUGFIXED
+	// Security fix: the player controlling us may already have disconnected,
+	// leaving m_player a stale handle. Bail out before dereferencing it.
+	// Prevents a server crash when Deactivate is fired for a departed player
+	// (same protection as the ProtectCmds "GameUIFix" extension).
+	if ( m_player.Get() == NULL )
+	{
+		return;
+	}
+#endif
+
 	CBasePlayer *pPlayer = m_player;
 
 	// Re-enable player motion
