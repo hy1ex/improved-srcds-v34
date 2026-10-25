@@ -76,6 +76,7 @@ to build `linux_sdk/server_i486.so`:
 | Method | Best for |
 |---|---|
 | [Docker](#building-with-docker-step-by-step) | Any machine, no toolchain setup |
+| [Local chroot, no Docker/root](#building-locally-without-docker-or-root) | Cloud runners and locked-down machines |
 | [GitHub Actions](#building-with-github-actions) | No local setup at all |
 | [Native GCC 3.4.6](#building-natively) | Distro maintainers, hacking on the code |
 
@@ -123,6 +124,94 @@ docker run --rm \
 file linux_sdk/server_i486.so
 # linux_sdk/server_i486.so: ELF 32-bit LSB shared object, Intel 80386, ...
 ```
+
+### Building locally without Docker or root
+
+The same toolchain as the Docker image — the Debian Etch / GCC 3.4.6
+packages — but unpacked by hand and entered through an **unprivileged user
+namespace** chroot. This needs no root, no `sudo` and no Docker daemon, which
+is why it is the method that works on cloud build runners: the cloud runner
+used for this repository has none of those, and this is exactly how
+`server_i486.so` is built and verified there. It runs on any Linux where
+unprivileged user namespaces are enabled. Host prerequisites: `curl`,
+`dpkg-deb` and `unshare` (util-linux).
+
+**1. Extract the toolchain** — the same 25 packages the [`Dockerfile`](Dockerfile)
+lists:
+
+```bash
+ETCH=./etch                       # chroot tree, any writable location
+BASE=http://archive.debian.org/debian
+mkdir -p "$ETCH/tmp/debs"
+PKGS=$(grep -oE 'pool/[^ \\]+_i386\.deb' Dockerfile)
+( cd "$ETCH/tmp/debs" &&
+  for f in $PKGS; do curl -fsSLO --retry 5 --retry-delay 5 "$BASE/$f"; done )
+for d in "$ETCH"/tmp/debs/*.deb; do dpkg-deb -x "$d" "$ETCH"; done
+rm -rf "$ETCH/tmp/debs"
+```
+
+**2. Create the toolchain symlinks** the stock `linux_sdk/Makefile` expects
+(Valve's historical crosstool names pointing at the extracted GCC 3.4.6):
+
+```bash
+mkdir -p "$ETCH/usr/local/bin" \
+  "$ETCH/opt/crosstool/gcc-3.4.6-glibc-2.3.6/i686-unknown-linux-gnu/i686-unknown-linux-gnu/lib" \
+  "$ETCH/opt/crosstool/gcc-3.4.6-glibc-2.3.6/i686-unknown-linux-gnu/lib/gcc/i686-unknown-linux-gnu/3.4.6"
+chmod 1777 "$ETCH/tmp"
+ln -sf /usr/bin/gcc-3.4 "$ETCH/usr/local/bin/i686-unknown-linux-gnu-gcc"
+ln -sf /usr/bin/g++-3.4 "$ETCH/usr/local/bin/i686-unknown-linux-gnu-g++"
+ln -sf /usr/bin/ar      "$ETCH/usr/local/bin/i686-unknown-linux-gnu-ar"
+ln -sf /usr/lib/gcc/i486-linux-gnu/3.4.6/libstdc++.a \
+  "$ETCH/opt/crosstool/gcc-3.4.6-glibc-2.3.6/i686-unknown-linux-gnu/i686-unknown-linux-gnu/lib/libstdc++.a"
+ln -sf /usr/lib/gcc/i486-linux-gnu/3.4.6/libgcc_eh.a \
+  "$ETCH/opt/crosstool/gcc-3.4.6-glibc-2.3.6/i686-unknown-linux-gnu/lib/gcc/i686-unknown-linux-gnu/3.4.6/libgcc_eh.a"
+```
+
+(The symlink targets are paths **inside** the chroot, so they stay absolute.)
+
+**3. Copy the source into the chroot** and smoke-test the compiler:
+
+```bash
+mkdir -p "$ETCH/build"
+tar -C . --exclude=.git --exclude=./linux_sdk/obj \
+    --exclude=./linux_sdk/server_i486.so -cf - . | tar -C "$ETCH/build" -xf -
+
+unshare --map-root-user chroot "$ETCH" /usr/bin/gcc-3.4 --version
+```
+
+**4. Build.** `unshare --map-root-user` maps your user to root *inside the new
+user namespace only*, which is exactly enough to `chroot` without being root
+on the host:
+
+```bash
+JOBS=$(nproc) unshare --map-root-user chroot "$ETCH" /bin/bash -c '
+  set -eux
+  export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+  cd /build/linux_sdk
+  make -j"$JOBS"
+'
+```
+
+`make` creates all `obj/` subdirectories itself (its `-mkdir -p` rules), so
+no preparation of the build tree is needed. The result lands in the chroot
+copy — fetch it and verify:
+
+```bash
+cp "$ETCH/build/linux_sdk/server_i486.so" linux_sdk/
+file linux_sdk/server_i486.so
+# linux_sdk/server_i486.so: ELF 32-bit LSB shared object, Intel 80386, ...
+```
+
+Notes:
+
+* The build runs against a **copy** of the tree: edit freely, re-run step 3
+  after pulling new changes, and copy the `.so` back when done.
+* `JOBS` is passed through the environment as shown because Etch's
+  `coreutils` is too old to provide `nproc` *inside* the chroot.
+* To compile without the fixes (original stock behavior), add `DEFINES=` to
+  the make invocation: `make DEFINES= -j"$JOBS"`.
+* A full clean build takes a few minutes at `-j4`; rebuilds only recompile
+  changed files.
 
 ### Building with GitHub Actions
 
