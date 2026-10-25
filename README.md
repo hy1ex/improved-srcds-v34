@@ -140,6 +140,7 @@ After compilation, the binary file will be located in the working directory.
 
 See **[FIXES.md](FIXES.md)** for the complete list of fixes:
 
-* the three security fixes ported from ProtectCmds, and
+* the security fixes ported from ProtectCmds (versions 1.0.2 and 1.0.10),
+  including which ones still require the extension itself, and
 * every `BUGFIXED`-conditional change in the code, each with the original
   stock code, the fixed code and an explanation of what it prevents.

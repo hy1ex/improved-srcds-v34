@@ -2,8 +2,10 @@
 
 This file documents every fix this fork adds over the stock Counter-Strike: Source v34
 dedicated server source: the security fixes ported from the
-[ProtectCmds](https://github.com/PowerTakeDev/ProtectCmds) extension, and all
-behavioral changes guarded by the `BUGFIXED` compile switch.
+[ProtectCmds](https://github.com/PowerTakeDev/ProtectCmds) extension (reviewed
+at version 1.0.2 and re-reviewed against version
+[1.0.10](https://github.com/hy1ex/protectcmds)), and all behavioral changes
+guarded by the `BUGFIXED` compile switch.
 
 ## How the `BUGFIXED` switch works
 
@@ -29,11 +31,12 @@ Line numbers below refer to the current tree.
 # Part 1 — Security fixes (ported from ProtectCmds)
 
 ProtectCmds is a SourceMod extension that patches the compiled server/engine
-binaries with runtime detours. Three of its ten protections target functions
-that live in *this* repository's code (`server_i486.so`), so they are
-implemented directly in the source — no detour library, no gamedata signatures,
-no hardcoded offsets. Each one is `BUGFIXED`-guarded and was committed
-separately (`3c3aa5e`, `caec919`, `eba67ff`).
+binaries with runtime detours. Five of its protections target functions that
+live in *this* repository's code (`server_i486.so`), so they are implemented
+directly in the source — no detour library, no gamedata signatures, no
+hardcoded offsets. Each one is `BUGFIXED`-guarded and committed separately:
+three from the 1.0.2 review (`3c3aa5e`, `caec919`, `eba67ff`) and two more
+from the 1.0.10 review (sections 1.4 and 1.5).
 
 ## 1.1 `CGameUI::Deactivate` — stale player handle crash
 
@@ -116,28 +119,133 @@ ProtectCmds' wrapping detour — no part of damage processing runs without
 gamerules. On a healthy server the damage would have been decided by
 `AllowDamage` anyway, so skipping is behaviorally neutral.
 
-## 1.4 Protections that remain engine-side (not portable to this source)
+## 1.4 `CBasePlayer::FindNextObserverTarget` — spectator infinite loop
 
-The other seven ProtectCmds fixes patch the closed-source `engine.so` and
-cannot be implemented here; keep running the extension for them:
+**File:** `dlls/player.cpp:2615` (guard at `dlls/player.cpp:2630`)
 
-| ProtectCmds fix | What it does |
-|---|---|
-| `FilterPacket` | Hooks `recvfrom` to neutralize malformed UDP packets before they reach the engine net layer |
-| `NetChanFix` | Hardens `CNetChan::ProcessMessages`; validates `net_File` paths (blocks `downloads/../` traversal exfiltration), disconnects cleanly on unknown net messages |
-| `VoiceFix` | Rate-limits `CLC_VoiceData` (size cap, messages/sec cap, flood disconnect) |
-| `BlockCmds` | Caps string-command length and rate; blocks client-issued `sm `/`meta ` probes |
-| `SourceTVFix` | Forces `m_bIsHLTV = false` so fake HLTV clients can't displace the real SourceTV slot |
-| `HashSteamID` | Stores a CRC32-hashed SteamID in the network-visible client slot |
-| `PreConnectHook` | SourceMod `OnClientPreConnect` forward for early connection rejection |
+**The bug.** The function picks the next observer target with a `do..while`
+loop whose termination condition is `currentIndex != startIndex`:
+
+```cpp
+int startIndex = GetNextObserverSearchStartPoint( bReverse );
+
+int currentIndex = startIndex;
+do {
+    CBaseEntity *nextTarget = UTIL_PlayerByIndex( currentIndex );
+    if ( IsValidObserverTarget( nextTarget ) ) return nextTarget;
+    currentIndex += iDir;
+    // wrap into [1, maxClients]
+} while ( currentIndex != startIndex );
+```
+
+`currentIndex` is wrapped into `[1, maxClients]` on every step, so the loop can
+only ever terminate if `startIndex` itself lies in that range. If the player was
+previously spectating something that isn't a player (a non-player entity's
+`entindex()` is outside the client range), the start index comes back out of
+range, `currentIndex` never equals it, and the server spins in this loop — a
+frame-stalling hang of the whole (single-threaded) game server, triggerable by
+a spectator switching targets.
+
+**Original:** `startIndex` used verbatim, with no range check.
+
+**Fixed:** clamp before the loop (this is Valve's own later fix, kept with its
+`[jason]` comment):
+
+```cpp
+if ( startIndex > gpGlobals->maxClients )
+    startIndex = 1;
+else if ( startIndex < 1 )
+    startIndex = gpGlobals->maxClients;
+```
+
+Behavior matches ProtectCmds' ObserverLoopFix, which replaces the whole
+function body with this clamped version as a runtime detour of
+`CBasePlayer::FindNextObserverTarget`.
+
+## 1.5 `spec_goto` — unvalidated spectator teleport
+
+**Files:** `dlls/player.cpp:5848` (validator), `dlls/player.cpp:6059` (guard)
+
+**The bug.** `spec_goto` takes five floats straight from a client command and
+teleports the roaming/fixed spectator with them:
+
+```cpp
+Vector origin;
+origin.x = atof( engine->Cmd_Argv(1) );   // no validation
+origin.y = atof( engine->Cmd_Argv(2) );
+origin.z = atof( engine->Cmd_Argv(3) );
+QAngle angle;
+angle.x = atof( engine->Cmd_Argv(4) );
+angle.y = atof( engine->Cmd_Argv(5) );
+angle.z = 0.0f;
+JumptoPosition( origin, angle );          // SetAbsOrigin + SnapEyeAngles
+```
+
+Any client in `OBS_MODE_FIXED`/`OBS_MODE_ROAMING` can send
+`spec_goto inf inf inf nan nan` or values far outside the world. `atof` happily
+parses `inf`/`nan` and unbounded magnitudes, so a spectator can be parked at a
+NaN origin (NaN poisons PVS/solidity/trace math and spreads through the engine)
+or at arbitrary out-of-world coordinates, and NaN eye angles get snapped and
+networked.
+
+**Original:** arguments converted with `atof` and applied verbatim.
+
+**Fixed:** every argument must pass `ParseSpecGotoFloat()` before the jump:
+
+```cpp
+if ( ParseSpecGotoFloat( engine->Cmd_Argv(1), origin.x ) &&
+     ParseSpecGotoFloat( engine->Cmd_Argv(2), origin.y ) &&
+     ParseSpecGotoFloat( engine->Cmd_Argv(3), origin.z ) &&
+     ParseSpecGotoFloat( engine->Cmd_Argv(4), angle.x )  &&
+     ParseSpecGotoFloat( engine->Cmd_Argv(5), angle.y ) )
+    JumptoPosition( origin, angle );
+```
+
+The validator only accepts plain decimal/scientific input (digits, sign, dot,
+exponent), which rejects `nan`, `inf`, hex and trailing-junk spellings at the
+string level; then `strtod` must consume the whole string, and the value is
+clamped to `±MAX_COORD_FLOAT` (16384). Unusable input skips the teleport
+instead of applying it.
+
+This is ProtectCmds' SpecGotoFix, which detours
+`CBasePlayer::ClientCommand` and `V_clamp`s the origin arguments. The source
+port is deliberately stricter than the extension: it also validates the angle
+arguments and rejects non-finite spellings outright, because the extension's
+`V_clamp(atof(...))` lets NaN through untouched — and this repo builds with
+`-ffast-math`, under which a NaN clamp comparison is not reliable anyway.
+
+## 1.6 Protections that remain engine-side (not portable to this source)
+
+The remaining ProtectCmds fixes patch the closed-source `engine.so` (or
+`steam_api`) and cannot be implemented in this source; keep running the
+extension for them. Status shows what existed at 1.0.2 and what the 1.0.10
+review added:
+
+| ProtectCmds fix | Status | What it does |
+|---|---|---|
+| `FilterPacket` | 1.0.2, reworked in 1.0.10 | Neutralizes malformed UDP before the engine net layer; 1.0.10 hooks `CBaseServer::ProcessConnectionlessPacket` / `CNetChan::ProcessPacket` instead of raw `recvfrom`, validates split/connectionless packets, caps the engine IP-filter list at 65 entries and adds a per-IP packet-flood limiter |
+| `NetChanFix` → `GamePacketFix` | **New in 1.0.10** (replaces 1.0.2's `NetChanFix`) | Rebuilds `CNetChan::ProcessMessages`: per-client message rate limit, buffer-overflow/unknown-message clean disconnects, temp `addip` on failed message reads; `net_File` download requests validated against a directory whitelist (`downloads/`, `maps/`, `sound/`, `models/`, `materials/`), an extension whitelist (`dat`, `bsp`, `mdl`, …), a strict charset and `..` rejection — `downloads/` accepts only `.dat`; compressed fragments decompress at max 256 KB/s per client; received sprays are validated with a VTF parser (v34) before being written |
+| `VoiceFix` | 1.0.2, rewritten in 1.0.10 | Rate-limits `CLC_VoiceData` (size cap, messages/sec cap, flood disconnect); 1.0.10 adds reliable/voice stream handling in the `CNetChan::SendNetMsg` side |
+| `BlockCmds` | 1.0.2, extended in 1.0.10 | Caps string-command length and rate; 1.0.10 ships a 61-command v34 debug/console blocklist (`changelevel`, `dump_*`, `npc_*`, `endround`, …), checks `IsConnected()` and keeps per-client block lists |
+| `SourceTVFix` | 1.0.2 | Forces `m_bIsHLTV = false` so fake HLTV clients can't displace the real SourceTV slot |
+| `HashSteamID` | 1.0.2, extended in 1.0.10 | Stores a CRC32-hashed SteamID in the network-visible client slot; 1.0.10 also detours `Filter_IsUserBanned` so bans resolve against the hashed IDs |
+| `PreConnectHook` | 1.0.2, cleaned up in 1.0.10 | SourceMod `OnClientPreConnect` forward for early connection rejection (Steam-auth connections only) |
+| `BlockLoadPlugin` | **New in 1.0.10** | Blocks RCON-issued `sm plugins load/reload` and `sm exts load/reload` commands containing `..` or `.dat` — path-traversal plugin/extension loading — via `CVEngineServer::ServerCommand` (the gamedata signature that 1.0.2 shipped but never used) |
+| `GameStatsFix` | **New in 1.0.10** | No-ops `CUploadGameStats::UpdateConnection`, disabling the engine's game-stats upload connection |
+| `FireGameEventFix` | **New in 1.0.10** | `CBaseClient::FireGameEvent` drops events for a client whose net channel is gone instead of dereferencing it |
+| `NameFix` | **New in 1.0.10** | Name-change flood control (repeat changes inside 90 s are blocked, 120 s record lifetime) and no renaming while dead, enforced in `CBaseClient::ProcessSetConVar` |
+| `VoxelHashFix` | **New in 1.0.10** | `CVoxelHash::EnumerateElementsInBox` refuses boxes whose voxel delta sums above 200 — blocks spatial-partition scan hangs from huge query boxes |
+| `VACPatch` | **New in 1.0.10** | Forces `BSecure()` to report 1 through the `SteamGameServer` vtable so the server always reports VAC-secure |
+| `OSFix` | **New in 1.0.10** | Process-wide `memcpy` detour replaced with `memmove`, making overlapping-buffer copies safe |
+| `RCONAccess` | **New in 1.0.10, inactive** | Patches `CBaseNetworkListener::ProcessAccept` and hooks the process-wide libc `accept()` to allow TCP (RCON) connections from exactly one hardcoded IP address (`109.198.191.96`) and immediately close all others. It is an IP allowlist for a single address, not a general fix, and is deliberately not ported. In the 1.0.10 tree it is dead code: its registration block in `extension.cpp` is commented out, so it never loads (it does not exist at all in 1.0.2) |
 
 ---
 
 # Part 2 — All `BUGFIXED`-conditional changes
 
-83 conditional blocks in this section (plus the 3 security fixes above = 86 in
-total across 25 files). Each entry shows the original stock code and the fixed
-code.
+83 conditional blocks in this section (plus the 6 security-fix blocks above =
+89 in total across 25 files). Each entry shows the original stock code and the
+fixed code.
 
 ## 2.1 Client usercmd value validation (anti-exploit)
 
@@ -196,7 +304,7 @@ simulates the shot against the exact view the client had when it fired.
 
 ## 2.3 Server-generated usercmd random seed
 
-**Files:** `dlls/player.cpp:64`, `dlls/player.cpp:83`, `dlls/player.cpp:3318`
+**Files:** `dlls/player.cpp:64`, `dlls/player.cpp:83`, `dlls/player.cpp:3329`
 
 New ConVar:
 
@@ -226,8 +334,8 @@ client choose it lets a modified client influence/predict server RNG outcomes.
 
 **Files:** `dlls/player.h:19`, `dlls/player.h:27`, `dlls/player.h:500`,
 `dlls/player.h:644`, `dlls/player.h:665`, `dlls/player.h:1007`,
-`dlls/player.cpp:566`, `dlls/player.cpp:2913`, `dlls/player.cpp:3029`,
-`dlls/player.cpp:3058`, `dlls/player.cpp:3223`, `dlls/player.cpp:3344`,
+`dlls/player.cpp:566`, `dlls/player.cpp:2924`, `dlls/player.cpp:3040`,
+`dlls/player.cpp:3069`, `dlls/player.cpp:3234`, `dlls/player.cpp:3355`,
 `dlls/player_command.cpp:25`, `dlls/player_command.cpp:315`,
 `dlls/gameinterface.cpp:2250`
 
@@ -264,7 +372,7 @@ happened at execution time, inside the replay loop.
   packet-loss backlogs queue and validate instead of overflowing a fixed array.
 * A per-player **movement-tick budget**
   (`m_nMovementTicksForUserCmdProcessingRemaining`, +1 per simulation tick in
-  `player.cpp:3029`) is consumed by `ConsumeMovementTicksForUserCmdProcessing()`.
+  `player.cpp:3040`) is consumed by `ConsumeMovementTicksForUserCmdProcessing()`.
 * `CPlayerMove::RunCommand` refuses to process a command when the budget is
   exhausted (`player_command.cpp:315`) — optionally printing the throttled
   `sv_maxusrcmdprocessticks_warning` — so a client cannot get unlimited
@@ -272,19 +380,19 @@ happened at execution time, inside the replay loop.
   during packet loss).
 * When more than `sv_maxusrcmdprocessticks` (16) ticks are pending, the backlog
   collapses to a single `m_LastCmd` tick and the budget clamps
-  (`player.cpp:3223`) — deterministic catch-up instead of a replay storm.
+  (`player.cpp:3234`) — deterministic catch-up instead of a replay storm.
 * If no command has arrived for `sv_player_usercommand_timeout` seconds, the
   server runs a `RunNullCommand()` so the player keeps simulating predictably
-  instead of acting on stale input (`player.cpp:3223`).
+  instead of acting on stale input (`player.cpp:3234`).
 * Pause-time command zeroing moved from the replay loop into queue time
-  (`player.cpp:3344`).
+  (`player.cpp:3355`).
 
 Supporting plumbing: `GetTimeSinceLastUserCommand()` (`player.h:500`),
 budget accessors (`player.h:644`), members `m_flLastUserCommandTime`
 (`player.h:1007`, init at `player.cpp:566`) and
 `m_nMovementTicksForUserCmdProcessingRemaining` (`player.h:665`),
-simulation-tick clamp (`player.cpp:2913`), and the reworked command-assembly
-loop (`player.cpp:3058`, original kept in the `#else` branch).
+simulation-tick clamp (`player.cpp:2924`), and the reworked command-assembly
+loop (`player.cpp:3069`, original kept in the `#else` branch).
 
 ## 2.5 `sv_shootpositionfix` — shoot position correction (Valve PR #442)
 
@@ -471,7 +579,9 @@ offering a console-spam nuisance vector.
 
 | Section | Blocks |
 |---|---|
-| 1. Security fixes | 3 |
+| 1.1–1.3 Security fixes (1.0.2) | 3 |
+| 1.4 ObserverLoopFix (1.0.10) | 1 |
+| 1.5 SpecGotoFix (1.0.10) | 2 |
 | 2.1 Usercmd validation | 4 |
 | 2.2 Aim lock plumbing | 7 |
 | 2.3 Custom random seed | 3 |
@@ -483,4 +593,4 @@ offering a console-spam nuisance vector.
 | 2.9 Physics box toggle | 3 |
 | 2.10 Chat flood | 1 |
 | 2.11 Console-only commands | 28 |
-| **Total** | **86** |
+| **Total** | **89** |
