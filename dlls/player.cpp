@@ -2626,6 +2626,17 @@ CBaseEntity * CBasePlayer::FindNextObserverTarget(bool bReverse)
 	*/	// TODO move outside this function
 
 	int startIndex = GetNextObserverSearchStartPoint( bReverse );
+
+#ifdef BUGFIXED
+	// [jason] Force this value into the valid client index range, in case we were previously
+	//    spectating something that isn't a player.  This prevents the do..while loop below
+	//    from getting in an infinite loop because of an invalid boundary condition.
+	// (ProtectCmds 1.0.10 ObserverLoopFix: CBasePlayer::FindNextObserverTarget)
+	if ( startIndex > gpGlobals->maxClients )
+		startIndex = 1;
+	else if ( startIndex < 1 )
+		startIndex = gpGlobals->maxClients;
+#endif
 	
 	int	currentIndex = startIndex;
 	int iDir = bReverse ? -1 : 1; 
