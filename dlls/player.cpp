@@ -5836,6 +5836,40 @@ void CBasePlayer::CheatImpulseCommands( int iImpulse )
 #endif	// HLDEMO_BUILD
 }
 
+#ifdef BUGFIXED
+//-----------------------------------------------------------------------------
+// Purpose: Validate and clamp one numeric spec_goto argument.
+//			ProtectCmds 1.0.10 SpecGotoFix. Rejects anything that is not a plain
+//			decimal number -- "inf", "nan", hex, trailing junk -- so non-finite
+//			values can never reach JumptoPosition(), then clamps the value to the
+//			legal coordinate range. Returns false when the argument is unusable
+//			and the caller skips the teleport.
+//-----------------------------------------------------------------------------
+static bool ParseSpecGotoFloat( const char *szValue, float &flOut )
+{
+	for ( const char *pChar = szValue; *pChar; ++pChar )
+	{
+		char c = *pChar;
+		bool bValid = ( c >= '0' && c <= '9' ) ||
+					   c == '-' || c == '+' || c == '.' || c == 'e' || c == 'E';
+		if ( !bValid )
+			return false;
+	}
+
+	char *pszEnd = NULL;
+	double dValue = strtod( szValue, &pszEnd );
+	if ( pszEnd == szValue || *pszEnd != '\0' )
+		return false;
+
+	if ( dValue > (double)MAX_COORD_FLOAT )
+		dValue = (double)MAX_COORD_FLOAT;
+	else if ( dValue < (double)MIN_COORD_FLOAT )
+		dValue = (double)MIN_COORD_FLOAT;
+
+	flOut = (float)dValue;
+	return true;
+}
+#endif // BUGFIXED
 
 bool CBasePlayer::ClientCommand(const char *cmd)
 {
@@ -6022,6 +6056,18 @@ bool CBasePlayer::ClientCommand(const char *cmd)
 			angle.y = atof( engine->Cmd_Argv(5) );
 			angle.z = 0.0f;
 
+#ifdef BUGFIXED
+			// ProtectCmds 1.0.10 SpecGotoFix: validate and clamp every spec_goto
+			// argument before the observer teleport. A client can otherwise send
+			// inf/nan or out-of-world values and park a roaming spectator anywhere
+			// (or at NaN, which corrupts origin and eye angles). Bad input skips
+			// the jump entirely instead of being applied.
+			if ( ParseSpecGotoFloat( engine->Cmd_Argv(1), origin.x ) &&
+				 ParseSpecGotoFloat( engine->Cmd_Argv(2), origin.y ) &&
+				 ParseSpecGotoFloat( engine->Cmd_Argv(3), origin.z ) &&
+				 ParseSpecGotoFloat( engine->Cmd_Argv(4), angle.x ) &&
+				 ParseSpecGotoFloat( engine->Cmd_Argv(5), angle.y ) )
+#endif
 			JumptoPosition( origin, angle );
 		}
 		
