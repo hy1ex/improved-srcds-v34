@@ -262,11 +262,7 @@ CBaseAnimating::CBaseAnimating()
 	m_pIk = NULL;
 	m_iIKCounter = 0;
 
-	m_flIKGroundContactTime = 0;
-	m_flIKGroundMinHeight = 0;
-	m_flIKGroundMaxHeight = 0;
-	m_flEstIkFloor = GetAbsOrigin().z;
-	m_flEstIkOffset = 0;
+	InitStepHeightAdjust();
 
 	m_flModelWidthScale = 1.0f;
 	// initialize anim clock
@@ -1372,6 +1368,26 @@ void CBaseAnimating::SetIKGroundContactInfo( float minHeight, float maxHeight )
 
 ConVar npc_height_adjust( "npc_height_adjust", "1", FCVAR_ARCHIVE, "Enable test mode for ik height adjustment" );
 
+//-----------------------------------------------------------------------------
+// Purpose: Reset the IK step-height estimator.
+//
+// Called from the constructor and from Teleport(): the estimator keeps an
+// absolute floor height and a debounced contact time, so after an instant
+// relocation it would keep applying the *old* location's floor to the new
+// origin for up to 0.2s (a visible step-origin sink/float after a teleport).
+//-----------------------------------------------------------------------------
+void CBaseAnimating::InitStepHeightAdjust( void )
+{
+	m_flIKGroundContactTime = 0;
+	m_flIKGroundMinHeight = 0;
+	m_flIKGroundMaxHeight = 0;
+
+	// FIXME: not safe to call GetAbsOrigin here. Hierarchy might not be set up!
+	m_flEstIkFloor = GetAbsOrigin().z;
+	m_flEstIkOffset = 0;
+}
+
+
 void CBaseAnimating::UpdateStepOrigin()
 {
 	if (!npc_height_adjust.GetBool())
@@ -1524,6 +1540,8 @@ void CBaseAnimating::Teleport( const Vector *newPosition, const QAngle *newAngle
 	{
 		m_pIk->ClearTargets( );
 	}
+
+	InitStepHeightAdjust();
 }
 
 

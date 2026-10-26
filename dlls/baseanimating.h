@@ -326,6 +326,7 @@ public:
 public:
 	void SetIKGroundContactInfo( float minHeight, float maxHeight );
 	void UpdateStepOrigin( void );
+	void InitStepHeightAdjust( void );
 
 protected:
 	float				m_flIKGroundContactTime;
