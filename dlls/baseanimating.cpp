@@ -1046,6 +1046,21 @@ void CBaseAnimating::DispatchAnimEvents ( CBaseAnimating *eventHandler )
 		}
 		*/
 		eventHandler->HandleAnimEvent( &event );
+
+		// FAILSAFE:
+		// If HandleAnimEvent has somehow reset my internal pointer
+		// to CStudioHdr to something other than it was when we entered
+		// this function, we will crash on the next call to GetAnimationEvent
+		// because pstudiohdr no longer points at something valid.
+		// So, catch this case, complain vigorously, and bail out of
+		// the loop.
+		CStudioHdr *pNowStudioHdr = GetModelPtr();
+		if ( pNowStudioHdr != pstudiohdr )
+		{
+			AssertMsg2(false, "%s has changed its model while processing AnimEvents on sequence %d. Aborting dispatch.\n", GetDebugName(), GetSequence() );
+			Warning( "%s has changed its model while processing AnimEvents on sequence %d. Aborting dispatch.\n", GetDebugName(), GetSequence() );
+			break;
+		}
 	}
 }
 
@@ -1252,9 +1267,11 @@ float CBaseAnimating::EdgeLimitPoseParameter( int iParameter, float flValue, flo
 //-----------------------------------------------------------------------------
 int CBaseAnimating::LookupBone( const char *szName )
 {
-	Assert( GetModelPtr() );
-
-	return Studio_BoneIndexByName( GetModelPtr(), szName );
+	const CStudioHdr *pStudioHdr = GetModelPtr();
+	Assert( pStudioHdr );
+	if ( !pStudioHdr )
+		return -1;
+	return Studio_BoneIndexByName( pStudioHdr, szName );
 }
 
 
@@ -1753,12 +1770,14 @@ bool CBaseAnimating::GetAttachment( int iAttachment, matrix3x4_t &attachmentToWo
 	CStudioHdr *pStudioHdr = GetModelPtr( );
 	if (!pStudioHdr)
 	{
+		MatrixCopy(EntityToWorldTransform(), attachmentToWorld);
 		AssertOnce(!"CBaseAnimating::GetAttachment: model missing");
 		return false;
 	}
 
 	if (iAttachment < 1 || iAttachment > pStudioHdr->GetNumAttachments())
 	{
+		MatrixCopy(EntityToWorldTransform(), attachmentToWorld);
 //		Assert(!"CBaseAnimating::GetAttachment: invalid attachment index");
 		return false;
 	}
@@ -2317,8 +2336,11 @@ void CBaseAnimating::SetModel( const char *szModelName )
 			Msg( "Setting CBaseAnimating to non-studio model %s  (type:%i)\n",	szModelName, modelinfo->GetModelType( model ) );
 		}
 	}
-	Studio_DestroyBoneCache( m_boneCacheHandle );
-	m_boneCacheHandle = 0;
+	if ( m_boneCacheHandle )
+	{
+		Studio_DestroyBoneCache( m_boneCacheHandle );
+		m_boneCacheHandle = 0;
+	}
 
 	UTIL_SetModel( this, szModelName );
 
