@@ -867,6 +867,9 @@ bool CServerGameDLL::LevelInit( const char *pMapName, char const *pMapEntities, 
 	g_AIFriendliesTalkSemaphore.Release();
 	g_AIFoesTalkSemaphore.Release();
 	g_OneWayTransition = false;
+
+	// clear any pending autosavedangerous
+	m_fAutoSaveDangerousTime = 0.0f;
 	return true;
 }
 
