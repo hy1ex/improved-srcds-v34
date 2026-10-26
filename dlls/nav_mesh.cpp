@@ -838,93 +838,63 @@ void CNavMesh::PrintAllPlaces( void ) const
  * Return the ground height below this point in "height".
  * Return false if position is invalid (outside of map, in a solid area, etc).
  */
+class CTraceFilterGroundEntities : public CTraceFilterWalkableEntities
+{
+	typedef CTraceFilterWalkableEntities BaseClass;
+
+public:
+	CTraceFilterGroundEntities( const IHandleEntity *passentity, int collisionGroup, unsigned int flags )
+		: BaseClass( passentity, collisionGroup, flags )
+	{
+	}
+
+	virtual bool ShouldHitEntity( IHandleEntity *pServerEntity, int contentsMask )
+	{
+		CBaseEntity *pEntity = EntityFromEntityHandle( pServerEntity );
+		if ( FClassnameIs( pEntity, "prop_door" ) ||
+			 FClassnameIs( pEntity, "prop_door_rotating" ) ||
+			 FClassnameIs( pEntity, "func_breakable" ) )
+		{
+			return false;
+		}
+
+		return BaseClass::ShouldHitEntity( pServerEntity, contentsMask );
+	}
+};
+
 bool CNavMesh::GetGroundHeight( const Vector &pos, float *height, Vector *normal ) const
 {
 	VPROF( "CNavMesh::GetGroundHeight" );
 
-	Vector to;
-	to.x = pos.x;
-	to.y = pos.y;
-	to.z = pos.z - 9999.9f;
+	const float flMaxOffset = 100.0f;
 
-	float offset;
-	Vector from;
+	CTraceFilterGroundEntities filter( NULL, COLLISION_GROUP_NONE, WALK_THRU_EVERYTHING );
+
 	trace_t result;
-	CBaseEntity *ignore = NULL;
-
-	const float maxOffset = 100.0f;
-	const float inc = 10.0f;
-
-	#define MAX_GROUND_LAYERS 16
-	struct GroundLayerInfo
+	Vector to( pos.x, pos.y, pos.z - 10000.0f );
+	Vector from( pos.x, pos.y, pos.z + HalfHumanHeight + 1e-3 );
+	while( to.z - pos.z < flMaxOffset ) 
 	{
-		float ground;
-		Vector normal;
-	}
-	layer[ MAX_GROUND_LAYERS ];
-	int layerCount = 0;
-
-	for( offset = 1.0f; offset < maxOffset; offset += inc )
-	{
-		from = pos + Vector( 0, 0, offset );
-
-		CTraceFilterWalkableEntities filter( ignore, COLLISION_GROUP_NONE, WALK_THRU_EVERYTHING );
-		UTIL_TraceLine( from, to, MASK_PLAYERSOLID_BRUSHONLY, &filter, &result );
-
-		// if the trace came down thru a door, ignore the door and try again
-		// also ignore breakable floors
-		if (result.DidHitNonWorldEntity() && result.m_pEnt)
+		UTIL_TraceLine( from, to, MASK_NPCSOLID_BRUSHONLY, &filter, &result );
+		if ( !result.startsolid && (( result.fraction == 1.0f ) || ( ( from.z - result.endpos.z ) >= HalfHumanHeight ) ) )
 		{
-			if (FClassnameIs( result.m_pEnt, "prop_door" ) ||
-				FClassnameIs( result.m_pEnt, "prop_door_rotating" ) ||
-				FClassnameIs( result.m_pEnt, "func_breakable" ))// && VARS( result.pHit )->takedamage == DAMAGE_YES))
+			*height = result.endpos.z;
+			if ( normal )
 			{
-				ignore = result.m_pEnt;
-				// keep incrementing to avoid infinite loop if more than one entity is along the traceline...
-				/// @todo Deal with multiple ignore entities in a single TraceLine()
-				//offset -= inc;
-				continue;
+				*normal = !result.plane.normal.IsZero() ? result.plane.normal : Vector( 0, 0, 1 );
 			}
-		}
-
-		if (result.startsolid == false)
-		{
-			// if we didnt start inside a solid area, the trace hit a ground layer
-
-			// if this is a new ground layer, add it to the set
-			if (layerCount == 0 || result.endpos.z > layer[ layerCount-1 ].ground)
-			{
-				layer[ layerCount ].ground = result.endpos.z;
-				if (result.plane.normal.IsZero())
-					layer[ layerCount ].normal = Vector( 0, 0, 1 );
-				else
-					layer[ layerCount ].normal = result.plane.normal;
-
-				++layerCount;
-						
-				if (layerCount == MAX_GROUND_LAYERS)
-					break;
-			}
-		}
+			return true;
+		}	  
+		to.z = ( result.startsolid ) ? from.z : result.endpos.z;
+		from.z = to.z + HalfHumanHeight + 1e-3;
 	}
 
-	if (layerCount == 0)
-		return false;
-
-	// find the lowest layer that allows a player to stand or crouch upon it
-	int i;
-	for( i=0; i<layerCount-1; ++i )
+	*height = 0.0f;
+	if ( normal )
 	{
-		if (layer[i+1].ground - layer[i].ground >= HalfHumanHeight)
-			break;		
+		normal->Init( 0.0f, 0.0f, 1.0f );
 	}
-
-	*height = layer[ i ].ground;
-
-	if (normal)
-		*normal = layer[ i ].normal;
-
-	return true;
+	return false;
 }
 
 //--------------------------------------------------------------------------------------------------------------
