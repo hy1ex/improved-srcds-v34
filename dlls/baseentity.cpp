@@ -950,6 +950,11 @@ void CBaseEntity::SetParent( CBaseEntity *pParentEntity, int iAttachment )
 	{
 		if ( VPhysicsGetObject()->IsStatic())
 		{
+			if ( VPhysicsGetObject()->IsAttachedToConstraint( false ) )
+			{
+				Warning( "SetParent: destroying static physics object of %s (%s) that is still attached to a constraint.\n",
+					GetDebugName(), GetClassname() );
+			}
 			VPhysicsDestroyObject();
 			VPhysicsInitShadow(false, false);
 		}
@@ -3741,7 +3746,9 @@ void CBaseEntity::SetParentAttachment( const char *szInputName, const char *szAt
 
 	// Lookup the attachment
 	int iAttachment = pAnimating->LookupAttachment( szAttachment );
-	if ( !iAttachment )
+	// LookupAttachment returns -1 on failure; attachment indices are 1-based,
+	// so 0 is invalid too (nillerusr/source-engine 2017).
+	if ( iAttachment <= 0 )
 	{
 		Warning("ERROR: Tried to %s for entity %s (%s), but it has no attachment named %s.\n", szInputName, GetClassname(), GetDebugName(), szAttachment );
 		return;
