@@ -1963,6 +1963,9 @@ EXPOSE_INTERFACE_FN(GetServerGameClients003, IServerGameClients, INTERFACEVERSIO
 //-----------------------------------------------------------------------------
 bool CServerGameClients::ClientConnect( edict_t *pEdict, const char *pszName, const char *pszAddress, char *reject, int maxrejectlen )
 {	
+	if ( !g_pGameRules )
+		return false;
+	
 	return g_pGameRules->ClientConnected( pEdict, pszName, pszAddress, reject, maxrejectlen );
 }
 
