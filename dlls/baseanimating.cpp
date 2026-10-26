@@ -1462,9 +1462,14 @@ void CBaseAnimating::CalculateIKLocks( float currentTime )
 			{
 			case IK_GROUND:
 				{
+					Vector estGround;
+					estGround = (pTarget->est.pos - GetAbsOrigin());
+					estGround = estGround - (estGround * up) * up;
+					estGround = GetAbsOrigin() + estGround + pTarget->est.floor * up;
+
 					Vector p1, p2;
-					VectorMA( pTarget->est.pos, pTarget->est.height, up, p1 );
-					VectorMA( pTarget->est.pos, -pTarget->est.height, up, p2 );
+					VectorMA( estGround, pTarget->est.height, up, p1 );
+					VectorMA( estGround, -pTarget->est.height, up, p2 );
 
 					float r = max(pTarget->est.radius,1);
 
