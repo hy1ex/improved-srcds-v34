@@ -1095,7 +1095,7 @@ void CServerGameDLL::Think( bool finalTick )
 		// The safety timer for a dangerous auto save has expired
 		CBasePlayer *pPlayer = UTIL_PlayerByIndex( 1 );
 
-		if ( pPlayer->GetDeathTime() == 0.0f || pPlayer->GetDeathTime() > gpGlobals->curtime )
+		if ( pPlayer && ( pPlayer->GetDeathTime() == 0.0f || pPlayer->GetDeathTime() > gpGlobals->curtime ) )
 		{
 			// The player isn't dead, so make the dangerous auto save safe
 			engine->ServerCommand( "autosavedangerousissafe\n" );

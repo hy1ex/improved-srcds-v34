@@ -2482,7 +2482,7 @@ void CTriggerSave::Touch( CBaseEntity *pOther )
 			// A previous dangerous auto save was waiting to become safe
 			CBasePlayer *pPlayer = UTIL_PlayerByIndex( 1 );
 
-			if ( pPlayer->GetDeathTime() == 0.0f || pPlayer->GetDeathTime() > gpGlobals->curtime )
+			if ( pPlayer && ( pPlayer->GetDeathTime() == 0.0f || pPlayer->GetDeathTime() > gpGlobals->curtime ) )
 			{
 				// The player isn't dead, so make the dangerous auto save safe
 				engine->ServerCommand( "autosavedangerousissafe\n" );
