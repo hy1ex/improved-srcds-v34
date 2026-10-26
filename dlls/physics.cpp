@@ -547,6 +547,20 @@ void CCollisionEvent::GetListOfPenetratingEntities( CBaseEntity *pSearch, CUtlVe
 	}
 }
 
+static bool IsDebris( int collisionGroup )
+{
+	switch ( collisionGroup )
+	{
+	case COLLISION_GROUP_DEBRIS:
+	case COLLISION_GROUP_INTERACTIVE_DEBRIS:
+	case COLLISION_GROUP_DEBRIS_TRIGGER:
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+
 void CCollisionEvent::UpdatePenetrateEvents( void )
 {
 	for ( int i = m_penetrateEvents.Count()-1; i >= 0; --i )
@@ -586,6 +600,20 @@ void CCollisionEvent::UpdatePenetrateEvents( void )
 					pBlocker = pEntity0;
 				}
 				NPCPhysics_CreateSolver( pNPC, pBlocker, true, 1.0f );
+			}
+			// transferred to solver, clear event
+		}
+		else if ( m_penetrateEvents[i].collisionState == COLLSTATE_TRYENTITYSOLVER )
+		{
+			if ( pEntity0 && pEntity1 )
+			{
+				if ( !IsDebris(pEntity1->GetCollisionGroup()) || pEntity1->GetMoveType() != MOVETYPE_VPHYSICS )
+				{
+					CBaseEntity *pTmp = pEntity0;
+					pEntity0 = pEntity1;
+					pEntity1 = pTmp;
+				}
+				EntityPhysics_CreateSolver( pEntity0, pEntity1, true, 1.0f );
 			}
 			// transferred to solver, clear event
 		}
@@ -722,6 +750,15 @@ int CCollisionEvent::ShouldSolvePenetration( IPhysicsObject *pObj0, IPhysicsObje
 		(pEntity1->MyNPCPointer() && CanResolvePenetrationWithNPC(pEntity0, pObj0)) )
 	{ 
 		event.collisionState = COLLSTATE_TRYNPCSOLVER;
+	}
+
+	if ( (IsDebris( pEntity0->GetCollisionGroup() ) && !pObj1->IsStatic()) || (IsDebris( pEntity1->GetCollisionGroup() ) && !pObj0->IsStatic()) )
+	{
+		if ( eventTime > 0.5f )
+		{
+			//Msg("Debris stuck in non-static!\n");
+			event.collisionState = COLLSTATE_TRYENTITYSOLVER;
+		}
 	}
   
 #if _DEBUG
