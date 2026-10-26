@@ -1462,10 +1462,8 @@ void CAI_Hint::NPCStoppedUsing( CAI_BaseNPC *pNPC )
 
 CON_COMMAND(ai_dump_hints, "")
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	CAI_HintManager::DumpHints();
 }

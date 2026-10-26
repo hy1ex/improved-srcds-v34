@@ -585,10 +585,8 @@ void PhysCreateVirtualTerrain( CBaseEntity *pWorld, const objectparams_t &defaul
 #ifndef CLIENT_DLL
 CON_COMMAND( dump_terrain, "Dump physics info about virtual terrains" )
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	physcollision->DumpVirtualCollideStats();
 }

@@ -1577,10 +1577,8 @@ private:
 
 CON_COMMAND(report_entities, "Lists all entities")
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	CSortedEntityList list;
 	CBaseEntity *pEntity = gEntList.FirstEnt();
@@ -1595,10 +1593,8 @@ CON_COMMAND(report_entities, "Lists all entities")
 
 CON_COMMAND(report_touchlinks, "Lists all touchlinks")
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	CSortedEntityList list;
 	CBaseEntity *pEntity = gEntList.FirstEnt();
@@ -1621,10 +1617,8 @@ CON_COMMAND(report_touchlinks, "Lists all touchlinks")
 
 CON_COMMAND(report_simthinklist, "Lists all simulating/thinking entities")
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	CBaseEntity *pTmp[NUM_ENT_ENTRIES];
 	int count = SimThink_ListCopy( pTmp, ARRAYSIZE(pTmp) );

@@ -28,7 +28,7 @@ CPP_LIB="/opt/crosstool/gcc-3.4.6-glibc-2.3.6/i686-unknown-linux-gnu/i686-unknow
 
 # put any compiler flags you want passed here
 USER_CFLAGS=-ffast-math -fomit-frame-pointer
-DEFINES=-DBUGFIXED
+DEFINES=
 
 # link flags for your mod, make sure to include any special libraries here
 LDFLAGS="-lm -ldl tier1_i486.a mathlib_i486.a choreoobjects_i486.a tier0_i486.so vstdlib_i486.so"

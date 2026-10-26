@@ -4209,10 +4209,8 @@ CInstancedSceneResourceManager g_InstancedSceneResourceManager;
 
 CON_COMMAND( scene_flush, "Flush all .vcds from the cache and reload from disk." )
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	Msg( "Flushing\n" );
 	scenefilecache->OutputStatus();
@@ -4252,10 +4250,8 @@ void FreeSceneFileMemory( void *buffer )
 
 CON_COMMAND( scene_mem, "Spew memory usage for .vcds in the instanced scene resource manager." )
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	scenefilecache->OutputStatus();
 }
@@ -5127,10 +5123,8 @@ int GetRecentNPCSpeech( recentNPCSpeech_t speech[ SPEECH_LIST_MAX_SOUNDS ] )
 
 static void ListRecentNPCSpeech( void )
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	recentNPCSpeech_t speech[ SPEECH_LIST_MAX_SOUNDS ];
 	int  num;

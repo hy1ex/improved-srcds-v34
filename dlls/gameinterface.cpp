@@ -166,9 +166,7 @@ static int		g_nCommandClientIndex = 0;
 
 static ConVar sv_showhitboxes( "sv_showhitboxes", "-1", FCVAR_CHEAT, "Send server-side hitboxes for specified entity to client (NOTE:  this uses lots of bandwidth, use on listen server only)." );
 
-#ifdef BUGFIXED
 static ConVar sv_max_usercmd_move_magnitude( "sv_max_usercmd_move_magnitude", "1000", FCVAR_NONE, "Maximum move magnitude that can be requested by client." );
-#endif
 
 void PrecachePointTemplates();
 
@@ -1253,10 +1251,8 @@ bool CServerGameDLL::GetUserMessageInfo( int msg_type, char *name, int maxnamele
 
 CON_COMMAND( ListServerUserMessages, "" )
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	usermessages->ListUserMessages();
 }
@@ -2247,9 +2243,7 @@ void CServerGameClients::ClientSetupVisibility( edict_t *pViewEntity, edict_t *p
 //			paused - 
 // Output : float
 //-----------------------------------------------------------------------------
-#ifdef BUGFIXED
 #define CMD_MAXBACKUP 64
-#endif
 
 float CServerGameClients::ProcessUsercmds( edict_t *player, bf_read *buf, int numcmds, int totalcmds,
 	int dropped_packets, bool ignore, bool paused )
@@ -2296,7 +2290,6 @@ float CServerGameClients::ProcessUsercmds( edict_t *player, bf_read *buf, int nu
 		to = &cmds[ i ];
 		ReadUsercmd( buf, to, from );
 
-#ifdef BUGFIXED
 		if ( 	!to->viewangles.IsValid() || 
 				!IsEntityQAngleReasonable( to->viewangles ) )
 		{
@@ -2311,7 +2304,6 @@ float CServerGameClients::ProcessUsercmds( edict_t *player, bf_read *buf, int nu
 			to->sidemove = 0.0f;
 			to->upmove = 0.0f;
 		}
-#endif
 
 		from = to;
 	}

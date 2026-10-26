@@ -895,10 +895,8 @@ void CAI_ExpresserHost_DoModifyOrAppendCriteria( CAI_BaseNPC *pSpeaker, AI_Crite
 extern CBaseEntity *FindPickerEntity( CBasePlayer *pPlayer );
 CON_COMMAND( npc_speakall, "Force the npc to try and speak all thier responses" )
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	CBaseEntity *pEntity;
 

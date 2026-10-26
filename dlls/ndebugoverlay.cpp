@@ -247,10 +247,8 @@ void DebugDrawLine( const Vector& vecAbsStart, const Vector& vecAbsEnd, int r, i
 //-----------------------------------------------------------------------------
 CON_COMMAND( clear_debug_overlays, "clears debug overlays" )
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	CBaseEntity *pEntity = gEntList.FirstEnt();
 	

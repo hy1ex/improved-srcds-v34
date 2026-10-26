@@ -22,11 +22,9 @@ extern IGameMovement *g_pGameMovement;
 extern CMoveData *g_pMoveData;	// This is a global because it is subclassed by each game.
 extern ConVar sv_noclipduringpause;
 
-#ifdef BUGFIXED
 static ConVar sv_maxusrcmdprocessticks_warning( "sv_maxusrcmdprocessticks_warning", "-1", FCVAR_NONE, "Print a warning when user commands get dropped due to insufficient usrcmd ticks allocated, number of seconds to throttle, negative disabled" );
 static ConVar sv_maxusrcmdprocessticks_holdaim( "sv_maxusrcmdprocessticks_holdaim", "1", FCVAR_NONE, "Hold client aim for multiple server sim ticks when client-issued usrcmd contains multiple actions (0: off; 1: hold this server tick; 2+: hold multiple ticks)" );
 static ConVar sv_shootpositionfix( "sv_shootpositionfix", "1", FCVAR_NONE, "Fixes shoot position. https://github.com/ValveSoftware/source-sdk-2013/pull/442" );
-#endif
 
 //-----------------------------------------------------------------------------
 // Purpose:
@@ -312,7 +310,6 @@ void CPlayerMove::RunPostThink( CBasePlayer *player )
 //-----------------------------------------------------------------------------
 void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper *moveHelper )
 {
-#ifdef BUGFIXED
 	bool bAllowUserCommandProcessing = player->ConsumeMovementTicksForUserCmdProcessing();
 
 	if ( !player->IsBot() && !player->IsHLTV() && !bAllowUserCommandProcessing )
@@ -331,7 +328,6 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 		}
 		return; // Don't process this command
 	}
-#endif
 
 	StartCommand( player, ucmd );
 
@@ -405,7 +401,6 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 		player->pl.v_angle = ucmd->viewangles + player->pl.anglechange;
 	}
 
-#ifdef BUGFIXED
 	if ( sv_shootpositionfix.GetBool() )
 	{
 	    // Let server invoke any needed impact functions
@@ -413,7 +408,6 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 	    moveHelper->ProcessImpacts();
 	    VPROF_SCOPE_END();
 	}
-#endif
 
 	// Call standard client pre-think
 	RunPreThink( player );
@@ -437,17 +431,14 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 		pVehicle->ProcessMovement( player, g_pMoveData );
 	}
 
-#ifdef BUGFIXED
 	if ( sv_shootpositionfix.GetBool() )
 	{
 	    RunPostThink( player );
     }
-#endif
 
 	// Copy output
 	FinishMove( player, ucmd, g_pMoveData );
 
-#ifdef BUGFIXED
 	if ( !player->IsBot() && ( gpGlobals->tickcount - player->GetLockViewanglesTickNumber() < sv_maxusrcmdprocessticks_holdaim.GetInt() ) )
 	{
 		player->pl.v_angle = player->GetLockViewanglesData();
@@ -455,16 +446,13 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 
 	if ( !sv_shootpositionfix.GetBool() )
 	{
-#endif
 	    // Let server invoke any needed impact functions
 	    VPROF_SCOPE_BEGIN( "moveHelper->ProcessImpacts" );
 		moveHelper->ProcessImpacts();
 		VPROF_SCOPE_END();
 
 	    RunPostThink( player );
-#ifdef BUGFIXED
 	}
-#endif
 
 	FinishCommand( player );
 

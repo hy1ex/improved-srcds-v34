@@ -308,10 +308,8 @@ int CSoundPatch::g_SoundPatchCount = 0;
 
 CON_COMMAND( report_soundpatch, "reports sound patch count" )
 {
-#if defined(BUGFIXED) && !defined(CLIENT_DLL)
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	Msg("Current sound patches: %d\n", CSoundPatch::g_SoundPatchCount );
 }

@@ -417,7 +417,6 @@ ConVar cl_autohelp(
 		FCVAR_REPLICATED,
 		"Restricts human players to a single team {any, CT, T}" );
 		
-#ifdef BUGFIXED
 	static ConVar mp_ignore_round_win_conditions( 
 		"mp_ignore_round_win_conditions", 
 		"0", 
@@ -429,7 +428,6 @@ ConVar cl_autohelp(
 		"5.0", 
 		FCVAR_NONE, 
 		"Number of seconds to delay before restarting a round after a win" );
-#endif
 
 	ConCommand EndRound( "endround", &CCSGameRules::EndRound, "End the current round.", FCVAR_CHEAT );
 
@@ -1433,10 +1431,8 @@ ConVar cl_autohelp(
 	 */
 	bool CCSGameRules::CheckWinConditions( void )
 	{
-#ifdef BUGFIXED
 		if ( mp_ignore_round_win_conditions.GetBool() )
 			return false;
-#endif
 		
 		// If a winner has already been determined.. then get the heck out of here
 		if (m_iRoundWinStatus != WINNER_NONE)
@@ -1619,11 +1615,7 @@ ConVar cl_autohelp(
 					gameeventmanager->FireEvent( event );
 				}
 
-#ifdef BUGFIXED
 				TerminateRound( mp_round_restart_delay.GetFloat(), All_Hostages_Rescued );
-#else
-				TerminateRound( 5, All_Hostages_Rescued );
-#endif
 				return true;
 			}
 		}
@@ -1735,11 +1727,7 @@ ConVar cl_autohelp(
 				gameeventmanager->FireEvent( event );
 			}
 
-#ifdef BUGFIXED
 			TerminateRound( mp_round_restart_delay.GetFloat(), VIP_Escaped );
-#else
-			TerminateRound( 5, VIP_Escaped );
-#endif
 			return true;
 		}
 		else if ( m_pVIP->m_lifeState == LIFE_DEAD )   // The VIP is dead
@@ -1762,11 +1750,7 @@ ConVar cl_autohelp(
 				gameeventmanager->FireEvent( event );
 			}
 
-#ifdef BUGFIXED
 			TerminateRound( mp_round_restart_delay.GetFloat(), VIP_Assassinated );
-#else
-			TerminateRound( 5, VIP_Assassinated );
-#endif
 			return true;
 		}
 
@@ -1788,11 +1772,7 @@ ConVar cl_autohelp(
 				UpdateTeamScores();
 			}
 
-#ifdef BUGFIXED
 			TerminateRound( mp_round_restart_delay.GetFloat(), Target_Bombed );
-#else
-			TerminateRound( 5, Target_Bombed );
-#endif
 			return true;
 		}
 		else
@@ -1809,11 +1789,7 @@ ConVar cl_autohelp(
 				UpdateTeamScores();
 			}
 
-#ifdef BUGFIXED
 			TerminateRound( mp_round_restart_delay.GetFloat(), Bomb_Defused );
-#else
-			TerminateRound( 5, Bomb_Defused );
-#endif
 			return true;
 		}
 
@@ -1857,11 +1833,7 @@ ConVar cl_autohelp(
 						UpdateTeamScores();
 					}
 
-#ifdef BUGFIXED
 					TerminateRound( mp_round_restart_delay.GetFloat(), CTs_Win );
-#else
-					TerminateRound( 5, CTs_Win );
-#endif
 					return true;
 				}
 			}
@@ -1881,21 +1853,13 @@ ConVar cl_autohelp(
 					UpdateTeamScores();
 				}
 
-#ifdef BUGFIXED
 				TerminateRound( mp_round_restart_delay.GetFloat(), Terrorists_Win );
-#else
-				TerminateRound( 5, Terrorists_Win );
-#endif
 				return true;
 			}
 		}
 		else if ( NumAliveCT == 0 && NumAliveTerrorist == 0 )
 		{
-#ifdef BUGFIXED
 			TerminateRound( mp_round_restart_delay.GetFloat(), Round_Draw );
-#else
-			TerminateRound( 5, Round_Draw );
-#endif
 			return true;
 		}
 
@@ -2806,10 +2770,8 @@ ConVar cl_autohelp(
 
 	void CCSGameRules::CheckRoundTimeExpired()
 	{
-#ifdef BUGFIXED
 		if ( mp_ignore_round_win_conditions.GetBool() )
 			return;
-#endif
 		
 		if ( GetRoundRemainingTime() > 0 || m_iRoundWinStatus != WINNER_NONE ) 
 			return; //We haven't completed other objectives, so go for this!.
@@ -2829,11 +2791,7 @@ ConVar cl_autohelp(
 				
 				m_iNumCTWins++;
 
-#ifdef BUGFIXED
 				TerminateRound( mp_round_restart_delay.GetFloat(), Target_Saved );
-#else
-				TerminateRound( 5, Target_Saved );
-#endif
 				UpdateTeamScores();
 				MarkLivingPlayersOnTeamAsNotReceivingMoneyNextRound(TEAM_TERRORIST);
 			}
@@ -2843,22 +2801,14 @@ ConVar cl_autohelp(
 			m_iAccountTerrorist += 3250; 
 			
 			m_iNumTerroristWins++;
-#ifdef BUGFIXED
 			TerminateRound( mp_round_restart_delay.GetFloat(), Hostages_Not_Rescued );
-#else
-			TerminateRound( 5, Hostages_Not_Rescued );
-#endif
 			UpdateTeamScores();
 			MarkLivingPlayersOnTeamAsNotReceivingMoneyNextRound(TEAM_CT);
 		}
 		else if ( m_bMapHasEscapeZone )
 		{
 			m_iNumCTWins++;
-#ifdef BUGFIXED
 			TerminateRound( mp_round_restart_delay.GetFloat(), Terrorists_Not_Escaped );
-#else
-			TerminateRound( 5, Terrorists_Not_Escaped );
-#endif
 			UpdateTeamScores();
 		}
 		else if ( m_iMapHasVIPSafetyZone == 1 )
@@ -2866,11 +2816,7 @@ ConVar cl_autohelp(
 			m_iAccountTerrorist += 3250;
 			m_iNumTerroristWins++;
 
-#ifdef BUGFIXED
 			TerminateRound( mp_round_restart_delay.GetFloat(), VIP_Not_Escaped );
-#else
-			TerminateRound( 5, VIP_Not_Escaped );
-#endif
 			UpdateTeamScores();
 		}
 	}
@@ -2954,10 +2900,8 @@ ConVar cl_autohelp(
 
 	CON_COMMAND( mp_dump_timers, "Prints round timers to the console for debugging" )
 	{
-#ifdef BUGFIXED
 		if ( !UTIL_IsCommandIssuedByServerAdmin() )
 			return;
-#endif
 		
 		if ( CSGameRules() )
 		{

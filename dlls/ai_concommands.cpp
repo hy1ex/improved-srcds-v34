@@ -533,10 +533,8 @@ static ConCommand npc_freeze("npc_freeze", CC_NPC_Freeze, "Selected NPC(s) will 
 //------------------------------------------------------------------------------
 CON_COMMAND(npc_thinknow, "Trigger NPC to think")
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	CBaseEntity *pEntity = FindPickerEntity( UTIL_GetCommandClient() );
 	if ( pEntity )
@@ -740,10 +738,8 @@ static ConCommand npc_steering_all("npc_steering_all", CC_NPC_ViewSteeringRegula
 
 CON_COMMAND( npc_heal, "Heals the target back to full health" )
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	CBaseEntity *pEntity = FindPickerEntity( UTIL_GetCommandClient() );
 	if ( pEntity )
@@ -758,10 +754,8 @@ CON_COMMAND( npc_heal, "Heals the target back to full health" )
 
 CON_COMMAND( npc_ammo_deplete, "Subtracts half of the target's ammo" )
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	CBaseEntity *pEntity = FindPickerEntity( UTIL_GetCommandClient() );
 	if ( pEntity )
@@ -776,10 +770,8 @@ CON_COMMAND( npc_ammo_deplete, "Subtracts half of the target's ammo" )
 
 CON_COMMAND( ai_clear_bad_links, "Clears bits set on nav links indicating link is unusable " )
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	CAI_Node *pNode;
 	
@@ -797,20 +789,16 @@ CON_COMMAND( ai_clear_bad_links, "Clears bits set on nav links indicating link i
 
 CON_COMMAND(ainet_generate_report, "Generate a report to the console.")
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	g_VProfCurrentProfile.OutputReport( VPRT_FULL, "AINet" );
 }
 
 CON_COMMAND(ainet_generate_report_only, "Generate a report to the console.")
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	g_VProfCurrentProfile.OutputReport( VPRT_FULL, "AINet", g_VProfCurrentProfile.BudgetGroupNameToBudgetGroupID( "AINet" ) );
 }

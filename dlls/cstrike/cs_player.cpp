@@ -67,9 +67,7 @@ const float CycleLatchInterval = 0.2f;
 ConVar cs_ShowStateTransitions( "cs_ShowStateTransitions", "-2", FCVAR_CHEAT, "cs_ShowStateTransitions <ent index or -1 for all>. Show player state transitions." );
 ConVar sv_max_usercmd_future_ticks( "sv_max_usercmd_future_ticks", "8", 0, "Prevents clients from running usercmds too far in the future. Prevents speed hacks." );
 
-#ifdef BUGFIXED
 static ConVar cs_enable_player_physics_box( "cs_enable_player_physics_box", "1", FCVAR_NONE );
-#endif
 
 ConVar bot_mimic( "bot_mimic", "0", FCVAR_CHEAT );
 ConVar bot_freeze( "bot_freeze", "0", FCVAR_CHEAT );
@@ -998,10 +996,8 @@ void CCSPlayer::DeathSound( const CTakeDamageInfo &info )
 //-----------------------------------------------------------------------------
 void CCSPlayer::InitVCollision()
 {
-#ifdef BUGFIXED
 	if ( cs_enable_player_physics_box.GetBool() )
 	{
-#endif
 		BaseClass::InitVCollision();
 
 		if ( sv_turbophysics.GetBool() )
@@ -1009,13 +1005,11 @@ void CCSPlayer::InitVCollision()
 		
 		// Setup the HL2 specific callback.
 		GetPhysicsController()->SetEventHandler( &playerCallback );
-#ifdef BUGFIXED
 	}
 	else
 	{
 		VPhysicsDestroyObject();
 	}
-#endif
 }
 
 void CCSPlayer::VPhysicsShadowUpdate( IPhysicsObject *pPhysics )
@@ -3639,13 +3633,11 @@ void CCSPlayer::NoteWeaponFired()
 		m_iLastWeaponFireUsercmd = m_pCurrentCommand->command_number;
 	}
 	
-#ifdef BUGFIXED
 	if ( m_iLockViewanglesTickNumber != gpGlobals->tickcount )
 	{
 		m_iLockViewanglesTickNumber = gpGlobals->tickcount;
 		m_qangLockViewangles 		= pl.v_angle;
 	}
-#endif
 }
 
 

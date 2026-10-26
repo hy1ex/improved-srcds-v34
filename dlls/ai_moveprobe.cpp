@@ -48,10 +48,8 @@ float MOVE_HEIGHT_EPSILON = 0.0625f;
 
 CON_COMMAND( ai_set_move_height_epsilon, "Set how high AI bumps up ground walkers when checking steps" )
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	if ( engine->Cmd_Argc() > 1 )
 	{

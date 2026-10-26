@@ -687,10 +687,8 @@ static ConCommand wc_link_edit("wc_link_edit", CC_WC_LinkEdit, 0, FCVAR_CHEAT);
 
 CON_COMMAND( wc_update_entity, "Updates the entity's position/angles when in edit mode" )
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	if ( engine->Cmd_Argc() < 2 )
 	{
@@ -721,10 +719,8 @@ CON_COMMAND( wc_update_safe_entities, "Updates entities in the map that can safe
 	int iCount = 0;
 	CBaseEntity *pEnt = NULL;
 
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	Msg("\n====================================================\nPerforming Safe Entity Update\n" );
 

@@ -24,9 +24,7 @@
 #define STAMINA_RECOVER_RATE	19.0
 #define CS_WALK_SPEED			100.0f
 
-#ifdef BUGFIXED
 static ConVar sv_enablebunnyhopping( "sv_enablebunnyhopping", "0", FCVAR_NONE, "Allow player speed to exceed maximum running speed" );
-#endif
 
 extern bool g_bMovementOptimizations;
 
@@ -644,7 +642,6 @@ bool CCSGameMovement::CheckJumpButton( void )
 	if ( mv->m_nOldButtons & IN_JUMP )
 		return false;		// don't pogo stick
 
-#ifdef BUGFIXED
 	if ( !sv_enablebunnyhopping.GetBool() )
 	{
 		float maxspd = player->MaxSpeed() * 1.1f;
@@ -663,7 +660,6 @@ bool CCSGameMovement::CheckJumpButton( void )
 			}
 		}
 	}
-#endif
 	
 	// In the air now.
 	SetGroundEntity( NULL );

@@ -16,19 +16,12 @@
 #include "PlayerState.h"
 #include "dlls/iplayerinfo.h"
 
-#ifndef BUGFIXED
-#define CMD_MAXBACKUP 30
-#endif
 
 // For queuing and processing usercmds
 class CCommandContext
 {
 public:
-#ifdef BUGFIXED
 	CUtlVector< CUserCmd > cmds;
-#else
-	CUserCmd		cmds[ CMD_MAXBACKUP ];
-#endif
 
 	int				numcmds;
 	int				totalcmds;
@@ -497,9 +490,7 @@ public:
 	virtual void			PlayerRunCommand(CUserCmd *ucmd, IMoveHelper *moveHelper);
 	void					RunNullCommand();
 	CUserCmd *				GetCurrentCommand( void )	{ return m_pCurrentCommand; }
-#ifdef BUGFIXED
 	float					GetTimeSinceLastUserCommand( void ) { return ( !IsConnected() || IsFakeClient() || IsBot() ) ? 0.f : gpGlobals->curtime - m_flLastUserCommandTime; }
-#endif
 
 	// Team Handling
 	virtual void			ChangeTeam( int iTeamNum );
@@ -610,10 +601,8 @@ public:
 	int		CurrentCommandNumber() const;
 	const CUserCmd *GetCurrentUserCommand() const;
 	
-#ifdef BUGFIXED
 	int		GetLockViewanglesTickNumber() const { return m_iLockViewanglesTickNumber; }
 	QAngle	GetLockViewanglesData() const { return m_qangLockViewangles; }
-#endif
 	
 	int		GetFOV( void ) const;												// Get the current FOV value
 	int		GetDefaultFOV( void ) const;										// Default FOV if not specified otherwise
@@ -641,7 +630,6 @@ public:
 	surfacedata_t *GetSurfaceData( void ) { return m_pSurfaceData; }
 	void SetLadderNormal( Vector vecLadderNormal ) { m_vecLadderNormal = vecLadderNormal; }
 
-#ifdef BUGFIXED
 	int GetRemainingMovementTicksForUserCmdProcessing() const { return m_nMovementTicksForUserCmdProcessingRemaining; }
 	bool ConsumeMovementTicksForUserCmdProcessing()
 	{
@@ -659,12 +647,9 @@ public:
 			return false;
 		}
 	}
-#endif	
 	
 private:
-#ifdef BUGFIXED
 	int					m_nMovementTicksForUserCmdProcessingRemaining;
-#endif	
 
 	// For queueing up CUserCmds and running them from PhysicsSimulate
 	int					GetCommandContextCount( void ) const;
@@ -879,10 +864,8 @@ protected:
 	CUserCmd				m_LastCmd;
 	CUserCmd				*m_pCurrentCommand;
 
-#ifdef BUGFIXED
 	int						m_iLockViewanglesTickNumber;
 	QAngle					m_qangLockViewangles;
-#endif
 	
 	float					m_flStepSoundTime;	// time to check for next footstep sound
 
@@ -1004,9 +987,7 @@ private:
 
 	bool m_autoKickDisabled;
 	
-#ifdef BUGFIXED
 	float m_flLastUserCommandTime;
-#endif
 };
 
 typedef CHandle<CBasePlayer> CBasePlayerHandle;

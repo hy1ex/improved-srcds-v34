@@ -339,10 +339,8 @@ void CCSPlayer::FireBullet(
 
 	bool bFirstHit = true;
 
-#ifdef BUGFIXED
 	bool bHitPlayer = false;
 	bool bHitTeammate = false;
-#endif
 	
 	CBasePlayer *lastPlayerHit = NULL;
 
@@ -377,7 +375,6 @@ void CCSPlayer::FireBullet(
 
 		lastPlayerHit = ToBasePlayer(tr.m_pEnt);
 		
-#ifdef BUGFIXED
 		if ( lastPlayerHit )
 		{
 			if ( lastPlayerHit->GetTeamNumber() == GetTeamNumber() )
@@ -385,7 +382,6 @@ void CCSPlayer::FireBullet(
 			
 			bHitPlayer = true;
 		}
-#endif
 
 		if ( tr.fraction == 1.0f )
 			break; // we didn't hit anything, stop tracing shoot
@@ -596,13 +592,11 @@ void CCSPlayer::FireBullet(
 		iPenetration--;
 	}
 
-#ifdef BUGFIXED
 	if ( bHitPlayer && !bHitTeammate )
 	{
 		m_iLockViewanglesTickNumber = gpGlobals->tickcount;
 		m_qangLockViewangles 		= pl.v_angle;
 	}
-#endif
 }
 
 

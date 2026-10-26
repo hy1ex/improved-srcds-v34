@@ -61,9 +61,7 @@
 #include "haptics/haptic_utils.h"
 #include "GameStats.h"
 
-#ifdef BUGFIXED
 #include "checksum_sha1.h"
-#endif
 
 #ifdef HL2_DLL
 #include "combine_mine.h"
@@ -80,7 +78,6 @@ extern ConVar hl2_xbox_aiming;
 ConVar autoaim_max_dist( "autoaim_max_dist", "2160" ); // 2160 = 180 feet
 ConVar autoaim_max_deflect( "autoaim_max_deflect", "0.99" );
 
-#ifdef BUGFIXED
 static ConVar sv_player_usercommand_timeout( "sv_player_usercommand_timeout", "3", FCVAR_NONE, "After this many seconds without a usercommand from a player, the server will RunNullCommand as if client sends an empty command." );
 static ConVar sv_maxusrcmdprocessticks( "sv_maxusrcmdprocessticks", "16", FCVAR_NONE, "Maximum number of client-issued usrcmd ticks that can be replayed in packet loss conditions, 0 to allow no restrictions" );
 static ConVar sv_usercmd_custom_random_seed( "sv_usercmd_custom_random_seed", "1", FCVAR_NONE, "When enabled server will populate an additional random seed independent of the client" );
@@ -91,7 +88,6 @@ struct custom_random_seed_t
 	int 	randval;
 	int		pad;
 };
-#endif	
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -524,10 +520,8 @@ CBasePlayer::CBasePlayer( )
 	m_hVehicle = NULL;
 	m_pCurrentCommand = NULL;
 
-#ifdef BUGFIXED
 	m_iLockViewanglesTickNumber = 0;
 	m_qangLockViewangles.Init();
-#endif
 	
 	// Setup our default FOV
 	m_iDefaultFOV = g_pGameRules->DefaultFOV();
@@ -563,10 +557,8 @@ CBasePlayer::CBasePlayer( )
 	
 	m_bhasHaptics = false;
 	
-#ifdef BUGFIXED
 	m_flLastUserCommandTime = gpGlobals->curtime;
 	m_nMovementTicksForUserCmdProcessingRemaining = 0;
-#endif
 }
 
 CBasePlayer::~CBasePlayer( )
@@ -2627,7 +2619,6 @@ CBaseEntity * CBasePlayer::FindNextObserverTarget(bool bReverse)
 
 	int startIndex = GetNextObserverSearchStartPoint( bReverse );
 
-#ifdef BUGFIXED
 	// [jason] Force this value into the valid client index range, in case we were previously
 	//    spectating something that isn't a player.  This prevents the do..while loop below
 	//    from getting in an infinite loop because of an invalid boundary condition.
@@ -2636,7 +2627,6 @@ CBaseEntity * CBasePlayer::FindNextObserverTarget(bool bReverse)
 		startIndex = 1;
 	else if ( startIndex < 1 )
 		startIndex = gpGlobals->maxClients;
-#endif
 	
 	int	currentIndex = startIndex;
 	int iDir = bReverse ? -1 : 1; 
@@ -2921,10 +2911,8 @@ int CBasePlayer::DetermineSimulationTicks( void )
 		simulation_ticks += ctx->numcmds + ctx->dropped_packets;
 	}
 	
-#ifdef BUGFIXED
 	if ( simulation_ticks > m_nMovementTicksForUserCmdProcessingRemaining )
 		simulation_ticks = m_nMovementTicksForUserCmdProcessingRemaining;
-#endif
 
 	return simulation_ticks;
 }
@@ -3037,9 +3025,7 @@ void CBasePlayer::PhysicsSimulate( void )
 	
 	m_nSimulationTick = gpGlobals->tickcount;
 
-#ifdef BUGFIXED
 	m_nMovementTicksForUserCmdProcessingRemaining++;
-#endif	
 	
 	// See how much time has queued up for running
 	int simulation_ticks = DetermineSimulationTicks();
@@ -3066,7 +3052,6 @@ void CBasePlayer::PhysicsSimulate( void )
 
 	int command_context_count = GetCommandContextCount();
 	
-#ifdef BUGFIXED
 	// Build a list of all available commands
 	CUtlVector< CUserCmd >	vecAvailCommands;
 
@@ -3116,122 +3101,10 @@ void CBasePlayer::PhysicsSimulate( void )
 		//  we'll use this to "guess" at what was in the missing packets
 		m_LastCmd = ctx->cmds[ CMD_MOSTRECENT ];
 	}
-#else
-	for ( int context_number = 0; context_number < command_context_count; context_number++ )
-	{
-		// Get oldest ( newer are added to tail )
-		CCommandContext *ctx = GetCommandContext( context_number );
-		Assert( ctx );
-
-		int i;
-		int numbackup = ctx->totalcmds - ctx->numcmds;
-
-		// If the server is paused, zero out motion,buttons,view changes
-		if ( ctx->paused )
-		{
-			bool clear_angles = true;
-
-			// If no clipping and cheats enabled and noclipduring game enabled, then leave
-			//  forwardmove and angles stuff in usercmd
-			if ( GetMoveType() == MOVETYPE_NOCLIP &&
-				 sv_cheats->GetBool() && 
-				 sv_noclipduringpause.GetBool() )
-			{
-				clear_angles = false;
-			}
-
-			for ( i = 0; i < ctx->numcmds; i++ )
-			{
-				ctx->cmds[ i ].buttons = 0;
-				if ( clear_angles )
-				{
-					ctx->cmds[ i ].forwardmove = 0;
-					ctx->cmds[ i ].sidemove = 0;
-					ctx->cmds[ i ].upmove = 0;
-					VectorCopy ( pl.v_angle, ctx->cmds[ i ].viewangles );
-				}
-			}
-			
-			ctx->dropped_packets = 0;
-		}
-	
-		MoveHelperServer()->SetHost( this );
-
-		// Suppress predicted events, etc.
-		if ( IsPredictingWeapons() )
-		{
-			IPredictionSystem::SuppressHostEvents( this );
-		}
-
-		// If we haven't dropped too many packets, then run some commands
-		if ( ctx->dropped_packets < 24 )                
-		{
-			int droppedcmds = ctx->dropped_packets;
-
-			if ( droppedcmds > numbackup )
-			{
-				// Msg( "lost %i cmds\n", droppedcmds );
-			}
-
-			// run the last known cmd for each dropped cmd we don't have a backup for
-			while ( droppedcmds > numbackup )
-			{
-				m_LastCmd.tick_count++;
-
-				if ( ShouldRunCommandsInContext( ctx ) )
-				{												 
-					PlayerRunCommand( &m_LastCmd, MoveHelperServer() );
-				}
-				droppedcmds--;
-			}
-
-			// Now run the "history" commands if we still have dropped packets
-			while ( droppedcmds > 0 )
-			{
-				int cmdnum = ctx->numcmds + droppedcmds - 1;
-				if ( ShouldRunCommandsInContext( ctx ) )
-				{
-					PlayerRunCommand( &ctx->cmds[cmdnum], MoveHelperServer() );
-				}
-				droppedcmds--;
-			}
-		}
-
-		// Now run any new command(s).  Go backward because the most recent command is at index 0.
-		for ( i = ctx->numcmds - 1; i >= 0; i-- )
-		{
-			if ( ShouldRunCommandsInContext( ctx ) )
-			{
-				PlayerRunCommand( &ctx->cmds[ i ], MoveHelperServer() );
-			}
-		}
-
-		// Save off the last good command in case we drop > numbackup packets and need to rerun them
-		//  we'll use this to "guess" at what was in the missing packets
-		m_LastCmd = ctx->cmds[ CMD_MOSTRECENT ];
-
-		// Update our vphysics object.
-		if ( m_pPhysicsController )
-		{
-			VPROF( "CBasePlayer::PhysicsSimulate-UpdateVPhysicsPosition" );
-			// If simulating at 2 * TICK_INTERVAL, add an extra TICK_INTERVAL to position arrival computation
-			int additionalTick = CBaseEntity::IsSimulatingOnAlternateTicks() ? 1 : 0;
-
-			float flSecondsToArrival = ( ctx->numcmds + ctx->dropped_packets + additionalTick ) * TICK_INTERVAL;
-			UpdateVPhysicsPosition( m_vNewVPhysicsPosition, m_vNewVPhysicsVelocity, flSecondsToArrival );
-		}
-
-		// Always reset after running commands
-		IPredictionSystem::SuppressHostEvents( NULL );
-
-		MoveHelperServer()->SetHost( NULL );
-	}
-#endif
 
 	// Clear all contexts
 	RemoveAllCommandContexts();
 	
-#ifdef BUGFIXED
 	int commandsToRun = vecAvailCommands.Count();
 	float vphysicsArrivalTime = TICK_INTERVAL;
 
@@ -3294,7 +3167,6 @@ void CBasePlayer::PhysicsSimulate( void )
 	IPredictionSystem::SuppressHostEvents( NULL );
 	
 	MoveHelperServer()->SetHost( NULL );
-#endif
 
 	// Restore the true server clock
 	// FIXME:  Should this occur after simulation of children so
@@ -3326,7 +3198,6 @@ void CBasePlayer::ProcessUsercmds( CUserCmd *cmds, int numcmds, int totalcmds,
 	int i;
 	for ( i = totalcmds - 1; i >= 0; i-- )
 	{
-#ifdef BUGFIXED
 		CUserCmd *pCmd = &cmds[totalcmds - 1 - i];
 
 		if ( sv_usercmd_custom_random_seed.GetBool() )
@@ -3343,16 +3214,12 @@ void CBasePlayer::ProcessUsercmds( CUserCmd *cmds, int numcmds, int totalcmds,
 		}
 
 		ctx->cmds.AddToTail( *pCmd );
-#else
-		ctx->cmds[ i ]		= cmds[ i ];
-#endif
 	}
 	ctx->numcmds			= numcmds;
 	ctx->totalcmds			= totalcmds,
 	ctx->dropped_packets	= dropped_packets;
 	ctx->paused				= paused;
 
-#ifdef BUGFIXED
 	// If the server is paused, zero out motion,buttons,view changes
 	if ( ctx->paused )
 	{
@@ -3380,7 +3247,6 @@ void CBasePlayer::ProcessUsercmds( CUserCmd *cmds, int numcmds, int totalcmds,
 
 		ctx->dropped_packets = 0;
 	}
-#endif
 	
 	// Set global pause state for this player
 	m_bGamePaused = paused;
@@ -5836,7 +5702,6 @@ void CBasePlayer::CheatImpulseCommands( int iImpulse )
 #endif	// HLDEMO_BUILD
 }
 
-#ifdef BUGFIXED
 //-----------------------------------------------------------------------------
 // Purpose: Validate and clamp one numeric spec_goto argument.
 //			ProtectCmds 1.0.10 SpecGotoFix. Rejects anything that is not a plain
@@ -5869,7 +5734,6 @@ static bool ParseSpecGotoFloat( const char *szValue, float &flOut )
 	flOut = (float)dValue;
 	return true;
 }
-#endif // BUGFIXED
 
 bool CBasePlayer::ClientCommand(const char *cmd)
 {
@@ -6056,7 +5920,6 @@ bool CBasePlayer::ClientCommand(const char *cmd)
 			angle.y = atof( engine->Cmd_Argv(5) );
 			angle.z = 0.0f;
 
-#ifdef BUGFIXED
 			// ProtectCmds 1.0.10 SpecGotoFix: validate and clamp every spec_goto
 			// argument before the observer teleport. A client can otherwise send
 			// inf/nan or out-of-world values and park a roaming spectator anywhere
@@ -6067,7 +5930,6 @@ bool CBasePlayer::ClientCommand(const char *cmd)
 				 ParseSpecGotoFloat( engine->Cmd_Argv(3), origin.z ) &&
 				 ParseSpecGotoFloat( engine->Cmd_Argv(4), angle.x ) &&
 				 ParseSpecGotoFloat( engine->Cmd_Argv(5), angle.y ) )
-#endif
 			JumptoPosition( origin, angle );
 		}
 		

@@ -672,11 +672,7 @@ void CC_Player_Say( void )
 			pPlayer->NotePlayerTalked();
 		}
 	}
-#ifdef BUGFIXED
 	else if ( UTIL_GetCommandClientIndex() == 0 )
-#else
-	else
-#endif
 	{
 		Host_Say( NULL, 0 );
 	}
@@ -1220,10 +1216,8 @@ static int DescribeGroundList( CBaseEntity *ent )
 
 void CC_GroundList_f(void)
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	if ( engine->Cmd_Argc() == 2 )
 	{

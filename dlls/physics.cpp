@@ -192,11 +192,7 @@ void CPhysicsHook::LevelInitPreEntity()
 	physenv->SetConstraintEventHandler( g_pConstraintEvents );
 	physenv->SetObjectEventHandler( &g_Collisions );
 	
-#ifdef BUGFIXED
 	physenv->SetSimulationTimestep( TICK_INTERVAL );
-#else
-	physenv->SetSimulationTimestep( DEFAULT_TICK_INTERVAL ); // 15 ms per tick
-#endif
 	// HL Game gravity, not real-world gravity
 	physenv->SetGravity( Vector( 0, 0, -sv_gravity.GetFloat() ) );
 	g_PhysAverageSimTime = 0;
@@ -986,20 +982,16 @@ static void CallbackReport( CBaseEntity *pEntity )
 
 CON_COMMAND(physics_highlight_active, "Turns on the absbox for all active physics objects")
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	IterateActivePhysicsEntities( CallbackHighlight );
 }
 
 CON_COMMAND(physics_report_active, "Lists all active physics objects")
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	IterateActivePhysicsEntities( CallbackReport );
 }
@@ -1090,30 +1082,24 @@ void PhysicsCommand( void (*func)( CBaseEntity *pEntity ) )
 
 CON_COMMAND(physics_debug_entity, "Dumps debug info for an entity")
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 
 	PhysicsCommand( OutputVPhysicsDebugInfo );
 }
 
 CON_COMMAND(physics_select, "Dumps debug info for an entity")
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	PhysicsCommand( MarkVPhysicsDebug );
 }
 
 CON_COMMAND( physics_budget, "Times the cost of each active object" )
 {
-#ifdef BUGFIXED
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
-#endif
 	
 	int activeCount = physenv->GetActiveObjectCount();
 

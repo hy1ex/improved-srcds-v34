@@ -4890,7 +4890,6 @@ int Studio_FindRandomAttachment( const CStudioHdr *pStudioHdr, const char *pAtta
 
 int Studio_BoneIndexByName( const CStudioHdr *pStudioHdr, const char *pName )
 {
-#ifdef BUGFIXED
 	// Security fix: don't crash on a missing studio header or bone name.
 	// A null CStudioHdr (e.g. an entity without a model triggering a bone
 	// lookup) would otherwise crash the server (same protection as the
@@ -4899,7 +4898,6 @@ int Studio_BoneIndexByName( const CStudioHdr *pStudioHdr, const char *pName )
 	{
 		return -1;
 	}
-#endif
 
 	// binary search for the bone matching pName
 	int start = 0, end = pStudioHdr->numbones()-1;
