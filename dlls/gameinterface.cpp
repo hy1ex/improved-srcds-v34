@@ -2267,7 +2267,7 @@ float CServerGameClients::ProcessUsercmds( edict_t *player, bf_read *buf, int nu
 		pPlayer = static_cast< CBasePlayer * >( pEnt );
 	}
 	// Too many commands?
-	if ( totalcmds < 0 || totalcmds >= ( CMD_MAXBACKUP - 1 ) )
+	if ( totalcmds < 0 || totalcmds >= ( CMD_MAXBACKUP - 1 ) || numcmds < 0 || numcmds > totalcmds )
 	{
 		const char *name = "unknown";
 		if ( pPlayer )
