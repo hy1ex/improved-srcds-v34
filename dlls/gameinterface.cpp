@@ -2233,8 +2233,11 @@ void CServerGameClients::ClientSetupVisibility( edict_t *pViewEntity, edict_t *p
 	// Flush the remaining areaportal states.
 	engine->SetAreaPortalStates( portalNums, isOpen, iOutPortal );
 
-	// Update the area bits that get sent to the client.
-	pPlayer->m_Local.UpdateAreaBits( pPlayer, portalBits );
+	if ( pPlayer )
+	{
+		// Update the area bits that get sent to the client.
+		pPlayer->m_Local.UpdateAreaBits( pPlayer, portalBits );
+	}
 }
 
 
