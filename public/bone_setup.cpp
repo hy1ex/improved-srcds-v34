@@ -4220,6 +4220,7 @@ float Studio_GetPoseParameter( const CStudioHdr *pStudioHdr, int iParameter, flo
 //-----------------------------------------------------------------------------
 static int ClipRayToHitbox( const Ray_t &ray, mstudiobbox_t *pbox, matrix3x4_t& matrix, trace_t &tr )
 {
+	const float flProjEpsilon = 0.01f;
 	// scale by current t so hits shorten the ray and increase the likelihood of early outs
 	Vector delta2;
 	VectorScale( ray.m_Delta, (0.5f * tr.fraction), delta2 );
@@ -4262,25 +4263,28 @@ static int ClipRayToHitbox( const Ray_t &ray, mstudiobbox_t *pbox, matrix3x4_t& 
 	}
 
 	// now check cross axes for separation
-	float tmp, cextent;
+	float tmp, tmpfix, cextent;
 	Vector cross;
 	CrossProduct( delta2, segmentCenter, cross );
 	cextent = cross.x * matrix[0][0] + cross.y * matrix[1][0] + cross.z * matrix[2][0];
 	cextent = fabsf(cextent);
 	tmp = boxextents[1]*uextent[2] + boxextents[2]*uextent[1];
-	if ( cextent > tmp )
+	tmpfix = tmp > flProjEpsilon ? tmp : flProjEpsilon;
+	if ( cextent > tmpfix )
 		return -1;
 
 	cextent = cross.x * matrix[0][1] + cross.y * matrix[1][1] + cross.z * matrix[2][1];
 	cextent = fabsf(cextent);
 	tmp = boxextents[0]*uextent[2] + boxextents[2]*uextent[0];
-	if ( cextent > tmp )
+	tmpfix = tmp > flProjEpsilon ? tmp : flProjEpsilon;
+	if ( cextent > tmpfix )
 		return -1;
 
 	cextent = cross.x * matrix[0][2] + cross.y * matrix[1][2] + cross.z * matrix[2][2];
 	cextent = fabsf(cextent);
 	tmp = boxextents[0]*uextent[1] + boxextents[1]*uextent[0];
-	if ( cextent > tmp )
+	tmpfix = tmp > flProjEpsilon ? tmp : flProjEpsilon;
+	if ( cextent > tmpfix )
 		return -1;
 
 	// !!! We hit this box !!! compute intersection point and return
