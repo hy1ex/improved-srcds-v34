@@ -11,13 +11,13 @@ This repository contains the server part (`server_i486.so`) of Counter-Strike:
 Source v34. It compiles to a **32-bit i386** shared library and runs on a
 stock v34 dedicated server installation.
 
-The fork keeps the original codebase intact and layers its changes on top:
-
-* every behavioral change is guarded by the **`BUGFIXED`** compile switch —
-  build with the flag (the default) to get the fixes, build without it to get
-  the untouched upstream behavior;
-* every fix is documented with its original code, fixed code and rationale in
-  **[FIXES.md](FIXES.md)**.
+Changes are applied directly to the code: the **`BUGFIXED`** compile switch
+was removed (commit `7fdd22f`), so the fixed code is the only code — there is
+no flag to toggle and no “stock behavior” build anymore. The original fix set
+is documented with its original code, fixed code and rationale in
+**[FIXES.md](FIXES.md)** (kept for archive purposes), and the ongoing port of
+fixes from newer Source-engine trees is tracked in
+**[UPSTREAM-PORT-REPORT.md](UPSTREAM-PORT-REPORT.md)**.
 
 ## What's improved
 
@@ -36,6 +36,12 @@ The fork keeps the original codebase intact and layers its changes on top:
   [ProtectCmds](https://github.com/PowerTakeDev/ProtectCmds) extension are
   ported into the source (the engine-level ones still need the extension
   itself).
+* **Upstream backports** — engine-layer fixes found by diffing this tree
+  against source-sdk-2013, css-community and nillerusr 2017 (guards, bounds
+  checks, trace and lag-compensation fixes) are ported function by function
+  without touching the network protocol — see
+  [UPSTREAM-PORT-REPORT.md](UPSTREAM-PORT-REPORT.md) for the analysis and the
+  commits that have landed.
 * **Gameplay fixes** — `sv_shootpositionfix` (Valve's shoot-position
   correction), configurable round flow, bunnyhop speed cap, and the original
   list below:
@@ -208,8 +214,6 @@ Notes:
   after pulling new changes, and copy the `.so` back when done.
 * `JOBS` is passed through the environment as shown because Etch's
   `coreutils` is too old to provide `nproc` *inside* the chroot.
-* To compile without the fixes (original stock behavior), add `DEFINES=` to
-  the make invocation: `make DEFINES= -j"$JOBS"`.
 * A full clean build takes a few minutes at `-j4`; rebuilds only recompile
   changed files.
 
@@ -227,9 +231,13 @@ After compilation, the binary file will be located in the working directory.
 
 ## Fix documentation
 
-See **[FIXES.md](FIXES.md)** for the complete list of fixes:
-
-* the security fixes ported from ProtectCmds (versions 1.0.2 and 1.0.10),
-  including which ones still require the extension itself, and
-* every `BUGFIXED`-conditional change in the code, each with the original
-  stock code, the fixed code and an explanation of what it prevents.
+* **[UPSTREAM-PORT-REPORT.md](UPSTREAM-PORT-REPORT.md)** — the living
+  analysis document: how this tree diverges from newer Source-engine trees
+  (source-sdk-2013, css-community, nillerusr 2017), why upstream changed
+  each function, which backports have landed, and what is still queued.
+  Every landed batch has its own commit with a detailed explanation.
+* **[FIXES.md](FIXES.md)** — archive of the original fix set: the security
+  fixes ported from ProtectCmds (versions 1.0.2 and 1.0.10), including which
+  ones still require the extension itself, plus the original `BUGFIXED`-
+  guarded changes with their stock and fixed code. Kept for reference only;
+  the `BUGFIXED` switch it describes no longer exists in this tree.

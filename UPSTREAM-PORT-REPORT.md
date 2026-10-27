@@ -7,6 +7,12 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
+**Status (2026-10-27):** current through commit `e0f5723`. 19 backport
+commits have landed since this report was added (`22084c4`) — see
+[Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
+pre-port fix set and is no longer updated; this report is the living
+document.
+
 ## References compared
 
 | Ref | Tree | Vintage | Role |
@@ -25,6 +31,11 @@ An automated inventory (`function-level`, reproducible) was built:
    conditionals), so our own fixes are never mistaken for upstream divergence
    — a function whose *original* variant matches upstream is classified
    `bf_only`, not `changed`.
+
+   *(This inventory was generated before commit `7fdd22f` removed that
+   switch. Today the fixed code is the only code, so a regenerated run
+   compares our current sources directly and no longer produces the
+   `bf_only` class.)*
 2. Every file in `dlls/`, `game_shared/`, `public/`, `common/` is paired with
    **each** reference independently (exact relative path first, basename
    fallback, header-similarity gate ≥ 0.30).
@@ -87,6 +98,8 @@ re-reads it — leaving the entity parented with garbage attachment state.
 nillerusr changed it to `if ( iAttachment <= 0 )`. Pure logic, no
 network/ABI surface.
 
+**Status: landed — `6ded251`.**
+
 ### 2. `CBaseEntity::TakeDamage` — upstream validates our fix — **A**
 
 nillerusr independently carries `if ( !g_pGameRules ) return;` at function
@@ -94,6 +107,10 @@ top — **the exact guard we ported from ProtectCmds** (`eba67ff`). Good
 external confirmation. Their other delta replaces the
 `DMG_NO_PHYSICS_FORCE` bit test with `g_pGameRules->Damage_NoPhysicsForce()`
 — a refactor (evaluate: v34 gamerules may already expose it → then neutral).
+
+**Status: the `g_pGameRules` guard has been in the tree since the earlier
+ProtectCmds port; the `Damage_NoPhysicsForce` refactor was skipped — the
+method does not exist on v34's `CGameRules`.**
 
 ### 3. `CBaseEntity::SetParent` — destroying a static physics object that is
 attached to a constraint — **B**
@@ -105,12 +122,19 @@ vphysics). Question to resolve in Phase 2: does v34's `IPhysicsObject`
 expose `IsAttachedToConstraint`? If yes, port the guard; if not, equivalent
 check must be derived from v34 interfaces.
 
+**Status: landed — `6ded251`.** The Phase-2 question is answered: v34's
+`IPhysicsObject` *does* expose `IsAttachedToConstraint(bool)`
+(`public/vphysics_interface.h`), so nillerusr's warning was ported as-is; it
+logs and then proceeds exactly as before (behavior-neutral).
+
 ### 4. `CBaseEntity::~CBaseEntity` — `SetGroundEntity(NULL)` during teardown —
 **B (needs study)**
 
 nillerusr clears the ground entity before `DestroyAllDataObjects()`. Ours
 relies on `PhysicsRemoveGroundList()` alone. Needs a careful read of v34
 teardown ordering before adopting.
+
+**Status: still open — deferred as originally planned.**
 
 ### 5. `util.cpp` hardening (sdk2013) — **A (small)**
 
@@ -120,10 +144,14 @@ teardown ordering before adopting.
   `debugoverlay->` call with `if ( debugoverlay )` — on a dedicated server
   the interface can be absent → admin-run console command crash.
 
+**Status: landed — `9674cee` (format-string and `debugoverlay` guards, plus
+a NULL local-player guard not in the original list).**
+
 ### 6. `CServerGameClients::ProcessUsercmds` — we are ahead — **no action**
 
-Our `BUGFIXED` NaN/INF-angle and move-magnitude validation does **not**
-exist in nillerusr 2017 or the others. Keep ours; nothing to backport.
+Our NaN/INF-angle and move-magnitude validation (the code formerly behind
+the `BUGFIXED` switch) does **not** exist in nillerusr 2017 or the others.
+Keep ours; nothing to backport.
 
 ### 7. `CServerGameDLL::GameFrame` — alternate-tick skip rework — **D/E**
 
@@ -154,8 +182,8 @@ skipped (feature, event plumbing a v34 client wouldn't use).
 Rules in force for the porting work (set once the switch was retired):
 
 1. **No `BUGFIXED` flag** — the switch was removed repo-wide (commit
-   `a37aed8`); all conditionals were flattened to keep the fixed code.
-   Backports are applied unconditionally.
+   `7fdd22f`, "the fixed code is the only code"); all conditionals were
+   flattened to keep the fixed code. Backports are applied unconditionally.
 2. **No FIXES.md / README entries** for these changes — the work is too
    large for per-change documentation there.
 3. **Every major change gets its own commit with a detailed explanation**
@@ -169,21 +197,56 @@ Rules in force for the porting work (set once the switch was retired):
 5. **Build-verify both tree states** in the Etch chroot (README build guide)
    before each commit batch.
 
-**Batch 1 (in progress):** `SetParentAttachment` -1-attachment guard ·
-nillerusr `SetParent` constraint warning · `util.cpp` format-string +
-`debugoverlay` guards · `Damage_NoPhysicsForce` refactor **skipped** (API
+**Batch 1 — complete:** the `SetParentAttachment` -1-attachment guard and
+the nillerusr `SetParent` constraint warning landed in `6ded251`; the
+`util.cpp` format-string, `debugoverlay` and NULL local-player hardening
+landed in `9674cee`. `Damage_NoPhysicsForce` refactor **skipped** (API
 absent from v34).
 
-**Batch 2 (queued, needs deeper reading):** destructor ground-entity study,
-`baseanimating.cpp` (58 consensus changes — SetupBones/frame advance family),
-`physics.cpp` penetration-solver changes, `nav_mesh`/`nav_generate`
-sdk2013 fixes, `XZip/XUnzip` file-IO fixes, `baseentity_shared` trace/touch
-helpers.
+**Batch 2 — partially landed:** the `baseanimating.cpp` family
+(`d97f4cd`, `ea02fbc`, `9eb1faf`, `f3975e0`), the `physics.cpp`
+penetration solver (`dd29423`) and the `nav_mesh` ground probe
+(`e2b035b`). **Still open:** the destructor ground-entity study
+(finding 4), `nav_generate` sdk2013 fixes, `XZip/XUnzip` file-IO fixes,
+and the `baseentity_shared` trace/touch helpers.
 
-**Batch 3 (deferred / probably skip):** `ai_*` (HL2 NPC content — mostly
-irrelevant to a CSS server), `cstrike/*` game-logic changes (CSS-community
-bugfixes — in scope but reviewed as game logic, not engine), tier1
-container headers after D-filtering.
+**Batch 2.5 — hardening landed while triaging (see Landed backports):**
+input validation, NULL-guards, string/buffer bounds checks and the
+lag-comp/lerp alignment, applied as individual commits with full
+explanations rather than waiting for a batch.
+
+**Batch 3 (deferred / probably skip):** unchanged — `ai_*` (HL2 NPC
+content — mostly irrelevant to a CSS server), `cstrike/*` game-logic
+changes (CSS-community bugfixes — in scope but reviewed as game logic, not
+engine), tier1 container headers after D-filtering.
+
+## Landed backports
+
+Commits oldest → newest; each body carries the full explanation (why
+upstream changed it, compatibility rating, build verification). `7fdd22f`
+removed the `BUGFIXED` switch and `22084c4` added this report.
+
+| Commit | Change |
+|---|---|
+| `6ded251` | SetParentAttachment -1-attachment guard; warn on destroying constraint-bound physics objects (nillerusr) |
+| `9674cee` | util.cpp console-command hardening: format string, missing debugoverlay, NULL local player |
+| `d97f4cd` | CBaseAnimating hardened against stale/invalid model state |
+| `e2b035b` | CNavMesh::GetGroundHeight → upstream iterative ground probe |
+| `dd29423` | Debris stuck inside non-static physics objects (nillerusr penetration solver) |
+| `ea02fbc` | IK_GROUND foot trace re-anchored to estimated floor height (CalculateIKLocks) |
+| `9eb1faf` | IK step-height estimator reset on teleport (InitStepHeightAdjust) |
+| `f3975e0` | Entity flame removed when it vanishes into a client-side ragdoll (BecomeRagdollOnClient) |
+| `a448fed` | NULL-guard UTIL_PlayerByIndex( 1 ) in the dangerous-autosave timer paths |
+| `2b122f2` | Validate numcmds against totalcmds before processing client usercmds (Asserts vanish under -DNDEBUG) |
+| `b36c793` | NULL-guard g_pGameRules in the CServerGameClients::ClientConnect path |
+| `2c563cc` | Clear the pending dangerous-autosave timer on level change (LevelInit) |
+| `c5bd690` | Honor cl_interp when the server computes a player's interpolation time (lag-comp rewound less than the client interpolated) |
+| `2ab23a1` | NULL-guard pPlayer in CServerGameClients::ClientSetupVisibility |
+| `6d23314` | Entity I/O debug buffers passed to DevMsg as data, not format strings |
+| `6c30f85` | Detect truncated output in V_snprintf/V_vsnprintf; fix size_t underflow in V_strncat |
+| `99af5f1` | Guard the null-termination write in CUtlBuffer::AddNullTermination against a negative index |
+| `5843414` | Clamp the hitbox cross-axis separation test with a projection epsilon (ClipRayToHitbox) |
+| `e0f5723` | Tolerate a NULL value string in ConVar::InternalSetValue and ConVar::ChangeStringValue |
 
 ## Artifacts
 
@@ -192,7 +255,11 @@ container headers after D-filtering.
 * `diffs/<ref>/<file>.txt` — per-function unified diffs for every changed
   function (27 MB corpus).
 * Tooling: the inventory script (re-runnable after any source change).
+  The `inventory.json`/`diffs` corpus was generated **before** `7fdd22f` and
+  is not checked in — regenerate it after any source change before trusting
+  its line/function data again.
 
 *(This report is committed as the standing analysis document for the porting
-project; FIXES.md/README deliberately do not track these changes. The machine
-artifacts (inventory + diff corpus) live outside the repo.)*
+project. `FIXES.md` is an archive of the pre-port fix set and is no longer
+updated; `README.md` links here for current status. The machine artifacts
+(inventory + diff corpus) live outside the repo.)*
