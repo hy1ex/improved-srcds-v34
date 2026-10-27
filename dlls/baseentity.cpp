@@ -353,6 +353,7 @@ CBaseEntity::~CBaseEntity( )
 		g_bDisableEhandleAccess = false;
 		CBaseEntity::PhysicsRemoveTouchedList( this );
 		CBaseEntity::PhysicsRemoveGroundList( this );
+		SetGroundEntity( NULL ); // remove us from the ground entity if we are on it
 		DestroyAllDataObjects();
 		g_bDisableEhandleAccess = true;
 
