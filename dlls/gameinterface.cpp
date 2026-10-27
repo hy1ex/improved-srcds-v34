@@ -2104,6 +2104,8 @@ void CServerGameClients::ClientSettingsChanged( edict_t *pEdict )
 		if ( flLerpRatio == 0 )
 			flLerpRatio = 1.0f;
 		
+		float flLerpAmount = Q_atof( QUICKGETCVARVALUE( "cl_interp" ) );
+		
 		static const ConVar *pMin = cvar->FindVar( "sv_client_min_interp_ratio" );
 		static const ConVar *pMax = cvar->FindVar( "sv_client_max_interp_ratio" );
 		
@@ -2117,7 +2119,7 @@ void CServerGameClients::ClientSettingsChanged( edict_t *pEdict )
 				flLerpRatio = 1.0f;
 		}
 		
-		player->m_fLerpTime = flLerpRatio / player->m_nUpdateRate;
+		player->m_fLerpTime = max( flLerpAmount, flLerpRatio / player->m_nUpdateRate );
 	}
 	else
 	{
