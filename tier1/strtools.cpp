@@ -609,7 +609,7 @@ void V_wcsncpy( wchar_t *pDest, wchar_t const *pSrc, int maxLenInBytes )
 
 int V_snprintf( char *pDest, int maxLen, char const *pFormat, ... )
 {
-	Assert( maxLen >= 0 );
+	Assert( maxLen > 0 );
 	AssertValidWritePtr( pDest, maxLen );
 	AssertValidStringPtr( pFormat );
 
@@ -625,11 +625,14 @@ int V_snprintf( char *pDest, int maxLen, char const *pFormat, ... )
 #endif
 	va_end( marker );
 
-	// Len < 0 represents an overflow
-	if( len < 0 )
+	// Len > maxLen represents an overflow on POSIX, < 0 is an overflow on windows
+	if( len < 0 || len >= maxLen )
 	{
 		len = maxLen;
-		pDest[maxLen-1] = 0;
+		if ( maxLen > 0 )
+		{
+			pDest[maxLen-1] = 0;
+		}
 	}
 
 	return len;
@@ -644,10 +647,14 @@ int V_vsnprintf( char *pDest, int maxLen, char const *pFormat, va_list params )
 
 	int len = _vsnprintf( pDest, maxLen, pFormat, params );
 
-	if( len < 0 )
+	// Len > maxLen represents an overflow on POSIX, < 0 is an overflow on windows
+	if( len < 0 || len >= maxLen )
 	{
 		len = maxLen;
-		pDest[maxLen-1] = 0;
+		if ( maxLen > 0 )
+		{
+			pDest[maxLen-1] = 0;
+		}
 	}
 
 	return len;
@@ -688,13 +695,12 @@ char *V_strncat(char *pDest, const char *pSrc, size_t destBufferSize, int max_ch
 		charstocopy = destBufferSize - len - 1;
 	}
 
-	if ( !charstocopy )
+	if ( (int)charstocopy <= 0 )
 	{
 		return pDest;
 	}
 
 	char *pOut = strncat( pDest, pSrc, charstocopy );
-	pOut[destBufferSize-1] = 0;
 	return pOut;
 }
 
