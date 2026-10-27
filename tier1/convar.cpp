@@ -760,7 +760,10 @@ void ConVar::InternalSetValue( char const *value )
 	Assert(m_pParent == this); // Only valid for root convars.
 
 	val = (char *)value;
-	fNewValue = ( float )atof( value );
+	if ( !value )
+		fNewValue = 0.0f;
+	else
+		fNewValue = ( float )atof( value );
 
 	if ( ClampValue( fNewValue ) )
 	{
@@ -787,18 +790,25 @@ void ConVar::ChangeStringValue( char const *tempVal )
  	char* pszOldValue = (char*)stackalloc( m_StringLength );
 	memcpy( pszOldValue, m_pszString, m_StringLength );
 	
-	int len = Q_strlen(tempVal) + 1;
-
-	if ( len > m_StringLength)
+	if ( tempVal )
 	{
-		if (m_pszString)
-			delete[] m_pszString;
+		int len = Q_strlen(tempVal) + 1;
 
-		m_pszString	= new char[len];
-		m_StringLength = len;
+		if ( len > m_StringLength)
+		{
+			if (m_pszString)
+				delete[] m_pszString;
+
+			m_pszString	= new char[len];
+			m_StringLength = len;
+		}
+
+		memcpy( m_pszString, tempVal, len );
 	}
-
-	memcpy( m_pszString, tempVal, len );
+	else
+	{
+		*m_pszString = 0;
+	}
 
 	// Invoke any necessary callback function
 	if ( m_fnChangeCallback )
