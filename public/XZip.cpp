@@ -296,15 +296,19 @@ typedef unsigned IPos; // A Pos is an index in the character window. Pos is used
 // Output a 16 bit value to the bit stream, lower (oldest) byte first
 #define PUTSHORT(state,w) \
 { if (state.bs.out_offset >= state.bs.out_size-1) \
-    state.flush_outbuf(state.param,state.bs.out_buf, &state.bs.out_offset); \
-  state.bs.out_buf[state.bs.out_offset++] = (char) ((w) & 0xff); \
-  state.bs.out_buf[state.bs.out_offset++] = (char) ((ush)(w) >> 8); \
+	state.flush_outbuf(state.param,state.bs.out_buf, &state.bs.out_offset); \
+  /* flush may fail, so only write into the buffer if there's actually room (same below) */ \
+  if (state.bs.out_offset < state.bs.out_size-1) { \
+    state.bs.out_buf[state.bs.out_offset++] = (char) ((w) & 0xff); \
+    state.bs.out_buf[state.bs.out_offset++] = (char) ((ush)(w) >> 8); \
+  } \
 }
 
 #define PUTBYTE(state,b) \
 { if (state.bs.out_offset >= state.bs.out_size) \
     state.flush_outbuf(state.param,state.bs.out_buf, &state.bs.out_offset); \
-  state.bs.out_buf[state.bs.out_offset++] = (char) (b); \
+  if (state.bs.out_offset < state.bs.out_size) \
+	state.bs.out_buf[state.bs.out_offset++] = (char) (b); \
 }
 
 // DEFLATE.CPP HEADER
