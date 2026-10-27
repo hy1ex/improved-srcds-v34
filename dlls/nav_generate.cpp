@@ -2230,14 +2230,22 @@ void CNavMesh::AddWalkableSeed( const Vector &pos, const Vector &normal )
  */
 CNavNode *CNavMesh::GetNextWalkableSeedNode( void )
 {	
-	if (!m_walkableSeedList.IsValidIndex( m_seedIdx ))
-		return NULL;
+	while (m_walkableSeedList.IsValidIndex( m_seedIdx ))
+	{
+		WalkableSeedSpot spot = m_walkableSeedList.Element( m_seedIdx );
 
-	WalkableSeedSpot spot = m_walkableSeedList.Element( m_seedIdx );
+		m_seedIdx = m_walkableSeedList.Next( m_seedIdx );
 
-	m_seedIdx = m_walkableSeedList.Next( m_seedIdx );
+		// if a node already exists at this location, sampling from an earlier
+		// seed covered it - skip this seed instead of creating a duplicate
+		// node within GetNode()'s tolerance of the existing one
+		if ( CNavNode::GetNode( spot.pos ) )
+			continue;
 
-	return new CNavNode( spot.pos, spot.normal, NULL );
+		return new CNavNode( spot.pos, spot.normal, NULL );
+	}
+
+	return NULL;
 }
 
 
