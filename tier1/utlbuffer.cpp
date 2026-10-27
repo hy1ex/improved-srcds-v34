@@ -1444,7 +1444,12 @@ void CUtlBuffer::AddNullTermination( void )
 			// Add null termination value
 			if ( CheckPut( 1 ) )
 			{
-				m_Memory[m_Put - m_nOffset] = 0;
+				int Index = m_Put - m_nOffset;
+				Assert( m_Memory.IsIdxValid( Index ) );
+				if( Index >= 0 )
+				{
+					m_Memory[ Index ] = 0;
+				}
 			}
 			else
 			{
