@@ -1110,9 +1110,16 @@ bool IntersectRayWithOBB( const Vector &vecRayStart, const Vector &vecRayDelta,
 
 	// delta was prescaled by the current t, so no need to see if this intersection
 	// is closer
-	trace_t boxTrace;
 	if ( !IntersectRayWithBox( start, extent, vecOBBMins, vecOBBMaxs, flTolerance, pTrace ) )
 		return false;
+
+	// Fix up the start/end pos and fraction
+	Vector vecTemp;
+	VectorTransform( pTrace->endpos, matOBBToWorld, vecTemp );
+	pTrace->endpos = vecTemp;
+
+	pTrace->startpos = vecRayStart;
+	pTrace->fraction *= 2.0f;
 
 	// Fix up the plane information
 	float flSign = pTrace->plane.normal[ pTrace->plane.type ];
