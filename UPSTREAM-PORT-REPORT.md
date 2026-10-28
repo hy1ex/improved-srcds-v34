@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-10-28):** current through commit `6870376`. 24 backport
+**Status (2026-10-28):** current through commit `cb7a5e0`. 26 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -257,6 +257,8 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `615515d` | XZip PUTBYTE/PUTSHORT flush-bounds guard (3/3 refs; file is Windows-only dead source) |
 | `0438a3a` | Physics-reasonableness guards in baseentity_shared: VPhysicsUpdate bounds checks (fixes the `IsFinite(angles.x)`-twice/never-z bug), impulse clamps, throttled spew |
 | `6870376` | FireBullets clamps a startsolid trace back to its start position (Tracker 70354/63250 — out-of-range networked tracer endpos) |
+| `9870ae4` | IntersectRayWithOBB transforms its result back to world space and un-doubles the fraction (3/3 refs; endpos was OBB-local, fraction was half the true value) |
+| `cb7a5e0` | IntersectRayWithBox snaps a startsolid trace's startpos to the solid exit point (3/3 refs; pFractionLeftSolid param skipped — no callers) |
 
 ## Artifacts
 
