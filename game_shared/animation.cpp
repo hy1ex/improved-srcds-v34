@@ -375,7 +375,7 @@ void GetSequenceLinearMotion( CStudioHdr *pstudiohdr, int iSequence, const float
 {
 	if (! pstudiohdr)
 	{
-		Msg( "Bad pstudiohdr in GetSequenceLinearMotion()!\n" );
+		ExecuteNTimes( 20, Msg( "Bad pstudiohdr in GetSequenceLinearMotion()!\n" ) );
 		return;
 	}
 
@@ -387,11 +387,7 @@ void GetSequenceLinearMotion( CStudioHdr *pstudiohdr, int iSequence, const float
 		// Don't spam on bogus model
 		if ( pstudiohdr->GetNumSeq() > 0 )
 		{
-			static int msgCount = 0;
-			while ( ++msgCount < 10 )
-			{
-				Msg( "Bad sequence (%i out of %i max) in GetSequenceLinearMotion() for model '%s'!\n", iSequence, pstudiohdr->GetNumSeq(), pstudiohdr->pszName() );
-			}
+			ExecuteNTimes( 20, Msg( "Bad sequence (%i out of %i max) in GetSequenceLinearMotion() for model '%s'!\n", iSequence, pstudiohdr->GetNumSeq(), pstudiohdr->pszName() ) );
 		}
 		pVec->Init();
 		return;
@@ -498,7 +494,7 @@ int GetAnimationEvent( CStudioHdr *pstudiohdr, int sequence, animevent_t *pNPCEv
 		// Don't send client-side events to the server AI
 		if ( pevent[index].type & AE_TYPE_NEWEVENTSYSTEM )
 		{
-			if ( pevent[index].type & AE_TYPE_CLIENT )
+			if ( !(pevent[index].type & AE_TYPE_SERVER) )
 				 continue;
 		}
 		else if ( pevent[index].event >= EVENT_CLIENT ) //Adrian - Support the old event system
@@ -625,7 +621,7 @@ void SetBodygroup( CStudioHdr *pstudiohdr, int& body, int iGroup, int iValue )
 	if (! pstudiohdr)
 		return;
 
-	if (iGroup >= pstudiohdr->numbodyparts())
+	if (iGroup < 0 || iGroup >= pstudiohdr->numbodyparts())
 		return;
 
 	mstudiobodyparts_t *pbodypart = pstudiohdr->pBodypart( iGroup );
@@ -644,7 +640,7 @@ int GetBodygroup( CStudioHdr *pstudiohdr, int body, int iGroup )
 	if (! pstudiohdr)
 		return 0;
 
-	if (iGroup >= pstudiohdr->numbodyparts())
+	if (iGroup < 0 || iGroup >= pstudiohdr->numbodyparts())
 		return 0;
 
 	mstudiobodyparts_t *pbodypart = pstudiohdr->pBodypart( iGroup );
@@ -662,7 +658,7 @@ const char *GetBodygroupName( CStudioHdr *pstudiohdr, int iGroup )
 	if ( !pstudiohdr)
 		return "";
 
-	if (iGroup >= pstudiohdr->numbodyparts())
+	if (iGroup < 0 || iGroup >= pstudiohdr->numbodyparts())
 		return "";
 
 	mstudiobodyparts_t *pbodypart = pstudiohdr->pBodypart( iGroup );
@@ -671,7 +667,7 @@ const char *GetBodygroupName( CStudioHdr *pstudiohdr, int iGroup )
 
 int FindBodygroupByName( CStudioHdr *pstudiohdr, const char *name )
 {
-	if ( !pstudiohdr )
+	if ( !pstudiohdr || !pstudiohdr->IsValid() )
 		return -1;
 
 	int group;
@@ -692,7 +688,7 @@ int GetBodygroupCount( CStudioHdr *pstudiohdr, int iGroup )
 	if ( !pstudiohdr )
 		return 0;
 
-	if (iGroup >= pstudiohdr->numbodyparts())
+	if (iGroup < 0 || iGroup >= pstudiohdr->numbodyparts())
 		return 0;
 
 	mstudiobodyparts_t *pbodypart = pstudiohdr->pBodypart( iGroup );
