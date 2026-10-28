@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-10-28):** current through commit `9ea3ba1`. 35 backport
+**Status (2026-10-28):** current through commit `a5a21b6`. 37 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -231,6 +231,24 @@ version), and `MarkSurroundingBoundsDirty`'s switch to
 `EFL_DIRTY_PVS_INFORMATION` eflag mechanism is already the correct
 implementation for our ServerNetworkProperty. All skipped as C/D/E.
 
+**Batch 2.7 — small-file sweep (2026-10-28):** `animation.cpp` (4 fixes
+in `a5a21b6`: the `AE_TYPE_SERVER` event filter in `GetAnimationEvent`,
+negative bodygroup guards at all four sites, `IsValid()` in
+`FindBodygroupByName`, `ExecuteNTimes` log throttling) and
+`public/filesystem_helpers.cpp` (`19681c4`: `ParseFile`'s output token is
+now bounded via upstream's `ParseFileInternal` + array-reference
+templates — our copy had no length knowledge at all). Three files
+reviewed with nothing portable: `interval.cpp` is pure churn (copyright
+header plus the `vstdlib`→`tier1` strtools include path);
+`decals.cpp` offers only a new `GetDecalNameForIndex` API — its sole
+upstream caller is client-side `c_te_worlddecal.cpp`, which this server
+does not build, and adding it to `IDecalEmitterSystem` would insert a
+virtual into the shared interface (vtable risk against `engine.so`) —
+plus an sdk2013-only shadow-variable rename with no semantic effect; and
+`animation.cpp`'s `SelectWeightedSequence` fast path was skipped because
+it needs the `CStudioHdr::m_ActivityToSequence` subsystem this tree does
+not have, making it a feature port rather than a drop-in.
+
 **Batch 3 (deferred / probably skip):** unchanged — `ai_*` (HL2 NPC
 content — mostly irrelevant to a CSS server), `cstrike/*` game-logic
 changes (CSS-community bugfixes — in scope but reviewed as game logic, not
@@ -280,6 +298,8 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `454ca83` | STRING(classname) in the global-entity mismatch Warning (3/3 refs — strong string_t passed raw to %s) |
 | `33ab533` | NULL-guard SaveInit's engine allocations (3/3 refs; upstream's error-path leak corrected) |
 | `9ea3ba1` | CSave::WriteFunction writes a BADFUNCTIONPOINTER placeholder instead of dropping the field (3/3 refs — a dropped field desynced the save stream) |
+| `19681c4` | Bound ParseFile's output token with a caller-supplied max length (3/3 refs; OUT_Z_* annotations dropped — absent from this tree) |
+| `a5a21b6` | animation.cpp: AE_TYPE_SERVER event filter (3/3), negative bodygroup guards, FindBodygroupByName IsValid(), ExecuteNTimes log throttling |
 
 ## Artifacts
 
