@@ -870,6 +870,10 @@ void CUtlBuffer::SeekGet( SeekType_t type, int offset )
 	else
 	{
 		m_Error &= ~GET_OVERFLOW;
+		if ( m_Get < m_nOffset || m_Get >= m_nOffset + Size() )
+		{
+			OnGetOverflow( -1 );
+		}
 	}
 }
 
