@@ -945,7 +945,7 @@ void ConVar::Create( char const *pName, char const *pDefaultValue, int flags /*=
 		Assert( 0 );
 	}
 
-	m_nValue = ( int )m_fValue;
+	m_nValue = atoi( m_pszString ); // dont convert from float to int and lose bits
 
 	BaseClass::Create( pName, pHelpString, flags );
 }
