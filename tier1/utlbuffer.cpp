@@ -335,9 +335,12 @@ void CUtlBuffer::EnsureCapacity( int num )
 //-----------------------------------------------------------------------------
 void CUtlBuffer::Get( void* pMem, int size )
 {
-	if ( CheckGet( size ) )
+	if ( size > 0 && CheckGet( size ) )
 	{
-		memcpy( pMem, &m_Memory[m_Get - m_nOffset], size );
+		int Index = m_Get - m_nOffset;
+		Assert( m_Memory.IsIdxValid( Index ) && m_Memory.IsIdxValid( Index + size - 1 ) );
+
+		memcpy( pMem, &m_Memory[ Index ], size );
 		m_Get += size;
 	}
 }
@@ -351,7 +354,10 @@ int CUtlBuffer::GetUpTo( void *pMem, int nSize )
 {
 	if ( CheckArbitraryPeekGet( 0, nSize ) )
 	{
-		memcpy( pMem, &m_Memory[m_Get - m_nOffset], nSize );
+		int Index = m_Get - m_nOffset;
+		Assert( m_Memory.IsIdxValid( Index ) && m_Memory.IsIdxValid( Index + nSize - 1 ) );
+
+		memcpy( pMem, &m_Memory[ Index ], nSize );
 		m_Get += nSize;
 		return nSize;
 	}
