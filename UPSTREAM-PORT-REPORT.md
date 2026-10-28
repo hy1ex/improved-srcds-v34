@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-10-27):** current through commit `e0f5723`. 19 backport
+**Status (2026-10-28):** current through commit `6870376`. 24 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -203,12 +203,16 @@ the nillerusr `SetParent` constraint warning landed in `6ded251`; the
 landed in `9674cee`. `Damage_NoPhysicsForce` refactor **skipped** (API
 absent from v34).
 
-**Batch 2 — partially landed:** the `baseanimating.cpp` family
+**Batch 2 — complete:** the `baseanimating.cpp` family
 (`d97f4cd`, `ea02fbc`, `9eb1faf`, `f3975e0`), the `physics.cpp`
-penetration solver (`dd29423`) and the `nav_mesh` ground probe
-(`e2b035b`). **Still open:** the destructor ground-entity study
-(finding 4), `nav_generate` sdk2013 fixes, `XZip/XUnzip` file-IO fixes,
-and the `baseentity_shared` trace/touch helpers.
+penetration solver (`dd29423`), the `nav_mesh` ground probe
+(`e2b035b`), the `~CBaseEntity` ground-entity teardown (`0f86f08`,
+finding 4), the `nav_generate` covered-seed fix (`aa75b38`), the XZip
+`PUTBYTE`/`PUTSHORT` flush-bounds fix (`615515d` — verified: Windows-only
+dead source not in the build), the `baseentity_shared` physics-reasonableness
+guards (`0438a3a`) and the `FireBullets` startsolid tracer clamp
+(`6870376`). `XUnzip` had no portable fix (Valve deleted the file; the
+cssce delta is their POSIX port).
 
 **Batch 2.5 — hardening landed while triaging (see Landed backports):**
 input validation, NULL-guards, string/buffer bounds checks and the
@@ -247,6 +251,12 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `99af5f1` | Guard the null-termination write in CUtlBuffer::AddNullTermination against a negative index |
 | `5843414` | Clamp the hitbox cross-axis separation test with a projection epsilon (ClipRayToHitbox) |
 | `e0f5723` | Tolerate a NULL value string in ConVar::InternalSetValue and ConVar::ChangeStringValue |
+| `b888440` | README + this report brought back in sync with the tree (docs-only; FIXES.md frozen as archive) |
+| `0f86f08` | `~CBaseEntity` clears the ground entity during teardown (3/3-ref consensus, finding 4) |
+| `aa75b38` | nav_generate skips already-covered seeds instead of creating duplicate nodes (safe deviation from upstream's abort) |
+| `615515d` | XZip PUTBYTE/PUTSHORT flush-bounds guard (3/3 refs; file is Windows-only dead source) |
+| `0438a3a` | Physics-reasonableness guards in baseentity_shared: VPhysicsUpdate bounds checks (fixes the `IsFinite(angles.x)`-twice/never-z bug), impulse clamps, throttled spew |
+| `6870376` | FireBullets clamps a startsolid trace back to its start position (Tracker 70354/63250 — out-of-range networked tracer endpos) |
 
 ## Artifacts
 
