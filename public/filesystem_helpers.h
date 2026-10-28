@@ -12,10 +12,24 @@
 #endif
 
 
-// Call until it returns NULL. Each time you call it, it will parse out a token.
 typedef struct characterset_s characterset_t;
-const char* ParseFile( const char* pFileBytes, char* pToken, bool* pWasQuoted, characterset_t *pCharSet = NULL );
-char* ParseFile( char* pFileBytes, char* pToken, bool* pWasQuoted );	// (same exact thing as the const version)
 
+// Don't call this directly. You should (as long as your destination is an array) be
+// able to call ParseFile, which is safer as it infers your array size for you.
+const char* ParseFileInternal( const char* pFileBytes, char* pTokenOut, bool* pWasQuoted, characterset_t *pCharSet, size_t nMaxTokenLen );
+
+// Call until it returns NULL. Each time you call it, it will parse out a token.
+template <size_t count>
+const char* ParseFile( const char* pFileBytes, char (&pTokenOut)[count], bool* pWasQuoted, characterset_t *pCharSet = NULL, unsigned int nMaxTokenLen = (unsigned int)-1 )
+{
+	(void)nMaxTokenLen; // Avoid unreferenced variable warnings.
+	return ParseFileInternal( pFileBytes, pTokenOut, pWasQuoted, pCharSet, count );
+}
+
+template <size_t count>
+char* ParseFile( char* pFileBytes, char (&pTokenOut)[count], bool* pWasQuoted )	// (same exact thing as the const version)
+{
+	return const_cast<char*>( ParseFileInternal( pFileBytes, pTokenOut, pWasQuoted, NULL, count ) );
+}
 
 #endif // FILESYSTEM_HELPERS_H
