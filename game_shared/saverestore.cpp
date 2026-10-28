@@ -1111,16 +1111,14 @@ void CSave::WriteFunction( datamap_t *pRootMap, const char *pname, const int *da
 {
 	AssertMsg( count == 1, "Arrays of functions not presently supported" );
 	const char *functionName = UTIL_FunctionToName( pRootMap, (void *)(*data) );
-
-	if ( functionName )
-	{
-		BufferField( pname, strlen(functionName) + 1, functionName );
-	}
-	else
+	if ( !functionName )
 	{
 		Warning( "Invalid function pointer in entity!\n" );
 		Assert(0);
+		functionName = "BADFUNCTIONPOINTER";
 	}
+
+	BufferField( pname, strlen(functionName) + 1, functionName );
 }
 
 //-------------------------------------
