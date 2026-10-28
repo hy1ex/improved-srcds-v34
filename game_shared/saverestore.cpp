@@ -2795,7 +2795,7 @@ CBaseEntity *CEntitySaveRestoreBlockHandler::FindGlobalEntity( string_t classnam
 	{
 		if ( !FClassnameIs( pReturn, STRING(classname) ) )
 		{
-			Warning( "Global entity found %s, wrong class %s [expects class %s]\n", STRING(globalname), STRING(pReturn->m_iClassname), classname );
+			Warning( "Global entity found %s, wrong class %s [expects class %s]\n", STRING(globalname), STRING(pReturn->m_iClassname), STRING(classname) );
 			pReturn = NULL;
 		}
 	}
