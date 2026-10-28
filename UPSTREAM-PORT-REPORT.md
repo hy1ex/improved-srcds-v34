@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-10-28):** current through commit `cb7a5e0`. 26 backport
+**Status (2026-10-28):** current through commit `ab8d754`. 30 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -259,6 +259,10 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `6870376` | FireBullets clamps a startsolid trace back to its start position (Tracker 70354/63250 — out-of-range networked tracer endpos) |
 | `9870ae4` | IntersectRayWithOBB transforms its result back to world space and un-doubles the fraction (3/3 refs; endpos was OBB-local, fraction was half the true value) |
 | `cb7a5e0` | IntersectRayWithBox snaps a startsolid trace's startpos to the solid exit point (3/3 refs; pFractionLeftSolid param skipped — no callers) |
+| `550029b` | ConVar::Create parses its default int with atoi, not a float cast (3/3 refs — >2^24 defaults lost precision) |
+| `16970b2` | CUtlCharConversion table lookups cast the index to unsigned char (3/3 refs — signed-char negative subscripts) |
+| `af15460` | CUtlBuffer::Get rejects non-positive sizes and asserts the read index (3/3 refs) |
+| `ab8d754` | CUtlBuffer::SeekGet validates the landing position via OnGetOverflow (3/3 refs) |
 
 ## Artifacts
 
