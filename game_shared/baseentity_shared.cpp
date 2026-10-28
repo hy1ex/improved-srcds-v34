@@ -1555,6 +1555,17 @@ void CBaseEntity::FireBullets( const FireBulletsInfo_t &info )
 			AI_TraceLine(info.m_vecSrc, vecEnd, MASK_SHOT, &traceFilter, &tr);
 		}
 
+		// Tracker 70354/63250:  ywb 8/2/07
+		// Fixes bug where trace from turret with attachment point outside of Vcollide
+		//  starts solid so doesn't hit anything else in the world and the final coord 
+		//  is outside of the MAX_COORD_FLOAT range.  This cause trying to send the end pos
+		//  of the tracer down to the client with an origin which is out-of-range for networking
+		if ( tr.startsolid )
+		{
+			tr.endpos = tr.startpos;
+			tr.fraction = 0.0f;
+		}
+
 		vecFinalDir = tr.endpos - tr.startpos;
 		VectorNormalize( vecFinalDir );
 
