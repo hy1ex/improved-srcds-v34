@@ -2974,11 +2974,24 @@ CSaveRestoreData *SaveInit( int size )
 	numentities = ClientEntityList().NumberOfEntities();
 #endif
 
-	pSaveData = MakeSaveRestoreData(engine->SaveAllocMemory( sizeof(CSaveRestoreData) + (sizeof(entitytable_t) * numentities) + size, sizeof(char) ));
+	void *pSaveMemory = engine->SaveAllocMemory( sizeof(CSaveRestoreData) + (sizeof(entitytable_t) * numentities) + size, sizeof(char) );
+	if ( !pSaveMemory )
+	{
+		return NULL;
+	}
+
+	pSaveData = MakeSaveRestoreData( pSaveMemory );
 	pSaveData->Init( (char *)(pSaveData + 1), size );	// skip the save structure
 	
 	const int nTokens = 0xfff; // Assume a maximum of 4K-1 symbol table entries(each of some length)
-	pSaveData->InitSymbolTable( (char **)engine->SaveAllocMemory( nTokens, sizeof( char * ) ), nTokens );
+	pSaveMemory = engine->SaveAllocMemory( nTokens, sizeof( char * ) );
+	if ( !pSaveMemory )
+	{
+		engine->SaveFreeMemory( pSaveData );
+		return NULL;
+	}
+
+	pSaveData->InitSymbolTable( (char **)pSaveMemory, nTokens );
 
 	//---------------------------------
 	
