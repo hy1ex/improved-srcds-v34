@@ -319,6 +319,9 @@ bool PhysModelParseSolidByIndex( solid_t &solid, CBaseEntity *pEntity, vcollide_
 //-----------------------------------------------------------------------------
 IPhysicsObject *PhysModelCreate( CBaseEntity *pEntity, int modelIndex, const Vector &origin, const QAngle &angles, solid_t *pSolid )
 {
+	if ( !physenv )
+		return NULL;
+
 	vcollide_t *pCollide = modelinfo->GetVCollide( modelIndex );
 	if ( !pCollide || !pCollide->solidCount )
 		return NULL;
@@ -374,6 +377,9 @@ IPhysicsObject *PhysModelCreate( CBaseEntity *pEntity, int modelIndex, const Vec
 //-----------------------------------------------------------------------------
 IPhysicsObject *PhysModelCreateUnmoveable( CBaseEntity *pEntity, int modelIndex, const Vector &origin, const QAngle &angles )
 {
+	if ( !physenv )
+		return NULL;
+
 	vcollide_t *pCollide = modelinfo->GetVCollide( modelIndex );
 	if ( !pCollide || !pCollide->solidCount )
 		return NULL;
@@ -428,6 +434,9 @@ IPhysicsObject *PhysModelCreateUnmoveable( CBaseEntity *pEntity, int modelIndex,
 //-----------------------------------------------------------------------------
 IPhysicsObject *PhysModelCreateCustom( CBaseEntity *pEntity, const CPhysCollide *pModel, const Vector &origin, const QAngle &angles, const char *pName, bool isStatic, solid_t *pSolid )
 {
+	if ( !physenv )
+		return NULL;
+
 	solid_t tmpSolid;
 	if ( !pSolid )
 	{
@@ -463,6 +472,9 @@ IPhysicsObject *PhysModelCreateCustom( CBaseEntity *pEntity, const CPhysCollide 
 //-----------------------------------------------------------------------------
 IPhysicsObject *PhysSphereCreate( CBaseEntity *pEntity, float radius, const Vector &origin, solid_t &solid )
 {
+	if ( !physenv )
+		return NULL;
+
 	int surfaceProp = -1;
 	if ( solid.surfaceprop[0] )
 	{
@@ -596,6 +608,9 @@ IPhysicsObject *PhysCreateWorld_Shared( CBaseEntity *pWorld, vcollide_t *pWorldC
 {
 	solid_t solid;
 	fluid_t fluid;
+
+	if ( !physenv || !pWorldCollide || pWorldCollide->solidCount < 1 )
+		return NULL;
 
 	int surfaceData = physprops->GetSurfaceIndex( "default" );
 
