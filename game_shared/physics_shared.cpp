@@ -671,14 +671,14 @@ IPhysicsObject *PhysCreateWorld_Shared( CBaseEntity *pWorld, vcollide_t *pWorldC
 			pParse->ParseFluid( &fluid, NULL );
 
 			// create a fluid for floating
-			if ( fluid.index > 0 )
+			if ( fluid.index > 0 && fluid.index < pWorldCollide->solidCount )
 			{
 				solid.params = defaultParams;	// copy world's params
 				solid.params.enableCollisions = true;
 				solid.params.pName = "fluid";
 				solid.params.pGameData = static_cast<void *>(pWorld);
 				fluid.params.pGameData = static_cast<void *>(pWorld);
-				int surfaceData = physprops->GetSurfaceIndex( fluid.surfaceprop );
+				surfaceData = physprops->GetSurfaceIndex( fluid.surfaceprop );
 				// create this as part of the world
 				IPhysicsObject *pWater = physenv->CreatePolyObjectStatic( pWorldCollide->solids[fluid.index], 
 					surfaceData, vec3_origin, vec3_angle, &solid.params );
