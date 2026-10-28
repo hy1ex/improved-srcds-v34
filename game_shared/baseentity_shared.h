@@ -250,12 +250,29 @@ inline bool CBaseEntity::IsEffectActive( int nEffects ) const
 
 extern float k_flMaxEntityPosCoord;
 extern float k_flMaxEntityEulerAngle;
+extern float k_flMaxEntitySpeed;
+extern float k_flMaxEntitySpinRate;
 
 inline bool IsEntityCoordinateReasonable ( const vec_t c )
 {
 	float r = k_flMaxEntityPosCoord;
 	return c > -r && c < r;
 }
+
+inline bool IsEntityPositionReasonable( const Vector &v )
+{
+	float r = k_flMaxEntityPosCoord;
+	return
+		v.x > -r && v.x < r &&
+		v.y > -r && v.y < r &&
+		v.z > -r && v.z < r;
+}
+
+// Returns:
+//   -1 - velocity is really, REALLY bad and probably should be rejected.
+//   0  - velocity was suspicious and clamped.
+//   1  - velocity was OK and not modified
+extern int CheckEntityVelocity( Vector &v );
 
 inline bool IsEntityQAngleReasonable( const QAngle &q )
 {
@@ -265,5 +282,17 @@ inline bool IsEntityQAngleReasonable( const QAngle &q )
 		q.y > -r && q.y < r &&
 		q.z > -r && q.z < r;
 }
+
+// Angular velocity in exponential map form
+inline bool IsEntityAngularVelocityReasonable( const Vector &q )
+{
+	float r = k_flMaxEntitySpinRate;
+	return
+		q.x > -r && q.x < r &&
+		q.y > -r && q.y < r &&
+		q.z > -r && q.z < r;
+}
+
+extern bool CheckEmitReasonablePhysicsSpew();
 
 #endif // BASEENTITY_SHARED_H

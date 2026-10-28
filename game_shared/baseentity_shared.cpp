@@ -18,6 +18,7 @@
 #include "mapentities_shared.h"
 #include "debugoverlay_shared.h"
 #include "coordsize.h"
+#include "vphysics/performance.h"
 
 #ifdef CLIENT_DLL
 	#include "c_te_effect_dispatch.h"
@@ -55,10 +56,33 @@ bool CBaseEntity::m_bAllowPrecache = false;
 // Set default max values for entities based on the existing constants from elsewhere
 float k_flMaxEntityPosCoord = MAX_COORD_FLOAT;
 float k_flMaxEntityEulerAngle = 360.0 * 1000.0f; // really should be restricted to +/-180, but some code doesn't adhere to this.  let's just trap NANs, etc
+// Sometimes the resulting computed speeds are legitimately above the original
+// constants; use bumped up versions for the downstream validation logic to
+// account for this.
+float k_flMaxEntitySpeed = k_flMaxVelocity * 2.0f;
+float k_flMaxEntitySpinRate = k_flMaxAngularVelocity * 10.0f;
 
 ConVar	ai_shot_bias_min( "ai_shot_bias_min", "-1.0", FCVAR_REPLICATED );
 ConVar	ai_shot_bias_max( "ai_shot_bias_max", "1.0", FCVAR_REPLICATED );
 ConVar	ai_debug_shoot_positions( "ai_debug_shoot_positions", "0", FCVAR_REPLICATED | FCVAR_CHEAT );
+
+// Utility func to throttle rate at which the "reasonable position" spew goes out
+static double s_LastEntityReasonableEmitTime;
+bool CheckEmitReasonablePhysicsSpew()
+{
+
+	// Reported recently?
+	double now = Plat_FloatTime();
+	if ( now >= s_LastEntityReasonableEmitTime && now < s_LastEntityReasonableEmitTime + 5.0 )
+	{
+		// Already reported recently
+		return false;
+	}
+
+	// Not reported recently.  Report it now
+	s_LastEntityReasonableEmitTime = now;
+	return true;
+}
 
 
 //-----------------------------------------------------------------------------
@@ -944,6 +968,29 @@ int	CBaseEntity::GetNextThinkTick( int nContextIndex ) const
 }
 
 
+int CheckEntityVelocity( Vector &v )
+{
+	float r = k_flMaxEntitySpeed;
+	if (
+		v.x > -r && v.x < r &&
+		v.y > -r && v.y < r &&
+		v.z > -r && v.z < r)
+	{
+		// The usual case.  It's totally reasonable
+		return 1;
+	}
+	float speed = v.Length();
+	if ( speed < k_flMaxEntitySpeed * 100.0f )
+	{
+		// Sort of suspicious.  Clamp it
+		v *= k_flMaxEntitySpeed / speed;
+		return 0;
+	}
+
+	// A terrible, horrible, no good, very bad velocity.
+	return -1;
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: My physics object has been updated, react or extract data
 //-----------------------------------------------------------------------------
@@ -963,24 +1010,34 @@ void CBaseEntity::VPhysicsUpdate( IPhysicsObject *pPhysics )
 
 			pPhysics->GetPosition( &origin, &angles );
 
-			if ( !IsFinite( angles.x ) || !IsFinite( angles.y ) || !IsFinite( angles.x ) )
+			if ( !IsEntityQAngleReasonable( angles ) )
 			{
-				Msg( "Infinite angles from vphysics! (entity %s)\n", GetDebugName() );
+				if ( CheckEmitReasonablePhysicsSpew() )
+				{
+					Warning( "Ignoring bogus angles (%f,%f,%f) from vphysics! (entity %s)\n", angles.x, angles.y, angles.z, GetDebugName() );
+				}
 				angles = vec3_angle;
 			}
 #ifndef CLIENT_DLL 
 			Vector prevOrigin = GetAbsOrigin();
 #endif
 
-			if ( origin.IsValid() )
+			if ( IsEntityPositionReasonable( origin ) )
 			{
 				SetAbsOrigin( origin );
 			}
 			else
 			{
-				Msg( "Infinite origin from vphysics! (entity %s)\n", GetDebugName() );
+				if ( CheckEmitReasonablePhysicsSpew() )
+				{
+					Warning( "Ignoring unreasonable position (%f,%f,%f) from vphysics! (entity %s)\n", origin.x, origin.y, origin.z, GetDebugName() );
+				}
 			}
 
+			for ( int i = 0; i < 3; ++i )
+			{
+				angles[ i ] = AngleNormalize( angles[ i ] );
+			}
 			SetAbsAngles( angles );
 
 			// Interactive debris converts back to debris when it comes to rest
@@ -1989,13 +2046,30 @@ void CBaseEntity::SetEffectEntity( CBaseEntity *pEffectEnt )
 	}
 }
 
-void CBaseEntity::ApplyLocalVelocityImpulse( const Vector &vecImpulse )
+void CBaseEntity::ApplyLocalVelocityImpulse( const Vector &inVecImpulse )
 {
 	// NOTE: Don't have to use GetVelocity here because local values
 	// are always guaranteed to be correct, unlike abs values which may 
 	// require recomputation
-	if (vecImpulse != vec3_origin )
+	if ( inVecImpulse != vec3_origin )
 	{
+		Vector vecImpulse = inVecImpulse;
+
+		// Safety check against receive a huge impulse, which can explode physics
+		switch ( CheckEntityVelocity( vecImpulse ) )
+		{
+			case -1:
+				Warning( "Discarding ApplyLocalVelocityImpulse(%f,%f,%f) on %s\n", vecImpulse.x, vecImpulse.y, vecImpulse.z, GetDebugName() );
+				Assert( false );
+				return;
+			case 0:
+				if ( CheckEmitReasonablePhysicsSpew() )
+				{
+					Warning( "Clamping ApplyLocalVelocityImpulse(%f,%f,%f) on %s\n", inVecImpulse.x, inVecImpulse.y, inVecImpulse.z, GetDebugName() );
+				}
+				break;
+		}
+
 		if ( GetMoveType() == MOVETYPE_VPHYSICS )
 		{
 			Vector worldVel;
@@ -2010,10 +2084,27 @@ void CBaseEntity::ApplyLocalVelocityImpulse( const Vector &vecImpulse )
 	}
 }
 
-void CBaseEntity::ApplyAbsVelocityImpulse( const Vector &vecImpulse )
+void CBaseEntity::ApplyAbsVelocityImpulse( const Vector &inVecImpulse )
 {
-	if (vecImpulse != vec3_origin )
+	if ( inVecImpulse != vec3_origin )
 	{
+		Vector vecImpulse = inVecImpulse;
+
+		// Safety check against receive a huge impulse, which can explode physics
+		switch ( CheckEntityVelocity( vecImpulse ) )
+		{
+			case -1:
+				Warning( "Discarding ApplyAbsVelocityImpulse(%f,%f,%f) on %s\n", vecImpulse.x, vecImpulse.y, vecImpulse.z, GetDebugName() );
+				Assert( false );
+				return;
+			case 0:
+				if ( CheckEmitReasonablePhysicsSpew() )
+				{
+					Warning( "Clamping ApplyAbsVelocityImpulse(%f,%f,%f) on %s\n", inVecImpulse.x, inVecImpulse.y, inVecImpulse.z, GetDebugName() );
+				}
+				break;
+		}
+
 		if ( GetMoveType() == MOVETYPE_VPHYSICS )
 		{
 			VPhysicsGetObject()->AddVelocity( &vecImpulse, NULL );
@@ -2032,6 +2123,14 @@ void CBaseEntity::ApplyLocalAngularVelocityImpulse( const AngularImpulse &angImp
 {
 	if (angImpulse != vec3_origin )
 	{
+		// Safety check against receive a huge impulse, which can explode physics
+		if ( !IsEntityAngularVelocityReasonable( angImpulse ) )
+		{
+			Warning( "Bad ApplyLocalAngularVelocityImpulse(%f,%f,%f) on %s\n", angImpulse.x, angImpulse.y, angImpulse.z, GetDebugName() );
+			Assert( false );
+			return;
+		}
+
 		if ( GetMoveType() == MOVETYPE_VPHYSICS )
 		{
 			VPhysicsGetObject()->AddVelocity( NULL, &angImpulse );

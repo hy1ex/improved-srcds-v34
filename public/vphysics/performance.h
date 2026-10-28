@@ -10,6 +10,10 @@
 #pragma once
 #endif
 
+// Don't ever change these values, or face all kinds of subtle gameplay changes
+const float k_flMaxVelocity = 2000.0f;
+const float k_flMaxAngularVelocity = 360.0f * 10.0f;
+
 struct physics_performanceparams_t
 {
 	int		maxCollisionsPerObjectPerTimestep;		// object will be frozen after this many collisions (visual hitching vs. CPU cost)
