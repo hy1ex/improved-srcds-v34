@@ -983,6 +983,7 @@ bool IntersectRayWithBox( const Vector &vecRayStart, const Vector &vecRayDelta,
 			pTrace->plane.dist = pTrace->startpos[0];
 			pTrace->plane.normal.Init( 1.0f, 0.0f, 0.0f );
 			pTrace->plane.type = 0;
+			pTrace->startpos = vecRayStart + (trace.t2 * vecRayDelta);
 			return true;
 		}
 	}
