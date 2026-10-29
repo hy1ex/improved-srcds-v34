@@ -25,7 +25,7 @@
 #define LC_SIZE_CHANGED		(1<<10)
 #define LC_ANIMATION_CHANGED (1<<11)
 
-#define LAG_COMPENSATION_TELEPORTED_DISTANCE_SQR ( 64.0f * 64.0f )
+static ConVar sv_lagcompensation_teleport_dist( "sv_lagcompensation_teleport_dist", "64", FCVAR_CHEAT, "How far a player got moved by game code before we're unable to lag compensate their position back" );
 #define LAG_COMPENSATION_EPS_SQR ( 0.1f * 0.1f )
 // Allow 4 units of error ( about 1 / 8 bbox width )
 #define LAG_COMPENSATION_ERROR_EPS_SQR ( 4.0f * 4.0f )
@@ -170,7 +170,7 @@ static void RestorePlayerTo( CBasePlayer *pPlayer, const Vector &vWantedPos )
 class CLagCompensationManager : public CAutoGameSystemPerFrame, public ILagCompensationManager
 {
 public:
-	CLagCompensationManager( char const *name ) : CAutoGameSystemPerFrame( name )
+	CLagCompensationManager( char const *name ) : CAutoGameSystemPerFrame( name ), m_flTeleportDistanceSqr( 64.0f * 64.0f )
 	{
 	}
 
@@ -213,6 +213,8 @@ private:
 	LagRecord				m_RestoreData[ MAX_PLAYERS ];	// player data before we moved him back
 	LagRecord				m_ChangeData[ MAX_PLAYERS ];	// player data where we moved him back
 
+	float					m_flTeleportDistanceSqr;
+
 	CBasePlayer				*m_pCurrentPlayer;	// The player we are doing lag compensation for
 };
 
@@ -231,6 +233,8 @@ void CLagCompensationManager::FrameUpdatePostEntityThink()
 		return;
 	}
 	
+	m_flTeleportDistanceSqr = sv_lagcompensation_teleport_dist.GetFloat() * sv_lagcompensation_teleport_dist.GetFloat();
+
 	VPROF_BUDGET( "FrameUpdatePostEntityThink", "CLagCompensationManager" );
 
 	// remove all records before that time:
@@ -429,7 +433,7 @@ void CLagCompensationManager::BacktrackPlayer( CBasePlayer *pPlayer, float flTar
 		}
 
 		Vector delta = record->m_vecOrigin - prevOrg;
-		if ( delta.LengthSqr() > LAG_COMPENSATION_TELEPORTED_DISTANCE_SQR )
+		if ( delta.Length2DSqr() > m_flTeleportDistanceSqr )
 		{
 			// lost track, too much difference
 			return; 
@@ -763,7 +767,7 @@ void CLagCompensationManager::FinishLagCompensation( CBasePlayer *player )
 			Vector delta = pPlayer->GetLocalOrigin() - change->m_vecOrigin;
 			
 			// If it moved really far, just leave the player in the new spot!!!
-			if ( delta.LengthSqr() < LAG_COMPENSATION_TELEPORTED_DISTANCE_SQR )
+			if ( delta.Length2DSqr() < m_flTeleportDistanceSqr )
 			{
 				RestorePlayerTo( pPlayer, restore->m_vecOrigin + delta );
 			}
