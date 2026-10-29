@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-10-29):** current through commit `23d4f04`. 40 backport
+**Status (2026-10-29):** current through commit `1af5d81`. 41 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -322,6 +322,7 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `1d60224` | sv_shootpositionfix reworked onto the ClientMod-Api/firebulletsfix algorithm: origin swapped back around PostThink, stock RunCommand order restored (hit-registration bug hunt) |
 | `fd72abe` | CUtlVector::FastRemove skips the self-memcpy when removing the last element (3/3 refs) |
 | `23d4f04` | CUtlRBTree::CopyFrom copies whole nodes instead of sizeof(T): truncated node array (sdk2013 fix) |
+| `1af5d81` | Lag compensation teleport guard measures horizontal distance only (Length2DSqr + sv_lagcompensation_teleport_dist cvar, 3/3 refs + Valve 2011 fix): vertical game-code motion no longer aborts a backtrack or skips a restore |
 
 ## Artifacts
 
