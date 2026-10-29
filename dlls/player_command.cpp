@@ -401,16 +401,23 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 		player->pl.v_angle = ucmd->viewangles + player->pl.anglechange;
 	}
 
-	if ( sv_shootpositionfix.GetBool() )
-	{
-	    // Let server invoke any needed impact functions
-	    VPROF_SCOPE_BEGIN( "moveHelper->ProcessImpacts" );
-	    moveHelper->ProcessImpacts();
-	    VPROF_SCOPE_END();
-	}
-
 	// Call standard client pre-think
 	RunPreThink( player );
+
+	// Shoot position fix (sv_shootpositionfix): remember where the player stood
+	// before this command's movement runs; the weapon fires from this origin at
+	// the end of the command instead. The capture point and the swap window below
+	// mirror the two established implementations of this fix - se_shootpositionfix
+	// in Reg1oxeN/ClientMod-Api (built for v34) and XutaxKamay's firebulletsfix
+	// (Source 2013) - both of which leave every other part of the tick on the
+	// stock path and substitute only the fire origin. Real, living players only,
+	// exactly like both plugins (they skip fake clients).
+	Vector vecPreMoveOrigin( 0.0f, 0.0f, 0.0f );
+	bool bShootPositionFix = sv_shootpositionfix.GetBool() && player->IsAlive() && !player->IsBot() && !player->IsHLTV();
+	if ( bShootPositionFix )
+	{
+		vecPreMoveOrigin = player->GetAbsOrigin();
+	}
 
 	// Call Think if one is set
 	RunThink( player, TICK_INTERVAL );
@@ -431,11 +438,6 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 		pVehicle->ProcessMovement( player, g_pMoveData );
 	}
 
-	if ( sv_shootpositionfix.GetBool() )
-	{
-	    RunPostThink( player );
-    }
-
 	// Copy output
 	FinishMove( player, ucmd, g_pMoveData );
 
@@ -444,14 +446,40 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 		player->pl.v_angle = player->GetLockViewanglesData();
 	}
 
-	if ( !sv_shootpositionfix.GetBool() )
-	{
-	    // Let server invoke any needed impact functions
-	    VPROF_SCOPE_BEGIN( "moveHelper->ProcessImpacts" );
-		moveHelper->ProcessImpacts();
-		VPROF_SCOPE_END();
+	// Let server invoke any needed impact functions
+	VPROF_SCOPE_BEGIN( "moveHelper->ProcessImpacts" );
+	moveHelper->ProcessImpacts();
+	VPROF_SCOPE_END();
 
-	    RunPostThink( player );
+	// Fire the weapon from the pre-movement origin: run PostThink (where
+	// ItemPostFrame/FireBullets executes) with the origin swapped back to the
+	// position captured above, then put the post-movement origin back - the same
+	// sequence se_shootpositionfix wraps around PostThink in ClientMod-Api. With
+	// this restructure ProcessImpacts, FinishMove, the aim-hold restore and
+	// everything else in the command stay on the stock v34 path whether the fix
+	// is on or off; sv_shootpositionfix 0 restores stock behaviour exactly.
+	if ( bShootPositionFix )
+	{
+		Vector vecPostMoveOrigin = player->GetAbsOrigin();
+		if ( vecPostMoveOrigin != vecPreMoveOrigin )
+		{
+			player->SetAbsOrigin( vecPreMoveOrigin );
+			RunPostThink( player );
+			// Restore only if PostThink itself did not move the player - the same
+			// guard ClientMod-Api applies (IsValidPosFix).
+			if ( player->GetAbsOrigin() == vecPreMoveOrigin )
+			{
+				player->SetAbsOrigin( vecPostMoveOrigin );
+			}
+		}
+		else
+		{
+			RunPostThink( player );
+		}
+	}
+	else
+	{
+		RunPostThink( player );
 	}
 
 	FinishCommand( player );
