@@ -287,7 +287,10 @@ inline void CUtlRBTree<T, I, L>::CopyFrom( const CUtlRBTree<T, I, L> &other )
 {
 	Purge();
 	m_Elements.EnsureCapacity( other.m_Elements.Count() );
-	memcpy( m_Elements.Base(), other.m_Elements.Base(), other.m_Elements.Count() * sizeof( T ) );
+	// Upstream (sdk2013): m_Elements stores Node_t (links + data), so the
+	// flat copy must use the node size - sizeof(T) truncates the array and
+	// leaves the copied tree with garbage links.
+	memcpy( m_Elements.Base(), other.m_Elements.Base(), other.m_Elements.Count() * sizeof( Node_t ) );
 	m_LessFunc = other.m_LessFunc;
 	m_Root = other.m_Root;
 	m_NumElements = other.m_NumElements;
