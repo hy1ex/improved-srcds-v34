@@ -592,7 +592,11 @@ void CUtlVector<T, A>::FastRemove( int elem )
 	Destruct( &Element(elem) );
 	if (m_Size > 0)
 	{
-		memcpy( &Element(elem), &Element(m_Size-1), sizeof(T) );
+		// Upstream (cssce, sdk2013, nillerusr): skip the copy when the
+		// removed element IS the last one - memcpy with identical source
+		// and destination is undefined behaviour.
+		if ( elem != m_Size - 1 )
+			memcpy( &Element(elem), &Element(m_Size-1), sizeof(T) );
 		--m_Size;
 	}
 }
