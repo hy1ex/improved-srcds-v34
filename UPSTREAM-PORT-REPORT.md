@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-10-28):** current through commit `a5a21b6`. 37 backport
+**Status (2026-10-29):** current through commit `23d4f04`. 40 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -249,10 +249,29 @@ plus an sdk2013-only shadow-variable rename with no semantic effect; and
 it needs the `CStudioHdr::m_ActivityToSequence` subsystem this tree does
 not have, making it a feature port rather than a drop-in.
 
+**Batch 3 — tier1 container headers (2026-10-29):** `public/tier1/utlvector.h`
+(`fd72abe` — `FastRemove` now skips the memcpy when the removed element is the
+last one; 3/3 refs, memcpy onto itself is UB) and `public/tier1/utlrbtree.h`
+(`23d4f04` — `CopyFrom` copies `sizeof(Node_t)` per element instead of
+`sizeof(T)`, which truncated the node array and left every link past the cut
+point as garbage; sdk2013 fix, 1/3 refs, taken as objectively correct and
+latent — nothing instantiates `CopyFrom` today). Reviewed with nothing
+portable: `tier1/mempool.cpp` (all three refs converged on the
+alignment/enum rework — 64-bit modernization with a constructor-signature
+change, no i386 bug), `tier1/byteswap.cpp` (not compiled — no Makefile entry
+and no includers anywhere in the tree), and `public/vector.h` (deltas are
+new APIs — `Normalized()`, `WithinAABox`, Vector4D additions — plus
+thread-safety cosmetics; `NormalizeInPlace` is identical to sdk2013). An
+apparent `InsertMultipleBefore(elem, -num)` divergence turned out to be an
+analysis-script extraction artifact — the shipped file matches cssce
+exactly. The refs' `Sort()` non-sequential-allocator fallback is
+unreachable here (ours already guards `Count() > 1`, and every allocator in
+this tree is sequential).
+
 **Batch 3 (deferred / probably skip):** unchanged — `ai_*` (HL2 NPC
 content — mostly irrelevant to a CSS server), `cstrike/*` game-logic
 changes (CSS-community bugfixes — in scope but reviewed as game logic, not
-engine), tier1 container headers after D-filtering.
+engine).
 
 ## Landed backports
 
@@ -300,6 +319,9 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `9ea3ba1` | CSave::WriteFunction writes a BADFUNCTIONPOINTER placeholder instead of dropping the field (3/3 refs — a dropped field desynced the save stream) |
 | `19681c4` | Bound ParseFile's output token with a caller-supplied max length (3/3 refs; OUT_Z_* annotations dropped — absent from this tree) |
 | `a5a21b6` | animation.cpp: AE_TYPE_SERVER event filter (3/3), negative bodygroup guards, FindBodygroupByName IsValid(), ExecuteNTimes log throttling |
+| `1d60224` | sv_shootpositionfix reworked onto the ClientMod-Api/firebulletsfix algorithm: origin swapped back around PostThink, stock RunCommand order restored (hit-registration bug hunt) |
+| `fd72abe` | CUtlVector::FastRemove skips the self-memcpy when removing the last element (3/3 refs) |
+| `23d4f04` | CUtlRBTree::CopyFrom copies whole nodes instead of sizeof(T): truncated node array (sdk2013 fix) |
 
 ## Artifacts
 
