@@ -3478,7 +3478,7 @@ bool CBaseEntity::AcceptInput( const char *szInputName, CBaseEntity *pActivator,
 					{
 						Q_snprintf( szBuffer, sizeof(szBuffer), "(%0.2f) input <NULL>: %s.%s(%s)\n", gpGlobals->curtime, GetDebugName(), szInputName, Value.String() );
 					}
-					DevMsg( 2, szBuffer );
+					DevMsg( 2, "%s", szBuffer );
 					ADD_DEBUG_HISTORY( HISTORY_ENTITY_IO, szBuffer );
 
 					if (m_debugOverlays & OVERLAY_MESSAGE_BIT)
@@ -3805,7 +3805,7 @@ void CBaseEntity::InputClearParent( inputdata_t &inputdata )
 //------------------------------------------------------------------------------
 void CBaseEntity::GetVelocity(Vector *vVelocity, AngularImpulse *vAngVelocity)
 {
-	if (GetMoveType()==MOVETYPE_VPHYSICS)
+	if (GetMoveType()==MOVETYPE_VPHYSICS && m_pPhysicsObject)
 	{
 		m_pPhysicsObject->GetVelocity(vVelocity,vAngVelocity);
 	}
