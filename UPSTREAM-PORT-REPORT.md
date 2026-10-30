@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-10-30):** current through commit `1c8b4de`. 42 backport
+**Status (2026-10-30):** current through commit `c1fc932`. 47 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -273,6 +273,48 @@ content — mostly irrelevant to a CSS server), `cstrike/*` game-logic
 changes (CSS-community bugfixes — in scope but reviewed as game logic, not
 engine).
 
+**Batch 4 — baseentity.cpp function-level triage (2026-10-30):** the
+inventory's top engine-layer hot spot (77 cross-ref changed functions)
+was swept by extracting all 197 out-of-line functions and grouping
+normalized bodies per ref: 32 candidates had >=2 refs agreeing against
+ours, 165 clean or split. Five applied:
+
+- `b16c437` — `VPhysicsUpdatePusher` rewind math (3/3): our version
+  rewound a full extra tick of blocked-pusher motion every physics tick
+  and its 1% bounce-noise gate was arithmetically always-true; refs use
+  `moveback = movetime * fraction` / `start + movetime*0.99f`, plus the
+  blocker-only-if-non-NULL assignment.
+- `2d068fd` — local-setter reasonableness guards (2-3/4): completes
+  0438a3a with `IsEntityPositionReasonable` (SetLocalOrigin),
+  `CheckEntityVelocity` (SetLocalVelocity) and the new
+  `IsEntityQAngleVelReasonable` helper (SetLocalAngularVelocity).
+- `b282b73` — `GetVelocity` NULL physics-object guard (4/4) and the
+  `AcceptInput` `DevMsg( 2, "%s", szBuffer )` format-string fix (3/3;
+  same defect class as 6d23314, this site had been missed).
+- `8234594` — `SetMoveType` FLY/FLYWATER `UpdateWaterState()` case (3/3).
+- `c1fc932` — `TakeHealth` returns the actual healed delta and goes
+  through `GetMaxHealth()` (3/4); all call sites audited, none test for
+  == 1.
+
+Reviewed with nothing portable: `VPhysicsTakeDamage`/`TakeDamage`
+(need `Damage_NoPhysicsForce`, known absent), `PhysicsRelinkChildren`
+(`float dt` signature churn), `Restore` (refs deleted a no-op
+`EF_NOINTERP` re-add), `OnRestore` (`MarkPVSInformationDirty()` absent
++ ifdef churn), `FVisible` (refs clear `CONTENTS_BLOCKLOS` for players -
+an AI/visibility gameplay change with no clear fix rationale, skipped
+per the risk rule), `Teleport` (client-side game event feature),
+`UpdateOnRemove` (dynamic-model loading feature), `PhysicsTouchTriggers`
+(refs pass a 4th `sm_bAccurateTriggerBboxChecks` arg to
+`engine->SolidMoved/TriggerMoved`; v34's engine interface is 3-arg - ABI,
+class C), `DispatchResponse` (needs `AI_Response::GetResponsePtr`,
+absent), `OnEntityEvent` (64-bit `size_cast` churn), `SetParent`
+(needs `TransformStepData_*` helpers, absent), `SetTransmit`
+(transmit/PVS path rework - class C), `PrecacheModel` (signature/refactor
+churn), `GetParentToWorldTransform` (`MDLCACHE_CRITICAL_SECTION`
+absent), `RemoveRecipientsIfNotCloseCaptioning`, `SetRefEHandle`,
+`StopFollowingEntity`, `SUB_PerformFadeOut`, `DrawDebug*`,
+`FunctionCheck` (const/macro/assert/debug churn).
+
 ## Landed backports
 
 Commits oldest → newest; each body carries the full explanation (why
@@ -324,6 +366,11 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `23d4f04` | CUtlRBTree::CopyFrom copies whole nodes instead of sizeof(T): truncated node array (sdk2013 fix) |
 | `1af5d81` | Lag compensation teleport guard measures horizontal distance only (Length2DSqr + sv_lagcompensation_teleport_dist cvar, 3/3 refs + Valve 2011 fix): vertical game-code motion no longer aborts a backtrack or skips a restore |
 | `1c8b4de` | Lag compensation records and restores the victim's pose parameters (`m_flPoseParameters[MAXSTUDIOPOSEPARAM]`) around a backtrack, mirroring sdk2013/CS:GO: rewound bones are rebuilt in the pose the shooter actually saw (CS:S players are LEGANIM_9WAY and `FinishMove` rewrites `body_pitch` every command), not in the current pose — a real contributor to model/hitbox misalignment |
+| `b16c437` | `VPhysicsUpdatePusher` blocked-pusher rewind math corrected (moveback = movetime*fraction, gate start+0.99f, blocker NULL-check) — 3/3 refs |
+| `2d068fd` | Local-setter physics-reasonableness guards: SetLocalOrigin/SetLocalVelocity/SetLocalAngularVelocity + new `IsEntityQAngleVelReasonable` helper |
+| `b282b73` | `GetVelocity` NULL physics-object guard (4/4) + `AcceptInput` `DevMsg("%s", szBuffer)` format-string fix (3/3) |
+| `8234594` | `SetMoveType` calls `UpdateWaterState()` for MOVETYPE_FLY/FLYWATER (3/3) |
+| `c1fc932` | `TakeHealth` returns the healed delta and uses `GetMaxHealth()` (3/4) |
 
 ## Artifacts
 
