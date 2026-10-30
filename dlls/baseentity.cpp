@@ -5351,9 +5351,14 @@ void CBaseEntity::SetAbsAngularVelocity( const QAngle &vecAbsAngVelocity )
 //-----------------------------------------------------------------------------
 void CBaseEntity::SetLocalOrigin( const Vector& origin )
 {
-	if ( !origin.IsValid() )
+	// Safety check against NaN's or really huge numbers
+	if ( !IsEntityPositionReasonable( origin ) )
 	{
-		AssertMsg( 0, "Bad origin set" );
+		if ( CheckEmitReasonablePhysicsSpew() )
+		{
+			Warning( "Bad SetLocalOrigin(%f,%f,%f) on %s\n", origin.x, origin.y, origin.z, GetDebugName() );
+		}
+		Assert( false );
 		return;
 	}
 
@@ -5391,8 +5396,25 @@ void CBaseEntity::SetLocalAngles( const QAngle& angles )
 	}
 }
 
-void CBaseEntity::SetLocalVelocity( const Vector &vecVelocity )
+void CBaseEntity::SetLocalVelocity( const Vector &inVecVelocity )
 {
+	Vector vecVelocity = inVecVelocity;
+
+	// Safety check against receive a huge impulse, which can explode physics
+	switch ( CheckEntityVelocity( vecVelocity ) )
+	{
+		case -1:
+			Warning( "Discarding SetLocalVelocity(%f,%f,%f) on %s\n", vecVelocity.x, vecVelocity.y, vecVelocity.z, GetDebugName() );
+			Assert( false );
+			return;
+		case 0:
+			if ( CheckEmitReasonablePhysicsSpew() )
+			{
+				Warning( "Clamping SetLocalVelocity(%f,%f,%f) on %s\n", inVecVelocity.x, inVecVelocity.y, inVecVelocity.z, GetDebugName() );
+			}
+			break;
+	}
+
 	if (m_vecVelocity != vecVelocity)
 	{
 		InvalidatePhysicsRecursive( VELOCITY_CHANGED );
@@ -5402,6 +5424,17 @@ void CBaseEntity::SetLocalVelocity( const Vector &vecVelocity )
 
 void CBaseEntity::SetLocalAngularVelocity( const QAngle &vecAngVelocity )
 {
+	// Safety check against NaN's or really huge numbers
+	if ( !IsEntityQAngleVelReasonable( vecAngVelocity ) )
+	{
+		if ( CheckEmitReasonablePhysicsSpew() )
+		{
+			Warning( "Bad SetLocalAngularVelocity(%f,%f,%f) on %s\n", vecAngVelocity.x, vecAngVelocity.y, vecAngVelocity.z, GetDebugName() );
+		}
+		Assert( false );
+		return;
+	}
+
 	if (m_vecAngVelocity != vecAngVelocity)
 	{
 //		InvalidatePhysicsRecursive( EFL_DIRTY_ABSANGVELOCITY );

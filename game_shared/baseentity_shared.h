@@ -293,6 +293,15 @@ inline bool IsEntityAngularVelocityReasonable( const Vector &q )
 		q.z > -r && q.z < r;
 }
 
+inline bool IsEntityQAngleVelReasonable( const QAngle &q )
+{
+	float r = k_flMaxEntitySpinRate;
+	return
+		q.x > -r && q.x < r &&
+		q.y > -r && q.y < r &&
+		q.z > -r && q.z < r;
+}
+
 extern bool CheckEmitReasonablePhysicsSpew();
 
 #endif // BASEENTITY_SHARED_H
