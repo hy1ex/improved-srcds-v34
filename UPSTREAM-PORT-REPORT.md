@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-10-30):** current through commit `c1fc932`. 47 backport
+**Status (2026-10-30):** current through commit `3fc99ae`. 50 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -315,6 +315,46 @@ absent), `RemoveRecipientsIfNotCloseCaptioning`, `SetRefEHandle`,
 `StopFollowingEntity`, `SUB_PerformFadeOut`, `DrawDebug*`,
 `FunctionCheck` (const/macro/assert/debug churn).
 
+**Batch 5 — player.cpp function-level triage (2026-10-30):** 211
+out-of-line functions swept the same way as Batch 4; 59 candidates had
+>=2 refs agreeing against ours. Three applied:
+
+- `f20460c` — `VPhysicsShadowUpdate` ROTPUSH/stuck cluster (3/3): when
+  game code rotates a player around a `SOLID_VPHYSICS` pusher
+  (`ComputeRotationalPushDirection`) the physics shadow controller
+  doesn't know about the move and can leave the player embedded in the
+  rotating brushwork. Refs set a new `PFLAG_GAMEPHYSICS_ROTPUSH` there;
+  `VPhysicsShadowUpdate` consumes it once and forces the stuck check
+  for that tick, unifies the two ad-hoc recovery paths into one final
+  trace, and skips dead players (`pl.deadflag`) alongside NOCLIP.
+  The `WasFrozen()` half of the ref change is **engine-level / deferred**:
+  it needs a `virtual bool WasFrozen()` slot on
+  `IPhysicsPlayerController` (`public/vphysics/player_controller.h`)
+  and the v34 `vphysics` binary has no such vtable entry — ABI, can't
+  be fixed game-side.
+- `7b0c54b` — `TraceAttack` NULL-attacker guard (3/3): the NPC
+  friendly-fire and team-damage checks dereferenced
+  `info.GetAttacker()` unconditionally; attacker-less damage events
+  (world triggers, removed projectiles) crashed the server.
+- `3fc99ae` — `GetNetworkIDString` NULL guard on
+  `engine->GetPlayerNetworkIDString()` (3/4 identical, csgo falls back
+  to `"UNKNOWN"` instead of `""`): unguarded `Q_strncpy(NULL)` was a
+  memcpy-from-NULL crash whenever an ID was unresolvable.
+
+Reviewed with nothing portable: the command-processing cluster
+(`PhysicsSimulate`/`DetermineSimulationTicks`/`AdjustPlayerTimeBase`/
+`PlayerRunCommand` — class C: our anti-exploit budget
+`m_nMovementTicksForUserCmdProcessingRemaining` and clock-correction
+logic occupy exactly these functions and upstream's rework would have
+to be reconciled with it, not dropped in); signature-change clusters
+(`SetVCollisionState`/`InitVCollision`/`SetupVPhysicsShadow`/
+`Event_Dying`/`CommitSuicide`/`GetViewModel`/`ChangeTeam`/`CCommand
+ClientCommand` — signature or API drift, class C/E); the
+freezecam/observer, autoaim, HL2-player, bonus/speedmod and autosave
+clusters (class E — game features out of scope); and ~25 pure-churn
+items (class D). The deferred `WasFrozen()` work above is engine-level:
+it waits for the engine source, per the standing rule.
+
 ## Landed backports
 
 Commits oldest → newest; each body carries the full explanation (why
@@ -371,6 +411,9 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `b282b73` | `GetVelocity` NULL physics-object guard (4/4) + `AcceptInput` `DevMsg("%s", szBuffer)` format-string fix (3/3) |
 | `8234594` | `SetMoveType` calls `UpdateWaterState()` for MOVETYPE_FLY/FLYWATER (3/3) |
 | `c1fc932` | `TakeHealth` returns the healed delta and uses `GetMaxHealth()` (3/4) |
+| `f20460c` | `VPhysicsShadowUpdate` ROTPUSH stuck-check + unified recovery + dead-player skip (3/3, `WasFrozen()` half ABI-deferred) |
+| `7b0c54b` | `TraceAttack` NULL-attacker guard (3/3) |
+| `3fc99ae` | `GetNetworkIDString` NULL-guards the engine network-ID string (3/4, csgo uses `"UNKNOWN"`) |
 
 ## Artifacts
 
