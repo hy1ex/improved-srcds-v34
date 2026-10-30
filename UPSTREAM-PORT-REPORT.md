@@ -20,7 +20,21 @@ document.
 | `cssce` | DeadZoneLuna/css-community (`mp/src`) | 2007 CSS leak + community fixes | closest lineage — primary |
 | `sdk2013` | ValveSoftware/source-sdk-2013 (`src`) | official 2013 SDK | official Valve fixes |
 | `nillerusr` | nillerusr/source-engine | 2017 engine, modernized fork | perf & robustness |
-| `csgo` | sr2echa/CSGO-Source-Code | 2017 CS:GO | trend reference only (heavy refactor) |
+| `csgo` | hy1ex/csgo-src (replaces sr2echa/CSGO-Source-Code) | 2019 CS:GO (builds 730/740/745, Mar 2019) | trend reference only (heavy refactor) |
+
+**CSGO ref swap (2026-10-30):** the `csgo` reference is now
+`hy1ex/csgo-src` (2019), replacing the 2017 sr2echa tree; the
+inventory's csgo column (line ~61 below) still reflects the old tree.
+All four csgo-evidenced fixes were re-verified against the new repo
+and are correct: `b282b73` (GetVelocity `&& m_pPhysicsObject` and
+`DevMsg( 2, "%s", szBuffer )` — byte-identical), `c1fc932`
+(TakeHealth corrected form — byte-identical), `3fc99ae`
+(GetNetworkIDString still NULL-guards with the `"UNKNOWN"` fallback,
+unchanged from old csgo; we keep the 3-tree `""` form), `1c8b4de`
+(lag-comp pose params — same save/apply/restore structure, file still
+`player_lagcompensation.cpp`, code unchanged old→new; our
+`MAXSTUDIOPOSEPARAM` loop form matches sdk2013 exactly and
+`Studio_Set/GetPoseParameter` count-guard the out-of-model indices).
 
 ## Methodology
 
