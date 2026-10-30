@@ -79,6 +79,10 @@ public:
 		m_flSimulationTime = -1;
 		m_masterSequence = 0;
 		m_masterCycle = 0;
+		for( int i = 0; i < MAXSTUDIOPOSEPARAM; i++ )
+		{
+			m_flPoseParameters[i] = 0;
+		}
 	}
 
 	LagRecord( const LagRecord& src )
@@ -95,6 +99,10 @@ public:
 		}
 		m_masterSequence = src.m_masterSequence;
 		m_masterCycle = src.m_masterCycle;
+		for( int i = 0; i < MAXSTUDIOPOSEPARAM; i++ )
+		{
+			m_flPoseParameters[i] = src.m_flPoseParameters[i];
+		}
 	}
 
 	// Did player die this frame
@@ -112,6 +120,11 @@ public:
 	LayerRecord				m_layerRecords[MAX_LAYER_RECORDS];
 	int						m_masterSequence;
 	float					m_masterCycle;
+	
+	// Pose parameters (body_yaw/body_pitch/move_yaw/...): recorded with the
+	// rest of the animation state so a rewind rebuilds the bones in the pose
+	// the client actually saw at that time (as sdk2013 and CS:GO do).
+	float					m_flPoseParameters[MAXSTUDIOPOSEPARAM];
 };
 
 
@@ -309,6 +322,10 @@ void CLagCompensationManager::FrameUpdatePostEntityThink()
 		}
 		record.m_masterSequence = pPlayer->GetSequence();
 		record.m_masterCycle = pPlayer->GetCycle();
+		for( int i = 0; i < MAXSTUDIOPOSEPARAM; i++ )
+		{
+			record.m_flPoseParameters[i] = pPlayer->GetPoseParameter( i );
+		}
 	}
 }
 
@@ -598,6 +615,10 @@ void CLagCompensationManager::BacktrackPlayer( CBasePlayer *pPlayer, float flTar
 	flags |= LC_ANIMATION_CHANGED;
 	restore->m_masterSequence = pPlayer->GetSequence();
 	restore->m_masterCycle = pPlayer->GetCycle();
+	for( int i = 0; i < MAXSTUDIOPOSEPARAM; i++ )
+	{
+		restore->m_flPoseParameters[i] = pPlayer->GetPoseParameter( i );
+	}
 
 	bool interpolationAllowed = false;
 	if( prevRecord && (record->m_masterSequence == prevRecord->m_masterSequence) )
@@ -631,6 +652,15 @@ void CLagCompensationManager::BacktrackPlayer( CBasePlayer *pPlayer, float flTar
 	{
 		pPlayer->SetSequence(record->m_masterSequence);
 		pPlayer->SetCycle(record->m_masterCycle);
+	}
+
+	// Rewind the pose parameters with the rest of the animation state: bones
+	// are rebuilt from them, so leaving them at current values tests hitboxes
+	// in the wrong pose. Recorded values are applied directly (no lerp), the
+	// same as sdk2013 and CS:GO.
+	for( int i = 0; i < MAXSTUDIOPOSEPARAM; i++ )
+	{
+		pPlayer->SetPoseParameter( i, record->m_flPoseParameters[i] );
 	}
 
 	////////////////////////
@@ -791,6 +821,10 @@ void CLagCompensationManager::FinishLagCompensation( CBasePlayer *player )
 					currentLayer->m_nSequence = restore->m_layerRecords[layerIndex].m_sequence;
 					currentLayer->m_flWeight = restore->m_layerRecords[layerIndex].m_weight;
 				}
+			}
+			for( int i = 0; i < MAXSTUDIOPOSEPARAM; i++ )
+			{
+				pPlayer->SetPoseParameter( i, restore->m_flPoseParameters[i] );
 			}
 		}
 
