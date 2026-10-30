@@ -2132,12 +2132,12 @@ void CBaseEntity::VPhysicsUpdatePusher( IPhysicsObject *pPhysics )
 		float physLocalTime = m_flLocalTime;
 		if ( params.pBlockedEntity )
 		{
-			physLocalTime = m_flVPhysicsUpdateLocalTime - movetime * params.moveBackFraction;
-			float moveback = m_flLocalTime - physLocalTime;
+			float moveback = movetime * params.moveBackFraction;
 			if ( moveback > 0 )
 			{
+				physLocalTime = m_flLocalTime - moveback;
 				// add 1% noise for bouncing in collision.
-				if ( physLocalTime <= (m_flVPhysicsUpdateLocalTime + movetime * 0.01f) )
+				if ( physLocalTime <= (m_flVPhysicsUpdateLocalTime + movetime * 0.99f) )
 				{
 					CBaseEntity *pBlocked = NULL;
 					IPhysicsObject *pOther;
@@ -2159,7 +2159,11 @@ void CBaseEntity::VPhysicsUpdatePusher( IPhysicsObject *pPhysics )
 
 							pEntity->SetAbsOrigin( pEntity->GetAbsOrigin() - pList->pushVec[i] );
 						}
-						pBlocked = FindPhysicsBlocker( VPhysicsGetObject(), *pList, pList->pushVec[0] );
+						CBaseEntity *pPhysicsBlocker = FindPhysicsBlocker( VPhysicsGetObject(), *pList, pList->pushVec[0] );
+						if ( pPhysicsBlocker )
+						{
+							pBlocked = pPhysicsBlocker;
+						}
 					}
 					else
 					{
