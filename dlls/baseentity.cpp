@@ -3041,6 +3041,13 @@ void CBaseEntity::SetMoveType( MoveType_t val, MoveCollide_t moveCollide )
 			SetAnimatedEveryTick( false );
 		}
 		break;
+	case MOVETYPE_FLY:
+	case MOVETYPE_FLYGRAVITY:
+		{
+			// Initialize our water state, because these movetypes care about transitions in/out of water
+			UpdateWaterState();
+		}
+		break;
 	default:
 		{
 			SetSimulatedEveryTick( true );
