@@ -793,20 +793,23 @@ void CBasePlayer::TraceAttack( const CTakeDamageInfo &inputInfo, const Vector &v
 	{
 		CTakeDamageInfo info = inputInfo;
 
-		// --------------------------------------------------
-		//  If an NPC check if friendly fire is disallowed
-		// --------------------------------------------------
-		CAI_BaseNPC *pNPC = info.GetAttacker()->MyNPCPointer();
-		if ( pNPC && (pNPC->CapabilitiesGet() & bits_CAP_NO_HIT_PLAYER) && pNPC->IRelationType( this ) != D_HT )
+		if ( info.GetAttacker() )
 		{
-			return;
-		}
-
-		// Prevent team damage here so blood doesn't appear
-		if ( info.GetAttacker()->IsPlayer() )
-		{
-			if ( !g_pGameRules->FPlayerCanTakeDamage( this, info.GetAttacker() ) )
+			// --------------------------------------------------
+			//  If an NPC check if friendly fire is disallowed
+			// --------------------------------------------------
+			CAI_BaseNPC *pNPC = info.GetAttacker()->MyNPCPointer();
+			if ( pNPC && (pNPC->CapabilitiesGet() & bits_CAP_NO_HIT_PLAYER) && pNPC->IRelationType( this ) != D_HT )
+			{
 				return;
+			}
+
+			// Prevent team damage here so blood doesn't appear
+			if ( info.GetAttacker()->IsPlayer() )
+			{
+				if ( !g_pGameRules->FPlayerCanTakeDamage( this, info.GetAttacker() ) )
+					return;
+			}
 		}
 
 		SetLastHitGroup( ptr->hitgroup );
