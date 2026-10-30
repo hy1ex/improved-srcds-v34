@@ -57,6 +57,7 @@ enum PlayerPhysFlag_e
 	PFLAG_USING			= ( 1<<2 ),		// Using a continuous entity
 	PFLAG_OBSERVER		= ( 1<<3 ),		// player is locked in stationary cam mode. Spectators can move, observers can't.
 	PFLAG_VPHYSICS_MOTIONCONTROLLER = ( 1<<4 ),	// player is physically attached to a motion controller
+	PFLAG_GAMEPHYSICS_ROTPUSH = (1<<5), // game physics did a rotating push that we may want to override with vphysics
 
 	// If you add another flag here check that you aren't 
 	// overwriting phys flags in the HL2 player classes

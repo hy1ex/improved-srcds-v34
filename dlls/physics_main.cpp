@@ -264,6 +264,13 @@ void CPhysicsPushedEntities::ComputeRotationalPushDirection( CBaseEntity *pBlock
 		start.x = (pMove->x < 0) ? vecAbsMaxs.x : vecAbsMins.x;
 		start.y = (pMove->y < 0) ? vecAbsMaxs.y : vecAbsMins.y;
 		start.z = (pMove->z < 0) ? vecAbsMaxs.z : vecAbsMins.z;
+
+		CBasePlayer *pPlayer = ToBasePlayer(pBlocker);
+		if ( pPlayer )
+		{
+			// notify the player physics code so it can use vphysics to keep players from getting stuck
+			pPlayer->SetPhysicsFlag( PFLAG_GAMEPHYSICS_ROTPUSH, true );
+		}
 	}
 
 	// org is pusher local coordinate of start

@@ -7274,6 +7274,12 @@ void CBasePlayer::VPhysicsShadowUpdate( IPhysicsObject *pPhysics )
 		}
 	}
 
+	bool bCheckStuck = false;
+	if ( m_afPhysicsFlags & PFLAG_GAMEPHYSICS_ROTPUSH )
+	{
+		bCheckStuck = true;
+		m_afPhysicsFlags &= ~PFLAG_GAMEPHYSICS_ROTPUSH;
+	}
 	if ( m_pPhysicsController->IsInContact() || (m_afPhysicsFlags & PFLAG_VPHYSICS_MOTIONCONTROLLER) )
 	{
 		m_touchedPhysObject = true;
@@ -7284,7 +7290,7 @@ void CBasePlayer::VPhysicsShadowUpdate( IPhysicsObject *pPhysics )
 		m_touchedPhysObject = true;
 	}
 
-	if ( GetMoveType() == MOVETYPE_NOCLIP )
+	if ( GetMoveType() == MOVETYPE_NOCLIP || pl.deadflag )
 	{
 		m_oldOrigin = GetAbsOrigin();
 		return;
@@ -7303,6 +7309,9 @@ void CBasePlayer::VPhysicsShadowUpdate( IPhysicsObject *pPhysics )
 	Vector newVelocity;
 	pPhysics->GetPosition( &newPosition, 0 );
 	m_pPhysicsController->GetShadowVelocity( &newVelocity );
+
+	// assume vphysics gave us back a position without penetration
+	Vector lastValidPosition = newPosition;
 
 	if ( physicsshadowupdate_render.GetBool() )
 	{
@@ -7374,16 +7383,7 @@ void CBasePlayer::VPhysicsShadowUpdate( IPhysicsObject *pPhysics )
 		}
 		else
 		{
-			trace_t trace;
-			UTIL_TraceEntity( this, GetAbsOrigin(), GetAbsOrigin(), MASK_PLAYERSOLID, this, COLLISION_GROUP_PLAYER_MOVEMENT, &trace );
-			
-			// current position is not ok, fixup
-			if ( trace.allsolid || trace.startsolid )
-			{
-				// STUCK!?!?!
-				//Warning( "Stuck2 on %s!!\n", trace.m_pEnt->GetClassname() );
-				SetAbsOrigin( newPosition );
-			}
+			bCheckStuck = true;
 		}
 	}
 	else
@@ -7399,17 +7399,24 @@ void CBasePlayer::VPhysicsShadowUpdate( IPhysicsObject *pPhysics )
 			// is current position ok?
 			if ( trace.allsolid || trace.startsolid )
 			{
-				// stuck????!?!?
-				//Msg("Stuck on %s\n", trace.m_pEnt->GetClassName());
+				// no use the final stuck check to move back to old if this stuck fix didn't work
+				bCheckStuck = true;
+				lastValidPosition = m_oldOrigin;
 				SetAbsOrigin( newPosition );
-				UTIL_TraceEntity( this, GetAbsOrigin(), GetAbsOrigin(),
-					MASK_PLAYERSOLID, this, COLLISION_GROUP_PLAYER_MOVEMENT, &trace );
-				if ( trace.allsolid || trace.startsolid )
-				{
-					//Msg("Double Stuck\n");
-					SetAbsOrigin( m_oldOrigin );
-				}
 			}
+		}
+	}
+	if ( bCheckStuck )
+	{
+		trace_t trace;
+		UTIL_TraceEntity( this, GetAbsOrigin(), GetAbsOrigin(), MASK_PLAYERSOLID, this, COLLISION_GROUP_PLAYER_MOVEMENT, &trace );
+
+		// current position is not ok, fixup
+		if ( trace.allsolid || trace.startsolid )
+		{
+			// STUCK!?!?!
+			//Warning( "Checkstuck failed.  Stuck on %s!!\n", trace.m_pEnt->GetClassname() );
+			SetAbsOrigin( lastValidPosition );
 		}
 	}
 	m_oldOrigin = GetAbsOrigin();
