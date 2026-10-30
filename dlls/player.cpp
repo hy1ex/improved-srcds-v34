@@ -7847,7 +7847,8 @@ bool CBasePlayer::HasAnyAmmoOfType( int nAmmoIndex )
 //-----------------------------------------------------------------------------
 const char *CBasePlayer::GetNetworkIDString()
 {
-	Q_strncpy( m_szNetworkIDString, engine->GetPlayerNetworkIDString( edict() ), sizeof(m_szNetworkIDString) );
+	const char *pStr = engine->GetPlayerNetworkIDString( edict() );
+	Q_strncpy( m_szNetworkIDString, pStr ? pStr : "", sizeof(m_szNetworkIDString) );
 	return m_szNetworkIDString; 
 }
 
