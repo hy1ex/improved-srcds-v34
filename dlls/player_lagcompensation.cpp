@@ -327,11 +327,27 @@ void CLagCompensationManager::FrameUpdatePostEntityThink()
 			record.m_flPoseParameters[i] = pPlayer->GetPoseParameter( i );
 		}
 	}
+
+	// Clear the current player. Normal sessions already ended inside Finish;
+	// this self-heals the Start guard if a Finish was ever skipped.
+	m_pCurrentPlayer = NULL;
 }
 
 // Called during player movement to set up/restore after lag compensation
 void CLagCompensationManager::StartLagCompensation( CBasePlayer *player, CUserCmd *cmd )
 {
+	// Refuse to open a second lag compensation session while one is active.
+	// A repeated Start would ClearAll() the restore state and zero the restore
+	// records while players are still moved back in time, so the matching
+	// Finish would restore nobody and leave those players stranded in the past.
+	// Both newer trees guard this: sdk2013 issues this same warning and CS:GO
+	// asserts on the same condition. v34 shipped without the check.
+	if ( m_pCurrentPlayer )
+	{
+		Warning( "Trying to start a new lag compensation session while one is already active!\n" );
+		return;
+	}
+
 	// Assume no players need to be restored
 	m_RestorePlayer.ClearAll();
 	m_bNeedToRestore = false;
@@ -740,6 +756,12 @@ void CLagCompensationManager::BacktrackPlayer( CBasePlayer *pPlayer, float flTar
 void CLagCompensationManager::FinishLagCompensation( CBasePlayer *player )
 {
 	VPROF_BUDGET_FLAGS( "FinishLagCompensation", VPROF_BUDGETGROUP_OTHER_NETWORKING, BUDGETFLAG_CLIENT|BUDGETFLAG_SERVER );
+
+	// The session ends here on every path; release the Start guard first so a
+	// skipped restore can never block lag compensation for the rest of the map
+	// (sdk2013 clears the same pointer at the top of Finish).
+	m_pCurrentPlayer = NULL;
+
 	if ( !m_bNeedToRestore )
 		return; // no player was changed at all
 
@@ -833,6 +855,14 @@ void CLagCompensationManager::FinishLagCompensation( CBasePlayer *player )
 			pPlayer->SetSimulationTime( restore->m_flSimulationTime );
 		}
 	}
+
+	// The restore data has been consumed; clear it so a stray second Finish
+	// (nested Start/Finish pairs) cannot re-apply it - replaying
+	// LC_ORIGIN_CHANGED against an already-restored origin computes a wrong
+	// target position. In the normal single-Finish flow this state would
+	// simply be re-initialised by the next Start anyway.
+	m_RestorePlayer.ClearAll();
+	m_bNeedToRestore = false;
 }
 
 
