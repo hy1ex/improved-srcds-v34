@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-10-30):** current through commit `3fc99ae`. 50 backport
+**Status (2026-10-30):** current through commit `2e4e3a5`. 51 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -428,6 +428,56 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `f20460c` | `VPhysicsShadowUpdate` ROTPUSH stuck-check + unified recovery + dead-player skip (3/3, `WasFrozen()` half ABI-deferred) |
 | `7b0c54b` | `TraceAttack` NULL-attacker guard (3/3) |
 | `3fc99ae` | `GetNetworkIDString` NULL-guards the engine network-ID string (3/4, csgo uses `"UNKNOWN"`) |
+| `2e4e3a5` | Lag compensation refuses a second `Start` while a session is active (sdk2013 runtime guard + Finish/FrameUpdate self-clears; Finish made idempotent so a stray second Finish cannot replay the restore) |
+
+## Lag compensation deep dive (hit-registration evidence follow-up)
+
+Full read of `dlls/player_lagcompensation.cpp` against sdk2013 and the 2019
+CS:GO reference, plus the whole bullet-hit path: `FX_FireBullets` (the
+Start/Finish window) → `CCSPlayer::FireBullet` →
+`UTIL_TraceLineIgnoreTwoEntities` with `CS_MASK_SHOOT|CONTENTS_HITBOX` +
+`UTIL_ClipTraceToPlayers` → engine `ClipRayToEntity` →
+`CBaseAnimating::TestHitboxes` → `GetBoneCache()` → `SetupBones()`.
+
+**Verified equivalent to the newer trees (no action):**
+
+- record capture/pruning (`sv_maxunlag` deadtime, duplicate-simulation-time skip)
+- rewind walk: dead-record stop, teleport-distance abort, target-tick selection
+  with the 200 ms latency-correction fallback, frac interpolation between records
+- restore ordering (size → angles → origin → animation → simulation time) and the
+  `sv_unlag_fixstuck` recursion path (off by default)
+- bone-cache flush on rewind (`sv_lagflushbonecache` default 1): traces inside
+  the window cannot reuse pre-rewind bones; `GetBoneCache()` rebuilds them from
+  the rewound sequence/cycle/layers/pose parameters
+- hitbox-level clipping on both the main trace and the 60-unit player clip;
+  `WantsLagCompensationOnEntity` matches sdk2013 (team / PVS / distance / cone)
+- the `sv_shootpositionfix` origin swap (`1d60224`) is atomic inside the
+  shooter's own RunCommand, so end-of-frame record capture never observes a
+  swapped origin, and Finish restores a settled-phase origin
+- every Start/Finish call site pairs tightly (`fx_cs_shared`, `weapon_knife`,
+  hl2mp paths) — no nested session exists in this tree today
+
+**Divergences found:**
+
+1. Landed as `2e4e3a5`: the double-Start guard both newer trees have (full
+   rationale in that commit body).
+2. sdk2013 restores pose parameters it never captures — only CS:GO captures
+   `restore->m_flPoseParameters`; `1c8b4de` already matches CS:GO, so this tree
+   is ahead of sdk2013 here.
+3. Kept deliberately: 2D teleport check (`1af5d81`), integer target-tick math
+   (sdk2013-identical; CS:GO's float version moves the rewind by well under one
+   tick), `sv_maxunlag 1.0` (CS:GO's 0.2 default is a gameplay change), retained
+   animation interpolation (CS:GO dropped it; interpolating matches what the
+   client rendered), `MAXSTUDIOPOSEPARAM` loops (bounded by the count guards in
+   `Studio_Set/GetPoseParameter`).
+
+**Evidence mapping:** a headshot registered against a <1-second-old head
+location with the rendered model offset from the tested hitbox is exactly the
+signature of a rewound origin whose animation pose was not rewound with it.
+Four landed fixes each cover part of that class — `1c8b4de` (pose parameters),
+`c5bd690` (cl_interp), `1af5d81` (teleport abort), `1d60224` (shoot position) —
+and it is unknown whether the recorded evidence predates them; re-test the
+recorded scenario on the current build before treating the symptom as open.
 
 ## Artifacts
 
