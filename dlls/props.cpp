@@ -2840,7 +2840,7 @@ void CPhysicsProp::VPhysicsCollision( int index, gamevcollisionevent_t *pEvent )
 		CBaseEntity *pHitEntity = pEvent->pEntities[!index];
 		if ( pHitEntity && pHitEntity->MyNPCPointer() )
 		{
-			pHitEntity->MyNPCPointer()->DispatchInteraction( g_interactionHitByPlayerThrownPhysObj, NULL, NULL );
+			pHitEntity->MyNPCPointer()->DispatchInteraction( g_interactionHitByPlayerThrownPhysObj, this, NULL );
 			m_bThrownByPlayer = false;
 		}
 	}
