@@ -2717,7 +2717,10 @@ void CPhysicsProp::VPhysicsUpdate( IPhysicsObject *pPhysics )
 //-----------------------------------------------------------------------------
 void CPhysicsProp::ClearFlagsThink( void )
 {
-	PhysClearGameFlags( VPhysicsGetObject(), FVPHYSICS_WAS_THROWN );
+	if ( VPhysicsGetObject() )
+	{
+		PhysClearGameFlags( VPhysicsGetObject(), FVPHYSICS_WAS_THROWN );
+	}
 	SetContextThink( NULL, 0, "PROP_CLEARFLAGS" );
 }
 
