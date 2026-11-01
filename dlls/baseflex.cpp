@@ -542,11 +542,11 @@ bool CBaseFlex::HandleStartGestureSceneEvent( CSceneEventInfo *info, CChoreoScen
 		{
 			if (!stricmp( pkvFaceposer->GetName(), "startloop" ))
 			{
-				strcpy( szStartLoop, pkvFaceposer->GetString() );
+				Q_strncpy( szStartLoop, pkvFaceposer->GetString(), sizeof( szStartLoop ) );
 			}
 			else if (!stricmp( pkvFaceposer->GetName(), "endloop" ))
 			{
-				strcpy( szEndLoop, pkvFaceposer->GetString() );
+				Q_strncpy( szEndLoop, pkvFaceposer->GetString(), sizeof( szEndLoop ) );
 			}
 		}
 
@@ -642,7 +642,7 @@ bool CBaseFlex::HandleStartGestureSceneEvent( CSceneEventInfo *info, CChoreoScen
 	if ( looping )
 	{
 		DevMsg( 1, "vcd error, gesture %s of model %s is marked as STUDIO_LOOPING!\n", 
-			event->GetParameters(), GetModelName() );
+			event->GetParameters(), STRING( GetModelName() ) );
 	}
 
 	SetLayerLooping( info->m_iLayer, false ); // force to not loop
