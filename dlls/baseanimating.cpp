@@ -2443,13 +2443,13 @@ CBoneCache *CBaseAnimating::GetBoneCache( void )
 	int boneMask = BONE_USED_BY_HITBOX | BONE_USED_BY_ATTACHMENT;
 	if ( pcache )
 	{
-		if ( pcache->IsValid( gpGlobals->curtime ) )
+		if ( pcache->IsValid( gpGlobals->curtime ) && ( pcache->m_boneMask & boneMask ) == boneMask && pcache->m_timeValid <= gpGlobals->curtime )
 		{
 			// in memory and still valid, use it!
 			return pcache;
 		}
-		// in memory, but not the same bone set, destroy & rebuild
-		if ( pcache->m_boneMask != boneMask )
+		// in memory, but missing some of the required bones, destroy & rebuild
+		if ( ( pcache->m_boneMask & boneMask ) != boneMask )
 		{
 			Studio_DestroyBoneCache( m_boneCacheHandle );
 			m_boneCacheHandle = 0;
