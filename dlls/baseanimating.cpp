@@ -254,9 +254,8 @@ END_SEND_TABLE()
 
 CBaseAnimating::CBaseAnimating()
 {
-#ifdef _DEBUG
 	m_vecForce.GetForModify().Init();
-#endif
+	m_nForceBone = 0;
 
 	m_bClientSideAnimation = false;
 	m_pIk = NULL;
