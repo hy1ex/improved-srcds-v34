@@ -1934,7 +1934,7 @@ bool CDynamicProp::CreateVPhysics( void )
 
 IPhysicsObject *CDynamicProp::GetRootPhysicsObjectForBreak()
 {
-	if ( m_pBoneFollowerManager )
+	if ( m_pBoneFollowerManager && m_pBoneFollowerManager->GetNumBoneFollowers() > 0 )
 	{
 		physfollower_t *pFollower = m_pBoneFollowerManager->GetBoneFollower(0);
 		CBaseEntity *pFollowerEntity = pFollower->hFollower;
