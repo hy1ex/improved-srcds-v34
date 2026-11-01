@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-11-01):** current through commit `0856942`. 54 backport
+**Status (2026-11-01):** current through commit `5f3fc10`. 57 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -412,6 +412,46 @@ D/E feature drift; and the remaining ~40 candidates were pure churn
 (`Assert`→`AssertMsg`, `LocalFlexController_t`, `GetModelScale`,
 float-literal, `AUTO_LOCK`/IBoneSetup refactors).
 
+**Batch 7 — BaseAnimatingOverlay.cpp / baseflex.cpp triage (2026-11-01):**
+35 cross-ref changed functions swept across the two remaining baseentity-adjacent
+animation files (8 in `BaseAnimatingOverlay`, 27 in `baseflex`); three applied:
+
+- `1329ddd` — `AllocateLayer` grew `m_AnimOverlay` with an unguarded
+  `AddToTail()`. The vector is networked through `SendPropUtlVector` declared
+  with `MAX_OVERLAYS` as its max element count, so once every slot was active
+  each further call appended a layer past the networked maximum (such a layer
+  can never hold a valid `m_nOrder`, and `VerifyOrder` asserts on the resulting
+  duplicate orders). Both `AddToTail` branches now respect the cap and return
+  `-1` when full (3/3 refs); the paired `Assert( IsValidLayer( i ) )` in
+  `AddLayeredSequence` is dropped with it, since `-1` is now a legal return and
+  that function already guards with `IsValidLayer` ("No room?").
+- `5f3fc10` — `CAnimationLayer::Init` never initialized `m_flBlendIn`,
+  `m_flBlendOut` or `m_flLastEventCheck`: the first two feed `IsAutoramp`/the
+  frame-advance weight ramp (whose result *is* networked via the weight prop),
+  and the third seeds the animation-event dispatch window (`flStart`) and is a
+  save/restore datadesc field, so garbage could be persisted and replayed.
+  `RestartGesture` now also resets `m_flLastEventCheck` with the existing
+  cycle/prev-cycle reset instead of inheriting the previous run's check
+  position (2/3 refs, one-line and behaviourally free).
+- `26e2f2a` — `HandleStartGestureSceneEvent` `strcpy`'d the faceposer
+  "loop"/"end" tag values from an unbounded KeyValues string into a fixed
+  `char[MAX_EVENTTAG_LENGTH]` (128): replaced with `Q_strncpy( ..., sizeof )`
+  (the refs' `V_strcpy_safe` does not exist in this tree), and the
+  `STUDIO_LOOPING` vcd `DevMsg` now wraps `GetModelName()` — a `string_t` from
+  `CBaseEntity`, not a `char*` — in `STRING()`, the same defect class as
+  `454ca83`/`411b183` (3/3 refs).
+
+Reviewed with nothing portable: the `IBoneSetup`/`GetSkeleton` cache refactor,
+the `SetLayerCycle` 4-argument signature and `GetIntensity( event, time )`
+signature changes (class C — interface drift, callers are game-side); the
+scene-lock rework cluster (`EnterSceneSequence`/`ProcessMoveTo`/`Facing`/
+`RemoveChoreoScene` — intertwined with the scene-lock state machine, class D/C);
+the `ProcessFlexSettingSceneEvent` override drop (class E); the `EXPRESSION`
+choreo dispatch change in `baseflex` (`git log -S` shows the current form dates
+from the initial v34 import, so "fixing" it would restore a newer feature, class
+E); the `LocalFlexController_t` loop rewrites, `max`→`MAX` normalization and
+float-literal cleanup (class D, ~25 items).
+
 ## Landed backports
 
 Commits oldest → newest; each body carries the full explanation (why
@@ -475,6 +515,9 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `411b183` | SetLightingOriginRelative DevWarnings wrap their `string_t` args in `STRING()` (3/3 refs; same defect class as `454ca83`) |
 | `071ebd7` | CBaseAnimating constructor initializes networked `m_vecForce`/`m_nForceBone` unconditionally (was `_DEBUG`-only; 3/3 refs) |
 | `0856942` | GetBoneCache rejects future-stamped cache entries and uses mask containment instead of exact equality (3/3 refs) |
+| `26e2f2a` | HandleStartGestureSceneEvent bounds its faceposer tag copies (Q_strncpy) and STRING()s GetModelName() in the looping-gesture warning (3/3 refs) |
+| `1329ddd` | AllocateLayer caps m_AnimOverlay at MAX_OVERLAYS (the SendPropUtlVector max) and returns -1 when full; paired Debug Assert dropped (3/3 refs) |
+| `5f3fc10` | CAnimationLayer::Init zero-fills m_flBlendIn/m_flBlendOut/m_flLastEventCheck; RestartGesture resets the event check (2/3 refs) |
 
 ## Lag compensation deep dive (hit-registration evidence follow-up)
 
