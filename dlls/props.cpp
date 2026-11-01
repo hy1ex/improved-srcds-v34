@@ -579,6 +579,14 @@ void CPhysicsProp::HandleAnyCollisionInteractions( int index, gamevcollisioneven
 		{
 			CAI_BaseNPC *pNPC = pHitEntity->MyNPCPointer();
 			IPhysicsObject *pObj = VPhysicsGetObject();
+
+			// Don't impale an NPC that likes whoever threw this prop.
+			CBasePlayer *pAttacker = HasPhysicsAttacker( 25.0f );
+			if ( pAttacker && pNPC->IRelationType( pAttacker ) == D_LI )
+			{
+				return;
+			}
+
 			Vector vecPos;
 			pObj->GetPosition( &vecPos, NULL );
 
