@@ -620,7 +620,6 @@ float CBaseAnimatingOverlay::GetLayerDuration( int iLayer )
 int	CBaseAnimatingOverlay::AddLayeredSequence( int sequence, int iPriority )
 {
 	int i = AllocateLayer( iPriority );
-	Assert( IsValidLayer( i ) );
 	// No room?
 	if ( IsValidLayer( i ) )
 	{
@@ -692,6 +691,10 @@ int CBaseAnimatingOverlay::AllocateLayer( int iPriority )
 
 	if (iOpenLayer == -1)
 	{
+		if ( m_AnimOverlay.Count() >= MAX_OVERLAYS )
+		{
+			return -1;
+		}
 		iOpenLayer = m_AnimOverlay.AddToTail();
 		m_AnimOverlay[iOpenLayer].Init( this );
 	}
@@ -699,8 +702,11 @@ int CBaseAnimatingOverlay::AllocateLayer( int iPriority )
 	// make sure there's always an empty unused layer so that history slots will be available on the client when it is used
 	if (iNumOpen == 0)
 	{
-		i = m_AnimOverlay.AddToTail();
-		m_AnimOverlay[i].Init( this );
+		if ( m_AnimOverlay.Count() < MAX_OVERLAYS )
+		{
+			i = m_AnimOverlay.AddToTail();
+			m_AnimOverlay[i].Init( this );
+		}
 	}
 
 	for (i = 0; i < m_AnimOverlay.Count(); i++)
