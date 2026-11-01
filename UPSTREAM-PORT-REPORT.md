@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-10-30):** current through commit `2e4e3a5`. 51 backport
+**Status (2026-11-01):** current through commit `0856942`. 54 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -369,6 +369,49 @@ clusters (class E — game features out of scope); and ~25 pure-churn
 items (class D). The deferred `WasFrozen()` work above is engine-level:
 it waits for the engine source, per the standing rule.
 
+**Batch 6 — baseanimating.cpp function-level triage (2026-11-01):** 58
+cross-ref changed functions swept the same way (top remaining engine-layer
+hot spot after Batches 4/5); 50 candidates dumped, three applied:
+
+- `411b183` — `SetLightingOriginRelative` DevWarnings pass `string_t`
+  raw to `%s` (both the dead-branch and wrong-entity warnings): `string_t`
+  is not a `char*` here, so varargs reads a garbage pointer — the same
+defect class as `454ca83`, and the sibling warning in the same function
+  already used `STRING()`. Refs dereference through their accessors (3/3).
+- `071ebd7` — `CBaseAnimating` constructor initializes the networked
+  members `m_vecForce` (SendPropVector, SPROP_NOSCALE) and `m_nForceBone`
+  (SendPropInt, 8 bits) unconditionally; they were only initialized under
+  `#ifdef _DEBUG`, so release shipped indeterminate values (3/3).
+- `0856942` — `GetBoneCache` adds the upstream `m_timeValid <= curtime`
+  guard (`CBoneCache::IsValid` is `time - m_timeValid <= dt`, true for any
+  *future* stamp, so a cache stamped ahead of curtime after a curtime
+  reset read as valid) and switches the mask test to containment
+  (`(mask & want) == want`) in both the reuse and destroy paths, so a
+  superset cache is reused instead of torn down (3/3; TF_DLL extension
+  n/a).
+
+Reviewed with nothing portable: the `StudioFrameAdvanceInternal` cycle
+terminal (ours `0.999f`, all 4 refs `1.0f` — our value is the original
+2006/v34 import; the only `GetCycle() >= 1.0f` consumers are HL2 NPC
+content and the separate per-layer path in `BaseAnimatingOverlay`, and
+`bone_setup.cpp` clamps pose evaluation to 0.9999 anyway, so no CSS-side
+benefit and an authentic-behavior change → **documented skip**);
+`CalculateIKLocks`'s `trace.p1` vs `trace.hip` — the refs rewrote the
+whole `x5 trace` struct (ours `{p1,p2,p3}` vs cssce's
+`{hipToFoot,hipToKnee,kneeToFoot,hip,closest,knee,farthest,lowest}`) as
+part of a 2006→2007 IK refactor, not portable piecemeal (class D);
+`TestCollision` — cssce's version drops our `FSOLID_CUSTOMBOXTEST` branch
+and derefs a possibly-NULL physics object in its model-scale path (class
+C — trace-path churn, hit-reg adjacent); `CopyAnimationDataFrom` — refs
+replaced our `EF_NOINTERP` with `IncrementInterpolationFrame()` /
+`LockStudioHdr()`, APIs absent from this tree, and our form is the
+v34-era equivalent (class D); the dynamic-model / model-scale cluster
+(`SetModel`, `ResetSequenceInfo`, `SetupBones`, `GetSkeleton`,
+`ComputeHitboxSurroundingBox`, `DrawServerHitboxes`, `OnRestore`) — class
+D/E feature drift; and the remaining ~40 candidates were pure churn
+(`Assert`→`AssertMsg`, `LocalFlexController_t`, `GetModelScale`,
+float-literal, `AUTO_LOCK`/IBoneSetup refactors).
+
 ## Landed backports
 
 Commits oldest → newest; each body carries the full explanation (why
@@ -429,6 +472,9 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `7b0c54b` | `TraceAttack` NULL-attacker guard (3/3) |
 | `3fc99ae` | `GetNetworkIDString` NULL-guards the engine network-ID string (3/4, csgo uses `"UNKNOWN"`) |
 | `2e4e3a5` | Lag compensation refuses a second `Start` while a session is active (sdk2013 runtime guard + Finish/FrameUpdate self-clears; Finish made idempotent so a stray second Finish cannot replay the restore) |
+| `411b183` | SetLightingOriginRelative DevWarnings wrap their `string_t` args in `STRING()` (3/3 refs; same defect class as `454ca83`) |
+| `071ebd7` | CBaseAnimating constructor initializes networked `m_vecForce`/`m_nForceBone` unconditionally (was `_DEBUG`-only; 3/3 refs) |
+| `0856942` | GetBoneCache rejects future-stamped cache entries and uses mask containment instead of exact equality (3/3 refs) |
 
 ## Lag compensation deep dive (hit-registration evidence follow-up)
 
