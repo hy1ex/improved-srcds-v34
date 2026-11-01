@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-11-01):** current through commit `5f3fc10`. 57 backport
+**Status (2026-11-01):** current through commit `646b31f`. 61 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -452,6 +452,62 @@ from the initial v34 import, so "fixing" it would restore a newer feature, class
 E); the `LocalFlexController_t` loop rewrites, `max`→`MAX` normalization and
 float-literal cleanup (class D, ~25 items).
 
+**Batch 8 — props.cpp triage (2026-11-01):** 46 cross-ref changed functions
+(dumper found 30 candidates); four applied. The file is the engine entity layer
+for physics props, so the wins here are interaction and physics-callback
+lifetime bugs:
+
+- `97b4fdd` — `CPhysicsProp::ClearFlagsThink` cleared `FVPHYSICS_WAS_THROWN`
+  through `VPhysicsGetObject()` with no NULL check; a prop whose physics object
+  was released between scheduling and firing (removal, level teardown) hands
+  NULL to `PhysClearGameFlags` and dereferences it. Guarded (4/4 refs; the same
+  function in `physics_prop_ragdoll.cpp` already ran guarded).
+- `652c93e` — `VPhysicsCollision` dispatched
+  `g_interactionHitByPlayerThrownPhysObj` with a NULL pObject, so the NPC's
+  handler knew it was hit by a thrown prop but not which one. Passes `this`
+  (4/4 refs). Argument-only change: interaction id and handler signature are
+  untouched.
+- `0b80389` — `HandleAnyCollisionInteractions` impaled *any* NPC the prop hit,
+  including allies of the player who threw it, leaving the NPC pinned. Refs
+  bail before the stick when `HasPhysicsAttacker( 25.0f )` returns a player the
+  hit NPC rates `D_LI` (4/4). Uses the `CBreakableProp::HasPhysicsAttacker`
+  override already in `props.h`; props with no recorded attacker behave as
+  before.
+- `646b31f` — `GetRootPhysicsObjectForBreak` checked only the manager pointer,
+  then read follower slot 0; with a manager and zero followers (`CUtlVector`
+  emptied while the manager survives) that indexes an empty vector. Gates on
+  `GetNumBoneFollowers()` as the refs do (4/4), with the pointer check kept
+  because this tree still uses `m_pBoneFollowerManager`.
+
+Reviewed with nothing portable: `Break` (adds `gamestats` crate-smashed
+tracking, model-scale explosion and the `m_iszBreakModelMessage` user message —
+class E plus protocol-adjacent user messages); `CBreakableProp::OnTakeDamage`
+and `PropSetSequence`/`AnimThink`/`FinishSetSequence` (the `m_OnTakeDamage`
+output and the `m_iGoalSequence`/`m_iTransitionDirection` transition rework are
+absent from this tree, class E/C); `OnUse` (`m_OnLockedUse` output absent);
+`OnPhysGunPickup`/`OnPhysGunDrop`/`HandleFirstCollisionInteractions` (the
+`PROPINTER_PHYSGUN_NOTIFY_CHILDREN` flag and `IParentPropInteraction` interface
+are absent); `VPhysicsUpdate` (`m_OnOutOfWorld` absent); `Spawn` (`IsXbox()` →
+`AUTOAIM_ON_CONSOLE` is game/platform behaviour, class E); `TestCollision`
+(ours is `CBasePropDoor`'s, refs rewritten on `CDynamicProp` with the bone
+follower manager — different class, class C); `OnRestore`, `UpdateOnRemove`,
+`GetRootPhysicsObjectForBreak` aside (pointer→object manager refactor, class C);
+`InputDisableCollision`/`InputEnableCollision` (ours sets `m_bDisableCollision`,
+which `ShouldCollide` still reads, so the input is not dead — refs moved to
+`FSOLID_NOT_SOLID`, class D); `DoorTeleportToSpawnPosition`
+(`SF_DOOR_START_OPEN_OBSOLETE`, absent here, class C); `PropSetAnim` `Msg`→
+`Warning` (log level only, class D); and the `max`/`min`→`MAX`/`MIN` plus
+float-literal cleanup (class D, ~8 items).
+
+Highest-value item **not** taken: `HandleInteractionStick` defers its
+`Teleport`/`SetEnableMotionPosition`/`EnableMotion`/`SetCollisionGroup` work
+through `g_PostSimulationQueue.QueueCall( this, &CBreakableProp::StickAtPosition,
+... )` instead of mutating a physics object from inside its own collision
+callback — that is the correct shape of the fix, but this tree has neither the
+post-simulation queue nor `StickAtPosition` (grep: zero hits), so porting it
+would mean inventing deferred-call infrastructure rather than backporting, and
+it stays a documented skip.
+
 ## Landed backports
 
 Commits oldest → newest; each body carries the full explanation (why
@@ -518,6 +574,10 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `26e2f2a` | HandleStartGestureSceneEvent bounds its faceposer tag copies (Q_strncpy) and STRING()s GetModelName() in the looping-gesture warning (3/3 refs) |
 | `1329ddd` | AllocateLayer caps m_AnimOverlay at MAX_OVERLAYS (the SendPropUtlVector max) and returns -1 when full; paired Debug Assert dropped (3/3 refs) |
 | `5f3fc10` | CAnimationLayer::Init zero-fills m_flBlendIn/m_flBlendOut/m_flLastEventCheck; RestartGesture resets the event check (2/3 refs) |
+| `97b4fdd` | CPhysicsProp::ClearFlagsThink NULL-guards the physics object before clearing FVPHYSICS_WAS_THROWN (4/4 refs) |
+| `652c93e` | VPhysicsCollision passes the thrown prop as pObject to g_interactionHitByPlayerThrownPhysObj (4/4 refs) |
+| `0b80389` | HandleAnyCollisionInteractions does not impale NPCs friendly (D_LI) to the prop's physics attacker (4/4 refs) |
+| `646b31f` | GetRootPhysicsObjectForBreak requires a bone follower before indexing follower 0 (4/4 refs) |
 
 ## Lag compensation deep dive (hit-registration evidence follow-up)
 
