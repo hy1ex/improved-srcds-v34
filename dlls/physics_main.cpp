@@ -1813,12 +1813,6 @@ void CBaseEntity::PhysicsStep()
 		return;
 	}
 
-	// not going to think, don't run physics either
-	if ( thinktick > gpGlobals->tickcount )
-	{
-		return;
-	}
-	
 	Vector oldOrigin = GetAbsOrigin();
 
 	// HACKHACK: As an experiment, feed the position delta back
@@ -1868,6 +1862,17 @@ void CBaseEntity::PhysicsStep()
 		}
 	}
 #endif
+
+	// not going to think, don't run physics either
+	// NOTE: this has to come *after* the shadow position feed above.  A
+	// MOVETYPE_STEP entity whose think is still in the future is still being
+	// simulated by vphysics, and skipping the feed until its think tick arrives
+	// makes it sit at its last think-frame origin and then snap, once per think
+	// period, instead of following the shadow every tick.
+	if ( thinktick > gpGlobals->tickcount )
+	{
+		return;
+	}
 
 	// Don't let things stay in the past.
 	//  it is possible to start that way
