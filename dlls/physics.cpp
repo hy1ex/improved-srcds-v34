@@ -781,12 +781,6 @@ int CCollisionEvent::ShouldSolvePenetration( IPhysicsObject *pObj0, IPhysicsObje
 
 	if ( eventTime > 3 )
 	{
-		// don't put players or game physics controlled objects to sleep
-		if ( !pEntity0->IsPlayer() && !pEntity1->IsPlayer() && !pObj0->GetShadowController() && !pObj1->GetShadowController() )
-		{
-			// two objects have been stuck for more than 3 seconds, try disabling simulation
-			event.collisionState = COLLSTATE_TRYDISABLE;
-		}
 		// don't report penetrations on ragdolls with themselves, or outside of developer mode
 		if ( g_pDeveloper->GetInt() && pEntity0 != pEntity1 )
 		{
@@ -794,6 +788,19 @@ int CCollisionEvent::ShouldSolvePenetration( IPhysicsObject *pObj0, IPhysicsObje
 			ReportPenetration( pEntity1, phys_penetration_error_time.GetFloat() );
 		}
 		event.startTime = gpGlobals->curtime;
+
+		// don't put players or game physics controlled objects to sleep
+		if ( !pEntity0->IsPlayer() && !pEntity1->IsPlayer() && !pObj0->GetShadowController() && !pObj1->GetShadowController() )
+		{
+			// two objects have been stuck for more than 3 seconds, try disabling simulation
+			event.collisionState = COLLSTATE_TRYDISABLE;
+
+			// Disabling simulation is the resolution for this pair (UpdatePenetrateEvents
+			// forces the entities to sleep and marks the event COLLSTATE_DISABLED).  Tell
+			// the solver not to push them apart as well, or it wakes the pair right back
+			// up and the two paths fight for as long as they stay overlapped.
+			return 0;
+		}
 	}
 
 
