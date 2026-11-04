@@ -1053,7 +1053,19 @@ void CPhysImpact::InputImpact( inputdata_t &inputdata )
 	Vector	end		= start + ( dir * dist );
 
 	//Trace out
-	UTIL_TraceLine( start, end, MASK_SHOT, this, 0, &trace );
+	UTIL_TraceLine( start, end, MASK_SHOT, this, COLLISION_GROUP_NONE, &trace );
+
+	// If the impact entity's own origin is inside a solid (spawned overlapping a
+	// brush, pushed into geometry, or sitting inside another prop), the trace
+	// reports startsolid with no usable surface, and the force/damage below is
+	// applied against a bogus normal at the origin.  Re-trace once from a short
+	// step along the impact direction so the trace escapes the solid it starts in
+	// and finds the surface actually in front of the entity.
+	if ( trace.startsolid )
+	{
+		Vector startOffset = start + ( dir * 0.1f );
+		UTIL_TraceLine( startOffset, end, MASK_SHOT, this, COLLISION_GROUP_NONE, &trace );
+	}
 
 	if( debug_physimpact.GetBool() )
 	{
