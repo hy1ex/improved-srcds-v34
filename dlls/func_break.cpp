@@ -985,33 +985,50 @@ void CBreakable::Die( void )
 		iCount = func_break_max_pieces.GetInt();
 	}
 
-	for ( int i = 0; i < iCount; i++ )
+	// Only spawn chunks when the map actually told us which chunk set to use.
+	// GetRandomChunkModel("") matches the first section in propdata.txt (the
+	// length-0 compare succeeds), so an unset m_iszModelName used to splat an
+	// unrelated section's models, and a section that is missing from
+	// propdata.txt returns NULL, which GetModelIndex then receives.
+	if ( m_iszModelName != NULL_STRING )
 	{
+		for ( int i = 0; i < iCount; i++ )
+		{
 
 #ifdef HL1_DLL
-		// Use the passed model instead of the propdata type
-		const char *modelName = STRING( m_iszModelName );
-		
-		// if the map specifies a model by name
-		if( strstr( modelName, ".mdl" ) != NULL )
-		{
-			iModelIndex = modelinfo->GetModelIndex( modelName );
-		}
-		else	// do the hl2 / normal way
+			// Use the passed model instead of the propdata type
+			const char *modelName = STRING( m_iszModelName );
+			
+			// if the map specifies a model by name
+			if( strstr( modelName, ".mdl" ) != NULL )
+			{
+				iModelIndex = modelinfo->GetModelIndex( modelName );
+			}
+			else	// do the hl2 / normal way
 #endif
+			{
+				const char *pChunkModel = g_PropDataSystem.GetRandomChunkModel(  STRING( m_iszModelName ) );
 
-		iModelIndex = modelinfo->GetModelIndex( g_PropDataSystem.GetRandomChunkModel(  STRING( m_iszModelName ) ) );
+				// No such section in propdata.txt -- nothing sensible to spawn.
+				if ( !pChunkModel )
+				{
+					break;
+				}
 
-		// All objects except the first one in this run are marked as slaves...
-		int slaveFlag = 0;
-		if ( i != 0 )
-		{
-			slaveFlag = BREAK_SLAVE;
+				iModelIndex = modelinfo->GetModelIndex( pChunkModel );
+			}
+
+			// All objects except the first one in this run are marked as slaves...
+			int slaveFlag = 0;
+			if ( i != 0 )
+			{
+				slaveFlag = BREAK_SLAVE;
+			}
+
+			te->BreakModel( filter2, 0.0, 
+				vecSpot, pCollisionProp->GetCollisionAngles(), vSize, 
+				vecVelocity, iModelIndex, 100, 1, 2.5, cFlag | slaveFlag );
 		}
-
-		te->BreakModel( filter2, 0.0, 
-			vecSpot, pCollisionProp->GetCollisionAngles(), vSize, 
-			vecVelocity, iModelIndex, 100, 1, 2.5, cFlag | slaveFlag );
 	}
 
 	ResetOnGroundFlags();
