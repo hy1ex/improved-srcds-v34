@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-11-04):** current through commit `eff5879`. 64 backport
+**Status (2026-11-04):** current through commit `1c783c2`. 67 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -560,6 +560,45 @@ can suppress a water splash for `FLUID_TIME_MAX`), so it is deferred; the
 remaining items are `const`-ness, `max`→`MAX`, `EnsureCapacity(4)`,
 `swap`→`V_swap`, `DevMsg` level and `#ifdef PORTAL` churn (class D).
 
+**Batch 10 — func_break.cpp / physics_main.cpp triage (2026-11-04):** two
+files at a time from here on. `func_break.cpp` is the breakable-prop state
+machine (8 candidates of 27 functions) and `physics_main.cpp` is the entity push
+/ step seam (14 of 42); three applied.
+
+- `0fbbeef` — `CBreakable::Die` spawned its chunk loop unconditionally.
+  `GetRandomChunkModel("")` compares with `strlen("") == 0`, so it matches the
+  *first* section in propdata.txt: an unconfigured breakable shattered into
+  whichever chunk set parsed first, and a section missing from propdata.txt
+  returns NULL into `modelinfo->GetModelIndex()`. Loop now requires
+  `m_iszModelName` and a non-NULL chunk model (3/3 refs for the string guard).
+- `00e96ae` — `CBreakable::OnTakeDamage` computed an unused
+  `GetInflictor()->GetAbsOrigin() - WorldSpaceCenter()` into `vecTemp`, the only
+  dereference of an inflictor that physics-impact damage can leave NULL. Dropped
+  statement and local (2/2 refs).
+- `1c783c2` — `CBaseEntity::PhysicsStep` returned "not going to think" *above*
+  the npc_vphysics shadow-follow block, so a MOVETYPE_STEP entity under vphysics
+  only took its simulated origin on think frames, lagging up to a whole think
+  interval and snapping when the tick arrived. The gate now sits after the feed,
+  where it still guards the think/time-step work (3/3 refs).
+
+Reviewed with nothing portable: `VPhysicsCollision`'s
+`if ( m_Material == matGlass ) SetMass( 2.0f )` is a gameplay tuning hack around
+glass damage, not engine logic, class E; `TraceAttack`'s `CDmgAccumulator`
+parameter is a damage-refactor API this tree does not have, class C;
+`ResetOnGroundFlags` (portal fizzle), `Precache` (`HL2_EPISODIC` case) and
+`PhysicsStepRunTimestep` (dead `hitsound` block) are `#ifdef`/dead-code churn,
+class D; `DamageSound` `char *`→`const char *`, `UpdateHealth` `0,1`→`0.f,1.f`
+and `V_swap` are class D; `EntityToWorldTransform`-based `Teleport` in
+`physics_prop_ragdoll.cpp` is the one remaining ragdoll candidate but it needs
+`VPhysicsSwapObject` reordering proof on a live sim, deferred rather than
+guessed at. In `physics_main.cpp`: `g_pPushedEntities` (a per-thread pushed-entity
+object instead of the file-static `s_PushedEntities`), `m_flMoveTime`,
+`partition->HideElement`/`UnhideElement`, `GetCurrentGravity()` and the
+`sv_gravity`→per-entity-gravity switch are all newer-tree API or new members
+(class C), and `SpeculativelyCheckPush`/`PhysicsDispatchThink`/`PhysicsPushEntity`
+differ only in `TF_DLL` message formatting, `PORTS`-style `#elif` and warning
+text (class D).
+
 ## Landed backports
 
 Commits oldest → newest; each body carries the full explanation (why
@@ -633,6 +672,9 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `819168a` | ShouldSolvePenetration returns 0 for the COLLSTATE_TRYDISABLE branch so the solver stops fighting the sleep path (4/4 refs) |
 | `eafc450` | CPhysMagnet::ConstraintBroken NULL-guards the magnetized entity handle and its physics object (4/4 refs) |
 | `eff5879` | CPhysImpact::InputImpact re-traces from start + dir*0.1 when the first trace starts solid (3/3 refs) |
+| `0fbbeef` | CBreakable::Die only emits chunk models when a gib set is configured and the chunk lookup succeeded (3/3 refs) |
+| `00e96ae` | CBreakable::OnTakeDamage drops the unused inflictor-origin computation that could dereference a NULL inflictor (2/2 refs) |
+| `1c783c2` | PhysicsStep feeds the vphysics shadow position before the think-tick gate instead of only on think frames (3/3 refs) |
 
 ## Lag compensation deep dive (hit-registration evidence follow-up)
 
