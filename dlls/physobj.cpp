@@ -1672,10 +1672,13 @@ void CPhysMagnet::ConstraintBroken( IPhysicsConstraint *pConstraint )
 	int iCount = m_MagnettedEntities.Count();
 	for ( int i = 0; i < iCount; i++ )
 	{
-		if ( m_MagnettedEntities[i].pConstraint == pConstraint )
+		if ( m_MagnettedEntities[i].hEntity.Get() != NULL && m_MagnettedEntities[i].pConstraint == pConstraint )
 		{
 			IPhysicsObject *pPhysObject = m_MagnettedEntities[i].hEntity->VPhysicsGetObject();
-			m_flTotalMass -= pPhysObject->GetMass();
+			if ( pPhysObject != NULL )
+			{
+				m_flTotalMass -= pPhysObject->GetMass();
+			}
 
 			m_MagnettedEntities.Remove(i);
 			break;
