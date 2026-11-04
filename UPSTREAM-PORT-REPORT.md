@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-11-01):** current through commit `646b31f`. 61 backport
+**Status (2026-11-04):** current through commit `eff5879`. 64 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -508,6 +508,58 @@ post-simulation queue nor `StickAtPosition` (grep: zero hits), so porting it
 would mean inventing deferred-call infrastructure rather than backporting, and
 it stays a documented skip.
 
+**Batch 9 — physics.cpp / physobj.cpp triage (2026-11-04):** the physics
+seam this project had not swept yet: the collision-event callbacks the engine
+calls back into, and the entity side of the vphysics glue. Cross-ref candidate
+counts were 15 (`physics.cpp`), 8 (`physobj.cpp`), 7 (`physconstraint.cpp`) and
+6 (`physics_prop_ragdoll.cpp`); three applied. Most of the rest is the 2007+
+vphysics API (`SetPerformanceSettings`, `EnableConstraintNotify`,
+`IPhysicsConstraintGroup::SolvePenetration`, `Vector*` velocity/ABB out-params)
+or game features this tree does not have.
+
+- `819168a` — `CCollisionEvent::ShouldSolvePenetration` marked a pair
+  `COLLSTATE_TRYDISABLE` after three seconds of interpenetration and *also*
+  returned 1, so the default solver pushed the pair apart in the same frame
+  that `UpdatePenetrateEvents` forced it to sleep; the two undo each other and
+  the pair keeps re-arming the event. Returns 0 from the disable branch, with
+  the refs' block order (report → reset `startTime` → try disable) so
+  reporting still happens (4/4 refs).
+- `eafc450` — `CPhysMagnet::ConstraintBroken` dereferenced the magnetized
+  entry's `hEntity` and then `pPhysObject->GetMass()` unguarded; a prop removed
+  (or object released) before constraint teardown crashes there. Both guarded,
+  entry still removed and `m_OnMagnetDetach` still fired (4/4 refs).
+- `eff5879` — `CPhysImpact::InputImpact` traced once from its own origin, so an
+  impact entity embedded in geometry got a `startsolid` trace with no real
+  surface normal and applied its force along the impact axis (or zero). Re-traces
+  from `start + dir * 0.1` when the first trace starts solid and uses that
+  result throughout (3/3 refs).
+
+Reviewed with nothing portable: `ShouldSolvePenetration`'s ragdoll
+self-penetration block (`pEntity0 == pEntity1` → `Ragdoll_GetRagdoll` →
+`pGroup->SolvePenetration`) needs `IPhysicsConstraintGroup::SolvePenetration`,
+which this tree's `vphysics_interface.h` does not declare — engine-side API,
+class C, so ragdoll limbs keep the default solver; `LevelInitPreEntity`
+(`SetPerformanceSettings`, `EnableConstraintNotify`, `GetCurrentGravity`) and
+`Friction`/`InitRagdoll` (`GetVelocityAtPoint( Vector* )`,
+`CollideGetAABB( Vector* )`, `RagdollActivate` wake flag) are vphysics ABI
+churn, class C; `FrameUpdate`/`PostSimulationFrame` differ only by
+`g_PostSimulationQueue` + `FlushQueuedOperations` (absent here, and
+`UpdateImpulseEvents`/`UpdateSetVelocityEvents` are idempotent — each clears
+its list — so the apparent double call is not a double apply); `LevelShutdownPostEntity`
+and `PreClientUpdate` need `m_breakSounds`/`FlushVehicleScripts`, class E;
+`AddDamageEvent`'s `g_pGameRules->Damage_GetTimeBased()` is `DMG_TIMEBASED` in
+CS:S gamerules, so behaviour-identical; `InputConvertTarget` (`SF_CONVERT_AS_DEBRIS`,
+`m_flMassOverride`, `UTIL_TransferPoseParameters`), `PushThink`
+(`SF_PUSH_PLAYER`/`SF_PUSH_PHYSICS`), `OnPhysGunPickup` (`m_OnPhysGunPunt`) and
+`CreateVPhysics` (`ShouldDampRotation`) reference spawnflags/outputs/APIs this
+tree does not have, class E; `DeltaTimeSinceLastFluid`'s raw `pEntity` →
+`EHANDLE` is a real lifetime tidy-up but would put a handle type into
+`game_shared/physics_shared.h`, which is deliberately forward-declaration-only
+(only `physics.h` includes it) for a non-crashing symptom (a recycled address
+can suppress a water splash for `FLUID_TIME_MAX`), so it is deferred; the
+remaining items are `const`-ness, `max`→`MAX`, `EnsureCapacity(4)`,
+`swap`→`V_swap`, `DevMsg` level and `#ifdef PORTAL` churn (class D).
+
 ## Landed backports
 
 Commits oldest → newest; each body carries the full explanation (why
@@ -578,6 +630,9 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `652c93e` | VPhysicsCollision passes the thrown prop as pObject to g_interactionHitByPlayerThrownPhysObj (4/4 refs) |
 | `0b80389` | HandleAnyCollisionInteractions does not impale NPCs friendly (D_LI) to the prop's physics attacker (4/4 refs) |
 | `646b31f` | GetRootPhysicsObjectForBreak requires a bone follower before indexing follower 0 (4/4 refs) |
+| `819168a` | ShouldSolvePenetration returns 0 for the COLLSTATE_TRYDISABLE branch so the solver stops fighting the sleep path (4/4 refs) |
+| `eafc450` | CPhysMagnet::ConstraintBroken NULL-guards the magnetized entity handle and its physics object (4/4 refs) |
+| `eff5879` | CPhysImpact::InputImpact re-traces from start + dir*0.1 when the first trace starts solid (3/3 refs) |
 
 ## Lag compensation deep dive (hit-registration evidence follow-up)
 
