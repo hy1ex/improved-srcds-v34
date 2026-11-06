@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-11-04):** current through commit `1c783c2`. 67 backport
+**Status (2026-11-04):** current through commit `f55c2a1`. 70 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -599,6 +599,58 @@ object instead of the file-static `s_PushedEntities`), `m_flMoveTime`,
 differ only in `TF_DLL` message formatting, `PORTS`-style `#elif` and warning
 text (class D).
 
+**Batch 11 — gameinterface.cpp / physics_bone_follower.cpp (2026-11-04):**
+the DLL entry points and level lifecycle (19 candidates of 54 functions) plus
+the bone-follower shadow proxies (10 of 22); three applied.
+
+- `203a9aa` — `CBoneFollower::Init` marked every follower's shadow physically
+  controlled. Its own comment states the precondition: the entity does not run
+  `PhysicsPusher()`, so vphysics has to move it -- true only for NPC owners. A
+  prop owner *does* push its followers, so marking those physically controlled
+  too let vphysics simulate them a second time and they stopped tracking the
+  bone transform. Guarded with `pOwner->IsNPC()` (4/4 refs).
+- `f3c73b5` — `CServerGameDLL::LevelInit` assigned `gpGlobals->eLoadType` only
+  *after* `BeginRestoreEntities()` and `engine->LoadGameState()`; every restore
+  path that branches on it (`CAmbientGeneric::Activate` choosing SND_SPAWNING vs
+  SND_NOFLAGS, `CLogicAuto::Think`, the commentary system) read the previous
+  level's value. Assignment moved above the restore (2/2 refs that keep the
+  single-player path).
+- `f55c2a1` — `CServerGameDLL::LevelShutdown` tore down entities and released
+  their model references without ever taking `MDLCACHE_CRITICAL_SECTION()`
+  (3/3 refs take it before `LevelShutdownPreEntityAllSystems()`).
+
+Reviewed with nothing portable: `CheckTransmit` needs
+`CServerNetworkProperty::GetNetworkParent`, `CBasePlayer::IsReplay` and
+`sv_force_transmit_ents`, none of which exist here (class C);
+`CreateNetworkStringTables` would add particle/mapcycle string tables, i.e.
+protocol-adjacent (class C); `ClientSettingsChanged` needs
+`g_pGameRules::IsConnectedUserInfoChangeAllowed` (class C); `LevelShutdown`'s
+steam-context/pre-clear-system calls, `LevelInit`'s ECON item schema, X360 rich
+presence and `g_pServerBenchmark`, `GameFrame`'s `UpdateQueryCache` /
+`TheNextBots` and `PostInit`'s `IGameSystem::PostInitAllSystems` are all
+newer-tree API (class C); `GameFrame`'s static `skipframe` versus tickcount
+parity and the `oldframetime` capture point are equivalent in practice and the
+frametime restore in our order is the safer of the two (class D);
+`GetTickInterval` ignoring `-tickrate` for CS/TF/DOD would change how the
+server picks its tick rate, deliberately not touched; `PreClientUpdate`'s
+`#ifdef _DEBUG` around `sv_showhitboxes` removes a working feature (class E);
+`ServerActivate` / `GetBugReportInfo` / `LoadMessageOfTheDay` /
+`ClientActive` differ only in nav-mesh hooks, format strings,
+`LoadSpecificMOTDMsg` and TF GC client calls (class D/E).
+
+`sceneentity.cpp` was triaged and deliberately left for later: its 28
+candidates are dominated by a newer async-VCD-loading rework our tree predates
+in the opposite direction (`m_bAsyncVCDLoadPending` / `PollForAsyncLoading` /
+`BlockingLoadScene` versus `m_bSceneMissing` / `LoadScene` / `OnLoaded`), by
+`!IsMultiplayer()` guards around expression/flex/lookat/moveto/face dispatch,
+by the `AI_Response` value-type refactor, and by `m_OnTrigger9..16` outputs this
+tree does not declare -- adding those would be a datatable/ABI change. The
+close-caption path also switched from `WRITE_LONG( CRC32 )` to
+`WRITE_STRING`, which is a network-message change and therefore out of scope.
+`FindNamedEntity`'s `GetFilterResult()`, `PrefetchAnimBlocks`'s
+`pAnim( &iFrame )`, `DoThink`'s `m_fPitch` and `UpdateTransmitState`'s
+`m_pRecipientFilter` are absent here (class C).
+
 ## Landed backports
 
 Commits oldest → newest; each body carries the full explanation (why
@@ -675,6 +727,9 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `0fbbeef` | CBreakable::Die only emits chunk models when a gib set is configured and the chunk lookup succeeded (3/3 refs) |
 | `00e96ae` | CBreakable::OnTakeDamage drops the unused inflictor-origin computation that could dereference a NULL inflictor (2/2 refs) |
 | `1c783c2` | PhysicsStep feeds the vphysics shadow position before the think-tick gate instead of only on think frames (3/3 refs) |
+| `203a9aa` | CBoneFollower::Init only marks the follower physically controlled for NPC owners, whose followers vphysics has to move (4/4 refs) |
+| `f3c73b5` | LevelInit assigns eLoadType before BeginRestoreEntities/LoadGameState so restore paths see the right load type (2/2 refs) |
+| `f55c2a1` | LevelShutdown holds MDLCACHE_CRITICAL_SECTION across entity teardown and model release (3/3 refs) |
 
 ## Lag compensation deep dive (hit-registration evidence follow-up)
 
