@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-11-04):** current through commit `af84694`. 79 backport
+**Status (2026-11-04):** current through commit `f2e5d25`. 81 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -693,6 +693,54 @@ crush damage and needs a live train map to judge. `doors.cpp`'s
 `( m_bForceClosed || m_flWait < 0 )` solver condition was left alone for the same
 reason.
 
+**Batch 16 — sound.cpp / recipientfilter.cpp (2026-11-04):** the last two
+unswept engine files that still held a portable fix. This batch was chosen by a
+full sweep rather than by size, so the finding matters as much as the fixes.
+
+- `56bc2ad` — `CAmbientGeneric::Precache` called `InitModulationParms()`, which
+  rebuilds the entire `m_dpv` struct from the preset table, the keyvalue fixups
+  and the saved startup values. `Precache()` is not once-per-entity: after a
+  save/restore or a level transition the entity is precached again — the reason
+  `ToggleSound()` has to force `SF_AMBIENT_SOUND_START_SILENT` ("this makes the
+  code in Precache() work properly after a save/restore"). Every ambient_generic
+  that had been faded, spun up or retuned by inputs therefore snapped back to its
+  map volume and pitch on re-precache. The call moved to the end of `Spawn()`,
+  which runs once (3/3 refs).
+- `f2e5d25` — `CTeamRecipientFilter` admitted only players whose
+  `GetTeamNumber()` matched, so a spectator in `OBS_MODE_IN_EYE` or
+  `OBS_MODE_CHASE` never received the team-scoped messages their observer target
+  received. They are now admitted when the observer target is on the filtered team
+  (2/2 refs). The refs' `OBS_MODE_POI` test is TF2/PASSTIME and has no equivalent
+  in this tree's `OBS_MODE` enum, so it is omitted.
+
+Sweep result: all 320 `dlls/*.cpp` were run through the function-level
+consensus triage (weapons, NPC/AI and vehicle gameplay files excluded by policy).
+Outside the files already covered earlier, everything left is class C/D/E:
+
+- `hltvdirector.cpp` (17) and `scripted.cpp` (12) are the only files with real
+  candidate volume left, both gameplay-adjacent (SourceTV director state, scripted
+  NPC sequences) and out of scope by the no-gameplay/no-protocol rules.
+- Interface-divergent, so unportable here: `ServerNetworkProperty.cpp` (edict
+  `FL_EDICT_DIRTY_PVS_INFORMATION` vs this tree's entity `EFL_*` flags),
+  `envmicrophone.cpp` (its `CanHearSound` takes a `CSound *` here, not
+  index/level/origin; `SF_MICROPHONE_IGNORE_NONATTENUATED` does not exist),
+  `soundscape.cpp` (`audioparams_t::ent` is an EHANDLE here, not `entIndex`),
+  `point_spotlight.cpp` (`m_bIgnoreSolid`, `m_OnOn`, `m_OnOff` absent),
+  `item_world.cpp` (HL2/TF constrained items, `hl2_episodic`), `cbase.cpp`
+  (`#ifdef TF_DLL` noise only), `entitylist.cpp` (`FindEntityByClassnameWithin`
+  changes signature and radius->AABB semantics).
+- Churn/debug only: `bmodels.cpp` (`0` -> `0.f`, `min`/`MAX`), `EnvSpark.cpp`
+  (whitespace plus `StartSpark`/`StopSpark` helpers), `pathtrack.cpp` (asserts plus
+  removing a redundant handle clear), `func_breakablesurf.cpp` (`CDmgAccumulator`
+  signature, `MAX`/`MIN`), `phys_controller.cpp` (class-misaligned triage hit),
+  `colorcorrection.cpp` (needs the whole fade subsystem), `physics_cannister.cpp`
+  (HL2 launch behaviour).
+
+With that, every engine-layer file in this tree has been triaged at least once.
+Future batches have to come from deeper re-reads of the large swept files
+(`baseanimating.cpp` 50 candidates, `sceneentity.cpp` 28, `props.cpp` 28,
+`baseflex.cpp` 27) or from the gameplay files this project deliberately excludes.
+
 **Batch 15 — world.cpp / physics_npc_solver.cpp / soundent.cpp (2026-11-04):** a
 candidate that had been sitting in the queue as "probably churn" turned out to be
 a real bug, so `world.cpp` (4 candidates of 17 functions) went in with the two
@@ -914,6 +962,8 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `e819563` | world StaticDecal tests the trace entity for NULL before truncating it to the decal entity index (3/3 refs) |
 | `3c8e6cf` | Physics NPC/entity solvers guard a cleared EHANDLE and a missing physics object instead of dereferencing them (4/4 refs) |
 | `af84694` | soundent timestamps its pool diagnostics and warns when the pool is undersized for the client count (3/3 refs) |
+| `56bc2ad` | ambient_generic initialises its modulation params once in Spawn instead of on every re-precache (3/3 refs) |
+| `f2e5d25` | Team recipient filters include spectators watching the filtered team (2/2 refs) |
 
 ## Lag compensation deep dive (hit-registration evidence follow-up)
 
