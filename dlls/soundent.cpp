@@ -278,11 +278,11 @@ void CSoundEnt::Think ( void )
 
 			if( displaysoundlist.GetInt() == 1 )
 			{
-				Msg("  Removed Sound: %d\n", m_SoundPool[ iSound ].SoundType() );
+				Msg("  Removed Sound: %d (Time:%f)\n", m_SoundPool[ iSound ].SoundType(), gpGlobals->curtime );
 			}
 			if( displaysoundlist.GetInt() == 2 && m_SoundPool[ iSound ].IsSoundType( SOUND_DANGER ) )
 			{
-				Msg("  Removed Danger Sound: %d\n", m_SoundPool[ iSound ].SoundType() );
+				Msg("  Removed Danger Sound: %d (time:%f)\n", m_SoundPool[ iSound ].SoundType(), gpGlobals->curtime );
 			}
 
 			// move this sound back into the free list
@@ -478,11 +478,11 @@ void CSoundEnt::InsertSound ( int iType, const Vector &vecOrigin, int iVolume, f
 
 	if( displaysoundlist.GetInt() == 1 )
 	{
-		Msg("  Added Sound! Type:%d  Duration:%f\n", pSound->SoundType(), flDuration );
+		Msg("  Added Sound! Type:%d  Duration:%f (Time:%f)\n", pSound->SoundType(), flDuration, gpGlobals->curtime );
 	}
 	if( displaysoundlist.GetInt() == 2 && (iType & SOUND_DANGER) )
 	{
-		Msg("  Added Danger Sound! Duration:%f\n", flDuration );
+		Msg("  Added Danger Sound! Duration:%f (Time:%f)\n", flDuration, gpGlobals->curtime );
 	}
 }
 
@@ -525,6 +525,11 @@ void CSoundEnt::Initialize ( void )
 	int nTotalSoundsInPool = MAX_WORLD_SOUNDS_SP;
 	if ( gpGlobals->maxClients > 1 )
 		nTotalSoundsInPool = min( MAX_WORLD_SOUNDS_MP, gpGlobals->maxClients + 32 );
+
+	if ( gpGlobals->maxClients+16 > nTotalSoundsInPool )
+	{
+		Warning( "CSoundEnt pool is low on sounds due to high number of clients.\n" );
+	}
 
 	for ( i = 0 ; i < nTotalSoundsInPool ; i++ )
 	{
