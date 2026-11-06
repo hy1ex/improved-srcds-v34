@@ -298,6 +298,12 @@ void CBaseDoor::Spawn()
 		if ( HasSpawnFlags( SF_DOOR_NONSOLID_TO_PLAYER ) )
 		{
 			SetCollisionGroup( COLLISION_GROUP_PASSABLE_DOOR );
+			// A passable door is still a pushed mover.  Without this flag
+			// CPhysicsPushedEntities treats a player standing in the doorway as a
+			// blocker (the passable collision group does not stop the player being
+			// in the way), so the door reports Blocked, reverses into the doorway
+			// and can crush-damage the player it is supposed to be transparent to.
+			AddFlag( FL_UNBLOCKABLE_BY_PLAYER );
 		}
 		if ( m_bIgnoreDebris )
 		{
