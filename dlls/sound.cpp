@@ -285,6 +285,9 @@ void CAmbientGeneric::Spawn( void )
 	m_nSoundSourceEntIndex = -1;
 
 	Precache( );
+
+	// init all dynamic modulation parms
+	InitModulationParms();
 }
 
 
@@ -429,9 +432,6 @@ void CAmbientGeneric::Precache( void )
 			PrecacheScriptSound(szSoundFile);
 		}
 	}
-
-	// init all dynamic modulation parms
-	InitModulationParms();
 
 	if ( !FBitSet (m_spawnflags, SF_AMBIENT_SOUND_START_SILENT ) )
 	{
