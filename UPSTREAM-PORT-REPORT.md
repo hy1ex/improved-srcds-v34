@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-11-04):** current through commit `f55c2a1`. 70 backport
+**Status (2026-11-04):** current through commit `1ab83b7`. 72 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -651,6 +651,48 @@ close-caption path also switched from `WRITE_LONG( CRC32 )` to
 `pAnim( &iFrame )`, `DoThink`'s `m_fPitch` and `UpdateTransmitState`'s
 `m_pRecipientFilter` are absent here (class C).
 
+**Batch 12 — logicentities.cpp / doors.cpp (2026-11-04):** the logic_* entity
+family (12 candidates of 51 functions) and the door mover (10 of 35); two
+applied.
+
+- `d8abc9f` — `CLogicBranchList::DoTest` dereferenced the resolved handle of
+  every entry in its branch list. The list holds entity handles, so a
+  `logic_branch` that is killed or cleaned up while the listener lives leaves a
+  NULL handle and the listener faults on its next test. Guarded with
+  `pBranch &&` (4/4 refs), with a removed branch still counting as "not all
+  true" exactly as before.
+- `1ab83b7` — `SF_DOOR_NONSOLID_TO_PLAYER` only set
+  `COLLISION_GROUP_PASSABLE_DOOR`, which stops the player's traces hitting the
+  door but not the door's own push from finding the player in the way: the door
+  then reported `Blocked`, reversed and could crush-damage the player it is
+  supposed to be transparent to. Added `FL_UNBLOCKABLE_BY_PLAYER`, the flag
+  `CPhysicsPushedEntities::PerformLinearPush/PerformRotatePush` reads to move a
+  player/NPC blocker to the push destination instead of registering a blockage
+  (3/3 refs).
+
+Reviewed with nothing portable: in `logicentities.cpp`, `CMathCounter`'s
+`m_bDisabled` guards go with Enable/Disable inputs this tree never declares
+(class E), `CEnvGlobal`'s `counter` key and `CLogicAutosave`'s
+`m_minHitPoints`/`m_minHitPointsToCommit` keys do not exist here (class E), and
+`DrawDebugTextOverlays`/`InputSetValue`/`InputDisable` are triage misalignments
+where ours and the refs define different classes with the same function name
+(class D). In `doors.cpp`, `m_NoiseMovingClosed`/`m_NoiseArrivedClosed`,
+`m_eSpawnPosition` (`spawnpos`), `m_OnLockedUse` and `m_bIgnoreNonPlayerEntsOnBlock`
+are all new keyvalues/outputs/members (class E), and the
+`SF_DOOR_START_OPEN` -> `SF_DOOR_START_OPEN_OBSOLETE` renames are the same bit
+`1` (class D).
+
+`trains.cpp` was triaged alongside them and deferred as a whole: `m_OnNext`,
+`m_flNextMPSoundTime`, `m_bAccelToSpeed`/`m_flSpeedForwardModifier`,
+`m_lastBlockPos`/`m_lastBlockTick` and `path_track`'s `InTeleport` input are
+absent (class C/E), `SetSpeed(float,bool)` is a signature change into that
+acceleration feature, and the one behavioural candidate -- `Blocked` returning
+early for a player when `SF_TRACKTRAIN_UNBLOCKABLE_BY_PLAYER` has a physics
+blocker, so the train pushes through instead of crush-damaging -- removes map
+crush damage and needs a live train map to judge. `doors.cpp`'s
+`( m_bForceClosed || m_flWait < 0 )` solver condition was left alone for the same
+reason.
+
 ## Landed backports
 
 Commits oldest → newest; each body carries the full explanation (why
@@ -730,6 +772,8 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `203a9aa` | CBoneFollower::Init only marks the follower physically controlled for NPC owners, whose followers vphysics has to move (4/4 refs) |
 | `f3c73b5` | LevelInit assigns eLoadType before BeginRestoreEntities/LoadGameState so restore paths see the right load type (2/2 refs) |
 | `f55c2a1` | LevelShutdown holds MDLCACHE_CRITICAL_SECTION across entity teardown and model release (3/3 refs) |
+| `d8abc9f` | CLogicBranchList::DoTest guards the branch handle so a removed logic_branch no longer faults (4/4 refs) |
+| `1ab83b7` | Non-solid-to-player doors also get FL_UNBLOCKABLE_BY_PLAYER so players in the doorway stop blocking the push (3/3 refs) |
 
 ## Lag compensation deep dive (hit-registration evidence follow-up)
 
