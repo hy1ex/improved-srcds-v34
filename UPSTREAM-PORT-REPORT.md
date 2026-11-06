@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-11-04):** current through commit `8ef3c55`. 74 backport
+**Status (2026-11-04):** current through commit `a8dc7bd`. 76 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -693,6 +693,54 @@ crush damage and needs a live train map to judge. `doors.cpp`'s
 `( m_bForceClosed || m_flWait < 0 )` solver condition was left alone for the same
 reason.
 
+**Batch 14 — physics_prop_ragdoll.cpp / filters.cpp (2026-11-04):** the ragdoll
+prop (6 candidates of 43 functions) plus the smallest queued engine file, the
+entity filters (2 of 9); two files, four fixes, two commits.
+
+- `cbc7509` — `CRagdollProp::VPhysicsUpdate` ignored the return value of
+  `RagdollGetBoneMatrix`, which already returns `bool` in this tree and returns
+  `false` when the group is in the error state, leaving `boneToWorld`
+  untouched. The loop then ran uninitialised stack matrices through
+  `MatrixAngles` and published the result as `m_ragPos`/`m_ragAngles`; since the
+  tail of the function does `SetAbsOrigin( m_ragPos[0] )`, the prop itself was
+  moved to a garbage origin. Failed reads now publish zeroed pos/angles
+  (3/3 refs). The `RagdollSolveSeparation` call also moved from before the read
+  to after it, and out of the sleeping case entirely — it was correcting the
+  object before the matrices it corrects had been read (3/3 refs). The
+  surrounding-bounds loop also dereferenced `m_ragdoll.list[i].pObject` with no
+  NULL check; a released object now contributes an empty AABB (3/3 refs).
+- `a8dc7bd` — `CFilterMultiple::Activate` stored any entity found by name into
+  `m_hFilter[]`, and all four consumers cast it back to `CBaseFilter *` with a
+  C-style cast and call a virtual on it. A `filter_multi` key naming a non-filter
+  entity (a typo that resolves to a prop, or a mapper pointing at `logic_auto`)
+  produced a bogus `CBaseFilter *` and a virtual call through the wrong vtable —
+  crashable from map data alone. `dynamic_cast` now rejects it with a warning and
+  the surviving handles are compacted to the front of the array (3/3 refs); the
+  consumers only test slots for NULL, so AND/OR behaviour is unchanged.
+
+Nothing portable left in either file. In `physics_prop_ragdoll.cpp`:
+`InitRagdoll` takes a new `bWakeRagdoll` parameter and fills in
+`allowStretch`/`fixedConstraints` (class E — `SF_RAGDOLLPROP_STARTASLEEP` and
+`SF_RAGDOLLPROP_ALLOW_STRETCH` do not exist in this tree, and `RagdollActivate`
+already defaults to `bForceWake = true`, so the parameter would be a no-op here);
+`Spawn`'s additions need `DisableMotion()` on the prop and `m_bStartDisabled`,
+neither of which exists on `CRagdollProp` (class C/E); `SetupBones` calls
+`UpdateModelScale()` and `pStudioHdr->boneFlags()` where this tree has
+`UpdateModelWidthScale()` and a `mstudiohitboxset`-era `mstudiobone_t::flags`
+(class C); `Teleport` is a rewrite that changes where the entity lands relative
+to its ragdoll, which in this tree already derives the delta from the
+post-teleport entity transform and stays self-consistent (class B — skipped as
+risky); and `TraceAttack` changes signature for `CDmgAccumulator` (class C). In
+`filters.cpp`, `PassesProximityFilter`'s `swap` -> `::V_swap` is a helper rename
+this tree does not have (class D/C).
+
+Also triaged from the queue: `func_movelinear.cpp` (1 candidate,
+`CFuncMoveLinear::Blocked`) is the HL2 "remove breakables the door crushes"
+hack, gated on a `func_breakable` classname test that means nothing in this mod
+(class E); `soundent.cpp` (3, `Think`/`InsertSound`/`Initialize`) and
+`util.cpp` (1, `ReportEntitySizes`) are counted but not read in detail, so they
+stay queued. `physics_npc_solver.cpp` (2) remains open.
+
 **Batch 13 — triggers.cpp / buttons.cpp (2026-11-04):** the trigger family
 (12 candidates of 63 functions) and the button movers (6 of 39); two files, four
 fixes, two commits.
@@ -826,6 +874,8 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `1ab83b7` | Non-solid-to-player doors also get FL_UNBLOCKABLE_BY_PLAYER so players in the doorway stop blocking the push (3/3 refs) |
 | `1136d95` | trigger_look parks its timeout think with TICK_NEVER_THINK; trigger_hurt skips disconnected players (4/4, 2/2 refs) |
 | `8ef3c55` | momentary_rot_button clamps its move interval to whole ticks and arms the move think only when idle (4/4 refs) |
+| `cbc7509` | Ragdoll prop respects RagdollGetBoneMatrix failure, solves separation after the read and guards a null object (3/3 refs) |
+| `a8dc7bd` | filter_multi rejects non-filter entities instead of calling a virtual through the wrong vtable (3/3 refs) |
 
 ## Lag compensation deep dive (hit-registration evidence follow-up)
 
