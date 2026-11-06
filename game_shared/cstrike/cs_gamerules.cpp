@@ -177,6 +177,39 @@ ConVar mp_buytime(
 	true, 0.25,
 	false, 0 );
 
+// ---------------------------------------------------------------------------------------------------
+// Death drop control. Ported from CS:GO (game/shared/cstrike15/cs_gamerules.cpp). Server side only:
+// none of these are FCVAR_REPLICATED, so a stock client never has to know they exist.
+// Defaults reproduce stock Counter-Strike: Source behaviour exactly.
+// ---------------------------------------------------------------------------------------------------
+ConVar mp_death_drop_gun(
+	"mp_death_drop_gun",
+	"1",
+	FCVAR_NOTIFY,
+	"Which gun to drop on player death: 0=none, 1=best, 2=current or best",
+	true, 0,
+	true, 2 );
+
+ConVar mp_death_drop_c4(
+	"mp_death_drop_c4",
+	"1",
+	FCVAR_NOTIFY,
+	"Whether the bomb is dropped when its carrier dies" );
+
+ConVar mp_death_drop_defuser(
+	"mp_death_drop_defuser",
+	"1",
+	FCVAR_NOTIFY,
+	"Whether a defuse kit is dropped when its owner dies" );
+
+ConVar mp_death_drop_grenade(
+	"mp_death_drop_grenade",
+	"1",
+	FCVAR_NOTIFY,
+	"Which grenade to drop on player death: 0=none, 1=best, 2=current or best, 3=all",
+	true, 0,
+	true, 3 );
+
 ConVar mp_playerid(
 	"mp_playerid",
 	"0",

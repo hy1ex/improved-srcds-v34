@@ -30,6 +30,12 @@
 #include "tier0/vprof.h"
 #include "te_effect_dispatch.h"
 #include "vphysics/player_controller.h"
+
+// Death drop control (see FEATURES.md). Defined in game_shared/cstrike/cs_gamerules.cpp.
+extern ConVar mp_death_drop_gun;
+extern ConVar mp_death_drop_c4;
+extern ConVar mp_death_drop_defuser;
+extern ConVar mp_death_drop_grenade;
 #include "weapon_hegrenade.h"
 #include "weapon_flashbang.h"
 #include "weapon_smokegrenade.h"
@@ -6114,19 +6120,22 @@ void CCSPlayer::FlashlightTurnOff( void )
 void CCSPlayer::DropWeapons( void )
 {
 	CBaseCombatWeapon *pC4 = Weapon_OwnsThisType( "weapon_c4" );
-	if ( pC4 )
+	if ( pC4 && mp_death_drop_c4.GetBool() )
 	{
 		CSWeaponDrop( pC4, false, true );
 	}
 
 	if( HasDefuser() )
 	{
-		//Drop an item_defuser
-		Vector vForward, vRight;
-		AngleVectors( GetAbsAngles(), &vForward, &vRight, NULL );
+		if ( mp_death_drop_defuser.GetBool() )
+		{
+			//Drop an item_defuser
+			Vector vForward, vRight;
+			AngleVectors( GetAbsAngles(), &vForward, &vRight, NULL );
 
-		CBaseAnimating *pDefuser = (CBaseAnimating *)CBaseEntity::Create( "item_defuser", WorldSpaceCenter(), GetLocalAngles(), this );	
-		pDefuser->ApplyAbsVelocityImpulse( vForward * 200 + vRight * random->RandomFloat( -50, 50 ) );
+			CBaseAnimating *pDefuser = (CBaseAnimating *)CBaseEntity::Create( "item_defuser", WorldSpaceCenter(), GetLocalAngles(), this );	
+			pDefuser->ApplyAbsVelocityImpulse( vForward * 200 + vRight * random->RandomFloat( -50, 50 ) );
+		}
 
 		RemoveDefuser();
 	}
@@ -6135,11 +6144,26 @@ void CCSPlayer::DropWeapons( void )
 	{
 		DropShield();
 	}
-	else
+	else if ( mp_death_drop_gun.GetInt() != 0 )
 	{
-		//drop the best weapon we have
-		if( !DropRifle() )
-			DropPistol();
+		bool bDropped = false;
+
+		if ( mp_death_drop_gun.GetInt() == 2 )
+		{
+			// "current or best": drop whatever the player was holding, if it is a primary or a pistol.
+			CWeaponCSBase *pActive = GetActiveCSWeapon();
+			if ( pActive && ( Weapon_GetSlot( WEAPON_SLOT_RIFLE ) == pActive || Weapon_GetSlot( WEAPON_SLOT_PISTOL ) == pActive ) )
+			{
+				bDropped = CSWeaponDrop( pActive, false );
+			}
+		}
+
+		if ( !bDropped )
+		{
+			//drop the best weapon we have
+			if( !DropRifle() )
+				DropPistol();
+		}
 	}
 
 	// drop any live grenades so they explode
@@ -6168,25 +6192,57 @@ void CCSPlayer::DropWeapons( void )
 		}
 	}
 
-	// drop the "best" grenade remaining
-	CBaseCombatWeapon *pWeapon = Weapon_OwnsThisType("weapon_hegrenade");
-	if ( pWeapon && pWeapon->HasAmmo() )
+	// Drop grenades that are still in the inventory. Live (pulled/thrown) grenades were already
+	// dropped above and are never gated, so a live grenade can not be made to vanish.
+	const int nGrenadePolicy = mp_death_drop_grenade.GetInt();
+	if ( nGrenadePolicy != 0 )
 	{
-		CSWeaponDrop(pWeapon, false);
-	}
-	else
-	{
-		pWeapon = Weapon_OwnsThisType("weapon_flashbang");
-		if ( pWeapon && pWeapon->HasAmmo() )
+		static const char *sGrenadeClasses[] =
 		{
-			CSWeaponDrop(pWeapon, false);
+			"weapon_hegrenade",
+			"weapon_flashbang",
+			"weapon_smokegrenade",
+		};
+
+		if ( nGrenadePolicy == 3 )
+		{
+			// drop every grenade the player still owns
+			for ( int i = 0; i < ARRAYSIZE( sGrenadeClasses ); ++i )
+			{
+				CBaseCombatWeapon *pGrenadeWeapon = Weapon_OwnsThisType( sGrenadeClasses[i] );
+				if ( pGrenadeWeapon && pGrenadeWeapon->HasAmmo() )
+				{
+					CSWeaponDrop( pGrenadeWeapon, false );
+				}
+			}
 		}
 		else
 		{
-			pWeapon = Weapon_OwnsThisType("weapon_smokegrenade");
-			if ( pWeapon && pWeapon->HasAmmo() )
+			bool bGrenadeWeaponDropped = false;
+
+			if ( nGrenadePolicy == 2 )
 			{
-				CSWeaponDrop(pWeapon, false);
+				// "current or best": prefer the grenade the player was holding
+				CWeaponCSBase *pActive = GetActiveCSWeapon();
+				if ( pActive && pActive->HasAmmo() &&
+					 ( pActive->IsA( WEAPON_HEGRENADE ) || pActive->IsA( WEAPON_FLASHBANG ) || pActive->IsA( WEAPON_SMOKEGRENADE ) ) )
+				{
+					bGrenadeWeaponDropped = CSWeaponDrop( pActive, false );
+				}
+			}
+
+			if ( !bGrenadeWeaponDropped )
+			{
+				// drop the "best" grenade remaining
+				for ( int i = 0; i < ARRAYSIZE( sGrenadeClasses ); ++i )
+				{
+					CBaseCombatWeapon *pGrenadeWeapon = Weapon_OwnsThisType( sGrenadeClasses[i] );
+					if ( pGrenadeWeapon && pGrenadeWeapon->HasAmmo() )
+					{
+						CSWeaponDrop( pGrenadeWeapon, false );
+						break;
+					}
+				}
 			}
 		}
 	}
