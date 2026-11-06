@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-11-04):** current through commit `a8dc7bd`. 76 backport
+**Status (2026-11-04):** current through commit `af84694`. 79 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -693,6 +693,41 @@ crush damage and needs a live train map to judge. `doors.cpp`'s
 `( m_bForceClosed || m_flWait < 0 )` solver condition was left alone for the same
 reason.
 
+**Batch 15 — world.cpp / physics_npc_solver.cpp / soundent.cpp (2026-11-04):** a
+candidate that had been sitting in the queue as "probably churn" turned out to be
+a real bug, so `world.cpp` (4 candidates of 17 functions) went in with the two
+physics solvers (2 of 11); `soundent.cpp`'s leftover diagnostics, sized too small
+to justify a batch of their own, rode along. Three files, five fixes, three
+commits.
+
+- `e819563` — `CWorld::StaticDecal` built its decal entity index as
+  `entityIndex = (short)trace.m_pEnt ? trace.m_pEnt->entindex() : 0`. The cast
+  binds to the *pointer*, so the NULL test ran on the low 16 bits of the
+  address: a valid entity whose low bits happened to be zero read as "no
+  entity" and its decal was baked into world space instead of following the
+  brush, which made the result depend on heap layout. The cast now applies to
+  `entindex()` (3/3 refs).
+- `3c8e6cf` — `CPhysicsNPCSolver::BecomePenetrationSolver` dereferenced
+  `m_hEntity` unguarded; both sides are EHANDLEs and the moving entity can be
+  removed in the same frame, leaving a NULL handle and a crash on the next
+  physics tick. `CPhysicsEntitySolver::Spawn` dereferenced
+  `VPhysicsGetObject()->RecheckContactPoints()` on a blocker that may no longer
+  have a physics object. Both guarded (4/4 refs each).
+- `af84694` — diagnostics only: the `soundlist` add/remove messages now carry
+  `gpGlobals->curtime`, and level init warns when the pool cannot cover
+  `maxClients+16` on this tree's 128-entry `MAX_WORLD_SOUNDS_MP`. Allocation and
+  expiry behaviour is untouched.
+
+Skipped in `world.cpp`: `Precache` and `KeyValue` are `ConVar *` +
+`FindVar` -> `ConVarRef` cleanups plus `g_pGameRules->Init()` and
+`PrecacheStandardParticleSystems()`, neither of which exists here (class D/C/E);
+`Spawn`'s `GlobalEntity_Add` pair adds global-state keys this mod never reads
+(class E). In `soundent.cpp` the remaining delta is `min` -> `MIN` (class D), and
+in `util.cpp` the single candidate switches
+`Msg( " %s: %d", name, GetEntitySize() )` to `%llu` + `(uint64)` -- that tree's
+`GetEntitySize()` is 64-bit, this tree's returns `int`, so the existing `%d` is
+correct and the change does not apply (no-op port, not taken).
+
 **Batch 14 — physics_prop_ragdoll.cpp / filters.cpp (2026-11-04):** the ragdoll
 prop (6 candidates of 43 functions) plus the smallest queued engine file, the
 entity filters (2 of 9); two files, four fixes, two commits.
@@ -876,6 +911,9 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `8ef3c55` | momentary_rot_button clamps its move interval to whole ticks and arms the move think only when idle (4/4 refs) |
 | `cbc7509` | Ragdoll prop respects RagdollGetBoneMatrix failure, solves separation after the read and guards a null object (3/3 refs) |
 | `a8dc7bd` | filter_multi rejects non-filter entities instead of calling a virtual through the wrong vtable (3/3 refs) |
+| `e819563` | world StaticDecal tests the trace entity for NULL before truncating it to the decal entity index (3/3 refs) |
+| `3c8e6cf` | Physics NPC/entity solvers guard a cleared EHANDLE and a missing physics object instead of dereferencing them (4/4 refs) |
+| `af84694` | soundent timestamps its pool diagnostics and warns when the pool is undersized for the client count (3/3 refs) |
 
 ## Lag compensation deep dive (hit-registration evidence follow-up)
 
