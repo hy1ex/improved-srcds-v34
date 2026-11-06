@@ -231,7 +231,15 @@ bool CBoneFollower::Init( CBaseEntity *pOwner, const char *pModelName, solid_t &
 	// This is not a normal shadow controller that is trying to go to a space occupied by an entity in the game physics
 	// This entity is not running PhysicsPusher(), so Vphysics is supposed to move it
 	// This line of code informs vphysics of that fact
-	pPhysics->GetShadowController()->SetPhysicallyControlled( true );
+	// NOTE: that is only true when the owner is an NPC.  A prop owner runs
+	// PhysicsPusher() and pushes its followers through the shadow controller; marking
+	// those followers physically controlled as well makes vphysics simulate them
+	// twice -- the shadow controller stops teleporting them to the bone transform and
+	// they get shoved by the owner's own physics instead of tracking the animation.
+	if ( pOwner->IsNPC() )
+	{
+		pPhysics->GetShadowController()->SetPhysicallyControlled( true );
+	}
 
 	return true;
 }
