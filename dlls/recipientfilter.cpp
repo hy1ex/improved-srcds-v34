@@ -312,7 +312,23 @@ CTeamRecipientFilter::CTeamRecipientFilter( int team, bool isReliable )
 
 		if ( pPlayer->GetTeamNumber() != team )
 		{
-			continue;
+			// If we're on the spectator team then we should be getting the messages
+			// the player we're spectating would get.
+			if ( pPlayer->GetTeamNumber() == TEAM_SPECTATOR &&
+				 ( pPlayer->GetObserverMode() == OBS_MODE_IN_EYE || pPlayer->GetObserverMode() == OBS_MODE_CHASE ) )
+			{
+				if ( pPlayer->GetObserverTarget() )
+				{
+					if ( pPlayer->GetObserverTarget()->GetTeamNumber() != team )
+					{
+						continue;
+					}
+				}
+			}
+			else
+			{
+				continue;
+			}
 		}
 
 		AddRecipient( pPlayer );
