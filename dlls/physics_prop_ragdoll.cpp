@@ -930,21 +930,24 @@ void CRagdollProp::VPhysicsUpdate( IPhysicsObject *pPhysics )
 	matrix3x4_t boneToWorld[MAXSTUDIOBONES];
 	QAngle angles;
 	Vector surroundingMins, surroundingMaxs;
-	if ( m_ragdoll.pGroup->IsInErrorState() )
-	{
-		RagdollSolveSeparation( m_ragdoll, this );
-	}
-
 	int i;
 	for ( i = 0; i < m_ragdoll.listCount; i++ )
 	{
 		CBoneAccessor boneaccessor( boneToWorld );
-		RagdollGetBoneMatrix( m_ragdoll, boneaccessor, i );
-		
-		Vector vNewPos;
-		MatrixAngles( boneToWorld[m_ragdoll.boneIndex[i]], angles, vNewPos );
-		m_ragPos.Set( i, vNewPos );
-		m_ragAngles.Set( i, angles );
+		if ( RagdollGetBoneMatrix( m_ragdoll, boneaccessor, i ) )
+		{
+			Vector vNewPos;
+			MatrixAngles( boneToWorld[m_ragdoll.boneIndex[i]], angles, vNewPos );
+			m_ragPos.Set( i, vNewPos );
+			m_ragAngles.Set( i, angles );
+		}
+		else
+		{
+			// RagdollGetBoneMatrix leaves boneToWorld untouched when the group is in
+			// the error state, so publishing it would move the prop to a garbage origin.
+			m_ragPos.Set( i, vec3_origin );
+			m_ragAngles.Set( i, vec3_angle );
+		}
 	}
 
 	// BUGBUG: Use the ragdollmins/maxs to do this instead of the collides
@@ -954,6 +957,10 @@ void CRagdollProp::VPhysicsUpdate( IPhysicsObject *pPhysics )
 	if ( m_allAsleep )
 	{
 		m_strSourceClassName = NULL_STRING;
+	}
+	else if ( m_ragdoll.pGroup->IsInErrorState() )
+	{
+		RagdollSolveSeparation( m_ragdoll, this );
 	}
 	
 	// Interactive debris converts back to debris when it comes to rest
@@ -971,6 +978,12 @@ void CRagdollProp::VPhysicsUpdate( IPhysicsObject *pPhysics )
 	{
 		Vector mins, maxs;
 		matrix3x4_t update;
+		if ( !m_ragdoll.list[i].pObject )
+		{
+			m_ragdollMins[i].Init();
+			m_ragdollMaxs[i].Init();
+			continue;
+		}
 		m_ragdoll.list[i].pObject->GetPositionMatrix( &update );
 		TransformAABB( update, m_ragdollMins[i], m_ragdollMaxs[i], mins, maxs );
 		for ( int j = 0; j < 3; j++ )
