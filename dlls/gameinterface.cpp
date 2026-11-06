@@ -1126,6 +1126,11 @@ void CServerGameDLL::OnQueryCvarValueFinished( QueryCvarCookie_t iCookie, edict_
 // Called when a level is shutdown (including changing levels)
 void CServerGameDLL::LevelShutdown( void )
 {
+	// Everything below tears down entities, which releases their model references
+	// back into the model cache; hold the cache's critical section across the whole
+	// shutdown instead of taking and dropping it once per released model.
+	MDLCACHE_CRITICAL_SECTION();
+
 	IGameSystem::LevelShutdownPreEntityAllSystems();
 
 	// YWB:
