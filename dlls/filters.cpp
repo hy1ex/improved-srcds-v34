@@ -130,12 +130,25 @@ void CFilterMultiple::Activate( void )
 {
 	BaseClass::Activate();
 	
+	// We may reject an entity named in the keyvalues, but the array of valid filters stays contiguous
+	int nNextFilter = 0;
+
 	// Get handles to my filter entities
 	for (int i=0;i<MAX_FILTERS;i++)
 	{
 		if (m_iFilterName[i] != NULL_STRING)
 		{
-			m_hFilter[i] = gEntList.FindEntityByName( NULL, m_iFilterName[i] );
+			CBaseEntity *pEntity = gEntList.FindEntityByName( NULL, m_iFilterName[i] );
+			CBaseFilter *pFilter = dynamic_cast<CBaseFilter *>( pEntity );
+			if ( pFilter == NULL )
+			{
+				Warning( "filter_multi: Tried to add entity (%s) which is not a filter entity!\n", STRING( m_iFilterName[i] ) );
+				continue;
+			}
+
+			// Take this entity and increment our array pointer
+			m_hFilter[nNextFilter] = pFilter;
+			nNextFilter++;
 		}
 	}
 }
