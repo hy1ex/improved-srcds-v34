@@ -30,6 +30,14 @@ Source game. For each feature it records:
 | `mp_death_drop_defuser` | `1` | [1. Death drop control](#1-death-drop-control) | 0/1 |
 | `mp_death_drop_grenade` | `1` | [1. Death drop control](#1-death-drop-control) | 0=none, 1=best, 2=current or best, 3=all |
 | `mp_defuser_allocation` | `0` | [2. Defuse kit allocation](#2-defuse-kit-allocation) | 0=none, 1=one random CT, 2=every CT |
+| `mp_respawn_on_death_ct` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0/1 |
+| `mp_respawn_on_death_t` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0/1 |
+| `mp_respawnwavetime_ct` | `10` | [3. Respawn on death](#3-respawn-on-death) | seconds |
+| `mp_respawnwavetime_t` | `10` | [3. Respawn on death](#3-respawn-on-death) | seconds |
+| `mp_respawn_immunitytime` | `4` | [3. Respawn on death](#3-respawn-on-death) | seconds after respawn |
+| `mp_respawn_weapons` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=default pistol, 1=random, 2=keep |
+| `mp_respawn_buytime` | `4` | [3. Respawn on death](#3-respawn-on-death) | seconds after respawn, 0 = round end |
+| `mp_buy_anywhere` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=stock, 1=both, 2=T, 3=CT |
 
 ---
 
@@ -135,3 +143,91 @@ changes. Server-side ABI is internal to this DLL only.
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar, `AllocateDefuserForRound()`,
 `PlayerSpawn`), `game_shared/cstrike/cs_gamerules.h` (`m_iDefuserCarrier`).
+
+---
+
+# 3. Respawn on death
+
+**Origin:** CS:GO — `mp_respawn_on_death_ct` / `mp_respawn_on_death_t`,
+`mp_respawnwavetime_ct` / `mp_respawnwavetime_t` and `mp_respawn_immunitytime`
+(`game/shared/cstrike15/cs_gamerules.cpp`), plus `mp_buy_anywhere` /
+`mp_buy_during_immunity` (`game/shared/gamevars_shared.cpp`) for the buy rules.
+
+**Why:** stock Counter-Strike: Source only ever brings players back at round restart. Deathmatch,
+arena, gungame and warmup-style servers therefore have to fake respawns with round restarts, which
+resets scores, money and objectives. This port adds real per-player respawns with a per-team wave
+delay, an optional loadout policy, optional spawn immunity and a post-respawn buy window.
+
+**What it does.**
+
+* When a player dies, `CCSPlayer::Event_Killed` calls `CCSPlayer::ScheduleRespawn()`. If
+  `mp_respawn_on_death_<team>` is `1`, the player gets `mp_respawnwavetime_<team>` seconds of death
+  cam and is then put back into the round by `CCSPlayer::DoRespawn()`, which reuses the same
+  `StopObserverMode` / `State_Transition( STATE_ACTIVE )` / `respawn()` path a round restart uses.
+* The timer is serviced from `CCSPlayer::PreThink()`, so it needs no think function, survives
+  save/restore and stops firing as soon as the round goes to intermission.
+* The respawned player's loadout is chosen by `mp_respawn_weapons`:
+  * `0` — the team's default pistol and knife, exactly what a normal spawn gives. **Default.**
+  * `1` — a random primary and a random pistol for the player's team (the lists only contain
+    weapons this tree ships: ak47/galil/sg552/awp/scout/g3sg1/mp5navy/mac10/p90/ump45/m3/xm1014/m249
+    for Terrorists, m4a1/famas/aug/awp/scout/sg550/mp5navy/tmp/p90/ump45/m3/xm1014/m249 for CTs;
+    glock/deagle/p228/elite and usp/deagle/p228/fiveseven for pistols).
+  * `2` — the weapons the player owned when they died. The list is captured in
+    `RememberLoadoutForRespawn()` *before* the death drops run, ignoring the bomb (the game rules
+    re-give it) and the knife. Ammunition is refilled by `GiveNamedItem`; armour and defuse kit are
+    not preserved.
+* `mp_respawn_immunitytime` grants damage immunity after a respawn. Damage is dropped at the top of
+  `CCSPlayer::OnTakeDamage`, so nothing (bullets, grenades, falls) can hurt the player during the
+  window. `0` disables it.
+* `mp_respawn_buytime` re-opens the buy menu for a short window after a respawn even when the
+  round's normal `mp_buytime` has already elapsed. `0` means "until the round ends". This window
+  only ever applies to players actually respawned by this feature (`m_flRespawnTime` is cleared by
+  a normal spawn), so stock behaviour is untouched.
+* `mp_buy_anywhere` lets players buy outside `func_buyzone` volumes:
+  * `0` — stock behaviour, buy zones only (**default**),
+  * `1` — both teams may buy anywhere,
+  * `2` — Terrorists only,
+  * `3` — Counter-Terrorists only.
+  It is implemented in `CCSPlayer::IsInBuyZone()`, so `buy`, `autobuy` and `rebuy` all follow it.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_respawn_on_death_ct` | `0` | `0`/`1` | Respawn dead CTs |
+| `mp_respawn_on_death_t` | `0` | `0`/`1` | Respawn dead Terrorists |
+| `mp_respawnwavetime_ct` | `10` | seconds | CT respawn delay |
+| `mp_respawnwavetime_t` | `10` | seconds | Terrorist respawn delay |
+| `mp_respawn_immunitytime` | `4` | seconds, `0` = off | Damage immunity after a respawn (CS:GO default `4.0`) |
+| `mp_respawn_weapons` | `0` | `0`-`2` | Loadout policy after a respawn |
+| `mp_respawn_buytime` | `4` | seconds, `0` = round end | Buy window after a respawn (default matches `mp_respawn_immunitytime`) |
+| `mp_buy_anywhere` | `0` | `0`-`3` | Buy outside buy zones, optionally per team |
+
+The respawn feature itself is **off by default** (`mp_respawn_on_death_ct/t 0`), so a stock server
+never respawns anyone: immunity, the buy window and the loadout policy are all inert. This is the
+one feature in this file whose convars do not individually default to "off", because the values
+only matter once respawning is enabled.
+
+**Client compatibility.** Respawning uses the stock spawn path (`respawn()` →
+`CCSPlayer::Spawn()` → `CCSGameRules::PlayerSpawn()`), so the v34 client sees an ordinary spawn:
+death cam ends, HUD health/armour/money reset, ordinary weapon pickup events. No new netprop,
+usermessage, entity class or client command. `m_flNextRespawnTime`, `m_flRespawnTime`,
+`m_flSpawnImmuneUntil`, `m_szRespawnWeapons` and `m_nRespawnWeaponCount` are plain server-side
+members on `CCSPlayer`: not in `BEGIN_DATADESC`, not in the sendtable. The convars are not
+replicated.
+
+**Risks / limitations.**
+
+* Bots respawn through the same path. Their AI state is reset the way a round restart resets it,
+  but a bot that respawns mid-round is not explicitly told to re-path; that is the main thing to
+  watch on a bot server.
+* Objective maps keep their normal rules: if respawns are enabled on a bomb map, a dead bomb
+  carrier still drops the bomb (subject to feature 1) and the round can still be won or lost on
+  objectives while players respawn.
+* Round win conditions are unchanged: respawning does not disable `mp_roundtime`, `mp_maxrounds`,
+  `mp_winlimit` or the objective checks. Servers that want pure deathmatch should set a long round
+  time and `mp_ignore_round_win_conditions`-style rules themselves.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars), `dlls/cstrike/cs_player.cpp`
+(`ScheduleRespawn`, `DoRespawn`, loadout helpers, `PreThink`, `OnTakeDamage`, `IsInBuyZone`,
+`CanPlayerBuy`, `Event_Killed`, `Spawn`), `dlls/cstrike/cs_player.h` (members and declarations).

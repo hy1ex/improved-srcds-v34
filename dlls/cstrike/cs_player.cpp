@@ -36,6 +36,14 @@ extern ConVar mp_death_drop_gun;
 extern ConVar mp_death_drop_c4;
 extern ConVar mp_death_drop_defuser;
 extern ConVar mp_death_drop_grenade;
+extern ConVar mp_respawn_on_death_ct;
+extern ConVar mp_respawn_on_death_t;
+extern ConVar mp_respawnwavetime_ct;
+extern ConVar mp_respawnwavetime_t;
+extern ConVar mp_respawn_immunitytime;
+extern ConVar mp_respawn_weapons;
+extern ConVar mp_respawn_buytime;
+extern ConVar mp_buy_anywhere;
 #include "weapon_hegrenade.h"
 #include "weapon_flashbang.h"
 #include "weapon_smokegrenade.h"
@@ -346,6 +354,11 @@ ConCommand cc_CreatePredictionError( "CreatePredictionError", cc_CreatePredictio
 
 CCSPlayer::CCSPlayer()
 {
+	m_flNextRespawnTime = 0.0f;
+	m_flRespawnTime = 0.0f;
+	m_flSpawnImmuneUntil = 0.0f;
+	m_nRespawnWeaponCount = 0;
+	m_szRespawnWeapons[0][0] = 0;
 	m_PlayerAnimState = CreatePlayerAnimState( this, this, LEGANIM_9WAY, true );
 
 	UseClientSideAnimation();
@@ -751,6 +764,12 @@ void CCSPlayer::Spawn()
 	m_cycleLatch = 0;
 	m_cycleLatchTimer.Start( RandomFloat( 0.0f, CycleLatchInterval ) );
 
+	// A normal spawn cancels any pending respawn and clears the respawn buy window and immunity.
+	m_flNextRespawnTime = 0.0f;
+	m_flRespawnTime = 0.0f;
+	m_flSpawnImmuneUntil = 0.0f;
+	m_nRespawnWeaponCount = 0;
+
 	StockPlayerAmmo();
 }
 
@@ -925,8 +944,15 @@ int CCSPlayer::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 void CCSPlayer::Event_Killed( const CTakeDamageInfo &info )
 {
 	SetArmorValue( 0 );
-	
+
+	// Respawn on death: remember the loadout before the death drops take it away.
+	if ( mp_respawn_weapons.GetInt() == 2 )
+		RememberLoadoutForRespawn();
+
 	DropWeapons();
+
+	// Respawn on death: arm the respawn timer, if it is enabled for this team.
+	ScheduleRespawn();
 
 	// Just in case the progress bar is on screen, kill it.
 	SetProgressBarTime( 0 );
@@ -1461,6 +1487,9 @@ void CCSPlayer::Pain( bool bHasArmour )
 
 int CCSPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 {
+	if ( IsSpawnImmune() )
+		return 0;
+
 	CTakeDamageInfo info = inputInfo;
 
 	CBaseEntity *pInflictor = info.GetInflictor();
@@ -2118,6 +2147,170 @@ void CCSPlayer::RoundRespawn()
 	ResetDamageCounters();
 }
 
+//-----------------------------------------------------------------------------
+// Purpose: Arm the respawn-on-death timer for this player, if the feature is on for their team.
+//-----------------------------------------------------------------------------
+void CCSPlayer::ScheduleRespawn( void )
+{
+	m_flNextRespawnTime = 0.0f;
+
+	if ( !CSGameRules() || CSGameRules()->IsIntermission() )
+		return;
+
+	if ( GetTeamNumber() != TEAM_CT && GetTeamNumber() != TEAM_TERRORIST )
+		return;
+
+	const bool bCT = ( GetTeamNumber() == TEAM_CT );
+
+	if ( !( bCT ? mp_respawn_on_death_ct.GetBool() : mp_respawn_on_death_t.GetBool() ) )
+		return;
+
+	const float flWaveTime = bCT ? mp_respawnwavetime_ct.GetFloat() : mp_respawnwavetime_t.GetFloat();
+
+	m_flNextRespawnTime = gpGlobals->curtime + ( flWaveTime > 0.0f ? flWaveTime : 0.0f );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Put a dead player back into the round, reusing the round-restart respawn path.
+//-----------------------------------------------------------------------------
+void CCSPlayer::DoRespawn( void )
+{
+	m_flNextRespawnTime = 0.0f;
+
+	if ( !CSGameRules() || CSGameRules()->IsIntermission() )
+		return;
+
+	if ( GetTeamNumber() != TEAM_CT && GetTeamNumber() != TEAM_TERRORIST )
+		return;
+
+	StopObserverMode();
+	State_Transition( STATE_ACTIVE );
+	respawn( this, false );
+	m_nButtons = 0;
+	SetNextThink( TICK_NEVER_THINK );
+
+	m_flRespawnTime = gpGlobals->curtime;
+
+	const float flImmunityTime = mp_respawn_immunitytime.GetFloat();
+	m_flSpawnImmuneUntil = ( flImmunityTime > 0.0f ) ? ( gpGlobals->curtime + flImmunityTime ) : 0.0f;
+
+	// respawn() runs GiveDefaultItems() through CCSGameRules::PlayerSpawn(), so the default
+	// pistol/knife loadout is already in place. Only the other two policies need extra work.
+	const int nWeaponPolicy = mp_respawn_weapons.GetInt();
+
+	if ( nWeaponPolicy == 1 )
+	{
+		GiveRandomLoadout();
+	}
+	else if ( nWeaponPolicy == 2 )
+	{
+		RemoveAllItems( false );
+		GiveNamedItem( "weapon_knife" );
+		RestoreLoadoutForRespawn();
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Remember the weapons a dying player owned, for mp_respawn_weapons 2.
+//-----------------------------------------------------------------------------
+void CCSPlayer::RememberLoadoutForRespawn( void )
+{
+	m_nRespawnWeaponCount = 0;
+
+	const int nWeaponCount = WeaponCount();
+
+	for ( int i = 0; i < nWeaponCount; i++ )
+	{
+		CBaseCombatWeapon *pWeapon = GetWeapon( i );
+
+		if ( !pWeapon )
+			continue;
+
+		const char *pszClassname = pWeapon->GetClassname();
+
+		if ( !pszClassname || !pszClassname[0] )
+			continue;
+
+		// The bomb is handled by the game rules (it is dropped and re-given on its own) and the
+		// knife is part of every spawn, so neither belongs in the remembered loadout.
+		if ( FStrEq( pszClassname, "weapon_c4" ) || FStrEq( pszClassname, "weapon_knife" ) )
+			continue;
+
+		if ( m_nRespawnWeaponCount >= ARRAYSIZE( m_szRespawnWeapons ) )
+			break;
+
+		Q_strncpy( m_szRespawnWeapons[m_nRespawnWeaponCount], pszClassname, sizeof( m_szRespawnWeapons[0] ) );
+		m_nRespawnWeaponCount++;
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Give the remembered weapons back (ammunition is refilled by GiveNamedItem).
+//-----------------------------------------------------------------------------
+void CCSPlayer::RestoreLoadoutForRespawn( void )
+{
+	for ( int i = 0; i < m_nRespawnWeaponCount; i++ )
+	{
+		if ( m_szRespawnWeapons[i][0] )
+		{
+			GiveNamedItem( m_szRespawnWeapons[i] );
+		}
+	}
+
+	m_nRespawnWeaponCount = 0;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Arm a respawned player with a random primary and pistol for their team.
+//-----------------------------------------------------------------------------
+void CCSPlayer::GiveRandomLoadout( void )
+{
+	static const char *sTerroristPrimaries[] =
+	{
+		"weapon_ak47", "weapon_galil", "weapon_sg552", "weapon_awp", "weapon_scout",
+		"weapon_g3sg1", "weapon_mp5navy", "weapon_mac10", "weapon_p90", "weapon_ump45",
+		"weapon_m3", "weapon_xm1014", "weapon_m249",
+	};
+
+	static const char *sCTPrimaries[] =
+	{
+		"weapon_m4a1", "weapon_famas", "weapon_aug", "weapon_awp", "weapon_scout",
+		"weapon_sg550", "weapon_mp5navy", "weapon_tmp", "weapon_p90", "weapon_ump45",
+		"weapon_m3", "weapon_xm1014", "weapon_m249",
+	};
+
+	static const char *sTerroristPistols[] =
+	{
+		"weapon_glock", "weapon_deagle", "weapon_p228", "weapon_elite",
+	};
+
+	static const char *sCTPistols[] =
+	{
+		"weapon_usp", "weapon_deagle", "weapon_p228", "weapon_fiveseven",
+	};
+
+	const bool bCT = ( GetTeamNumber() == TEAM_CT );
+
+	const char **ppPrimaries = bCT ? sCTPrimaries : sTerroristPrimaries;
+	const int nPrimaries = bCT ? ARRAYSIZE( sCTPrimaries ) : ARRAYSIZE( sTerroristPrimaries );
+
+	const char **ppPistols = bCT ? sCTPistols : sTerroristPistols;
+	const int nPistols = bCT ? ARRAYSIZE( sCTPistols ) : ARRAYSIZE( sTerroristPistols );
+
+	RemoveAllItems( false );
+	GiveNamedItem( "weapon_knife" );
+	GiveNamedItem( ppPrimaries[random->RandomInt( 0, nPrimaries - 1 )] );
+	GiveNamedItem( ppPistols[random->RandomInt( 0, nPistols - 1 )] );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: True while the player is protected by mp_respawn_immunitytime.
+//-----------------------------------------------------------------------------
+bool CCSPlayer::IsSpawnImmune( void ) const
+{
+	return ( m_flSpawnImmuneUntil > 0.0f && gpGlobals->curtime < m_flSpawnImmuneUntil );
+}
+
 void CCSPlayer::CheckTKPunishment( void )
 {
 	// teamkill punishment.. 
@@ -2192,6 +2385,11 @@ void CCSPlayer::PreThink()
 
 	if ( g_fGameOver )
 		return;
+
+	if ( m_flNextRespawnTime > 0.0f && gpGlobals->curtime >= m_flNextRespawnTime )
+	{
+		DoRespawn();
+	}
 
 	ResetMaxSpeed();
 	State_PreThink();
@@ -2573,6 +2771,12 @@ bool CCSPlayer::HasSecondaryWeapon( void )
 
 bool CCSPlayer::IsInBuyZone()
 {
+	// mp_buy_anywhere: 0 = stock CS:S, 1 = both teams, 2 = Terrorists, 3 = Counter-Terrorists.
+	const int nBuyAnywhere = mp_buy_anywhere.GetInt();
+
+	if ( nBuyAnywhere == 1 || nBuyAnywhere == GetTeamNumber() )
+		return !IsVIP();
+
 	return m_bInBuyZone && !IsVIP();
 }
 
@@ -2592,9 +2796,22 @@ bool CCSPlayer::CanPlayerBuy( bool display )
 
 	CCSGameRules* mp = CSGameRules();
 
+	// A player brought back by mp_respawn_on_death_* gets a short buy window after the respawn,
+	// even once the round's normal buy time has run out (mp_respawn_buytime 0 = until round end).
+	bool bRespawnBuyWindow = false;
+	if ( m_flRespawnTime > 0.0f )
+	{
+		const float flRespawnBuyTime = mp_respawn_buytime.GetFloat();
+
+		if ( flRespawnBuyTime <= 0.0f || gpGlobals->curtime <= m_flRespawnTime + flRespawnBuyTime )
+		{
+			bRespawnBuyWindow = true;
+		}
+	}
+
 	int buyTime = (int)(mp_buytime.GetFloat() * 60);
 
-	if ( buyTime < mp->GetRoundElapsedTime() )
+	if ( buyTime < mp->GetRoundElapsedTime() && !bRespawnBuyWindow )
 	{
 		if ( display == true )
 		{

@@ -331,6 +331,20 @@ public:
 
 	void RoundRespawn( void );
 	void ObserverRoundRespawn( void );
+
+	// Respawn on death (mp_respawn_on_death_*). See FEATURES.md.
+	void ScheduleRespawn( void );
+	void DoRespawn( void );
+	void RememberLoadoutForRespawn( void );
+	void RestoreLoadoutForRespawn( void );
+	void GiveRandomLoadout( void );
+	bool IsSpawnImmune( void ) const;
+
+	float m_flNextRespawnTime;			// curtime of a pending respawn, 0 when none is pending
+	float m_flRespawnTime;				// curtime of the last respawn-on-death, 0 = never respawned
+	float m_flSpawnImmuneUntil;			// curtime until which damage is ignored, 0 = not immune
+	char m_szRespawnWeapons[8][48];		// loadout remembered for mp_respawn_weapons 2
+	int m_nRespawnWeaponCount;
 	void CheckTKPunishment( void );
 
 	// Add money to this player's account.

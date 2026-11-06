@@ -230,6 +230,59 @@ ConVar mp_defuser_allocation(
 	true, 0,
 	true, 2 );
 
+// ---------------------------------------------------------------------------------------------------
+// Respawn on death. Ported from CS:GO (mp_respawn_on_death_ct/t, mp_respawnwavetime_ct/t,
+// mp_respawn_immunitytime). Server side only, never replicated. Defaults keep the feature off, so
+// stock Counter-Strike: Source behaviour is unchanged until an operator opts in.
+// ---------------------------------------------------------------------------------------------------
+ConVar mp_respawn_on_death_ct(
+	"mp_respawn_on_death_ct",
+	"0",
+	FCVAR_NOTIFY,
+	"Respawn dead Counter-Terrorists automatically (0 = stock CS:S behaviour)" );
+
+ConVar mp_respawn_on_death_t(
+	"mp_respawn_on_death_t",
+	"0",
+	FCVAR_NOTIFY,
+	"Respawn dead Terrorists automatically (0 = stock CS:S behaviour)" );
+
+ConVar mp_respawnwavetime_ct(
+	"mp_respawnwavetime_ct",
+	"10.0",
+	FCVAR_NOTIFY,
+	"Seconds a dead Counter-Terrorist waits before respawning" );
+
+ConVar mp_respawnwavetime_t(
+	"mp_respawnwavetime_t",
+	"10.0",
+	FCVAR_NOTIFY,
+	"Seconds a dead Terrorist waits before respawning" );
+
+ConVar mp_respawn_immunitytime(
+	"mp_respawn_immunitytime",
+	"4.0",
+	FCVAR_NOTIFY,
+	"Seconds of damage immunity after respawning (0 = none)" );
+
+ConVar mp_respawn_weapons(
+	"mp_respawn_weapons",
+	"0",
+	FCVAR_NOTIFY,
+	"Loadout after a respawn: 0=team default pistol, 1=random weapons, 2=weapons the player had" );
+
+ConVar mp_respawn_buytime(
+	"mp_respawn_buytime",
+	"4.0",
+	FCVAR_NOTIFY,
+	"Seconds after respawning during which the player may buy; 0 = until the round ends" );
+
+ConVar mp_buy_anywhere(
+	"mp_buy_anywhere",
+	"0",
+	FCVAR_NOTIFY,
+	"Buying outside buy zones: 0=stock CS:S, 1=both teams, 2=Terrorists, 3=Counter-Terrorists" );
+
 ConVar mp_playerid(
 	"mp_playerid",
 	"0",
