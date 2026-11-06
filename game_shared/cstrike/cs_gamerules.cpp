@@ -4358,6 +4358,21 @@ bool CCSGameRules::IsVIPMap() const
 }
 
 
+//-----------------------------------------------------------------------------
+// Purpose: True while the match is in intermission (the end-of-match countdown before the level
+//			changes). Declared in cs_gamerules.h but never implemented in this tree, so calling it
+//			left an unresolved symbol in the server DLL and the engine crashed when loading it.
+//			Mirrors CHL2MPRules::IsIntermission().
+//-----------------------------------------------------------------------------
+bool CCSGameRules::IsIntermission() const
+{
+#ifndef CLIENT_DLL
+	return m_flIntermissionEndTime > gpGlobals->curtime;
+#endif
+
+	return false;
+}
+
 bool CCSGameRules::IsBombDefuseMap() const
 {
 	return m_bMapHasBombTarget;
