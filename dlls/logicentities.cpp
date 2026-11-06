@@ -2283,7 +2283,10 @@ void CLogicBranchList::DoTest( CBaseEntity *pActivator )
 	for ( int i = 0; i < m_LogicBranchList.Count(); i++ )
 	{
 		CLogicBranch *pBranch = (CLogicBranch *)m_LogicBranchList.Element( i ).Get();
-		if ( pBranch->GetLogicBranchState() )
+
+		// A branch can be removed (Kill, entity cleanup, level transition) while the
+		// listener still holds its handle, so the stored EHANDLE resolves to NULL.
+		if ( pBranch && pBranch->GetLogicBranchState() )
 		{
 			bOneTrue = true;
 		}
