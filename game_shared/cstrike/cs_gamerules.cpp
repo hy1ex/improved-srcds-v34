@@ -210,6 +210,26 @@ ConVar mp_death_drop_grenade(
 	true, 0,
 	true, 3 );
 
+// ---------------------------------------------------------------------------------------------------
+// Defuse kit allocation. Ported from CS:GO (game/shared/cstrike15/cs_gamerules.cpp, which also
+// defines DefuserAllocation in cs_gamerules.h). Server side only, never replicated.
+// Default 0 reproduces stock Counter-Strike: Source behaviour (kits must be bought).
+// ---------------------------------------------------------------------------------------------------
+enum
+{
+	DEFUSER_ALLOCATION_NONE		= 0,
+	DEFUSER_ALLOCATION_RANDOM	= 1,
+	DEFUSER_ALLOCATION_ALL		= 2,
+};
+
+ConVar mp_defuser_allocation(
+	"mp_defuser_allocation",
+	"0",
+	FCVAR_NOTIFY,
+	"How to allocate defusers to CTs at round start: 0=none, 1=one random CT, 2=every CT",
+	true, 0,
+	true, 2 );
+
 ConVar mp_playerid(
 	"mp_playerid",
 	"0",
@@ -627,6 +647,7 @@ ConVar cl_autohelp(
 		m_bFreezePeriod = true;
 		m_iNumTerrorist = m_iNumCT = 0;	// number of players per team
 		m_flRestartRoundTime = 0.1f; // restart first round as soon as possible
+		m_iDefuserCarrier = 0;
 		m_iNumSpawnableTerrorist = m_iNumSpawnableCT = 0;
 		m_bFirstConnected = false;
 		m_bCompleteReset = false;
@@ -811,6 +832,50 @@ ConVar cl_autohelp(
 
 		if ( addDefault || pPlayer->m_bIsVIP )
 			pPlayer->GiveDefaultItems();
+
+		// Defuse kit allocation (mp_defuser_allocation). Only meaningful on bomb defuse maps and
+		// only for CTs; with 1 ("one random CT") just the player picked at round start gets one.
+		if ( IsBombDefuseMap() && pPlayer->GetTeamNumber() == TEAM_CT )
+		{
+			const int nAllocation = mp_defuser_allocation.GetInt();
+
+			if ( nAllocation == DEFUSER_ALLOCATION_ALL ||
+				 ( nAllocation == DEFUSER_ALLOCATION_RANDOM && m_iDefuserCarrier == pPlayer->entindex() ) )
+			{
+				pPlayer->GiveDefuser();
+			}
+		}
+	}
+
+	//-----------------------------------------------------------------------------
+	// Purpose: Pick the CT who receives the round's single free defuse kit, when
+	//			mp_defuser_allocation is 1 ("one random CT"). Called once per round restart.
+	//-----------------------------------------------------------------------------
+	void CCSGameRules::AllocateDefuserForRound()
+	{
+		m_iDefuserCarrier = 0;
+
+		if ( !IsBombDefuseMap() || mp_defuser_allocation.GetInt() != DEFUSER_ALLOCATION_RANDOM )
+			return;
+
+		int nCandidates = 0;
+
+		for ( int i = 1; i <= gpGlobals->maxClients; i++ )
+		{
+			CCSPlayer *pPlayer = ToCSPlayer( UTIL_PlayerByIndex( i ) );
+
+			if ( !pPlayer || pPlayer->GetTeamNumber() != TEAM_CT )
+				continue;
+
+			if ( pPlayer->PlayerClass() < FIRST_CT_CLASS || pPlayer->PlayerClass() > LAST_CT_CLASS )
+				continue;
+
+			// Reservoir sampling: every CT ends up the carrier with equal probability.
+			if ( random->RandomInt( 0, nCandidates ) == 0 )
+				m_iDefuserCarrier = pPlayer->entindex();
+
+			++nCandidates;
+		}
 	}
 
 	void CCSGameRules::BroadcastSound( const char *sound, int team )
@@ -2333,6 +2398,9 @@ ConVar cl_autohelp(
 				pPlayer->AddSolidFlags( FSOLID_NOT_SOLID );
 			}
 		}
+
+		// decide who gets the free defuse kit before anybody respawns
+		AllocateDefuserForRound();
 
 		// know respawn all players
 		for ( i = 1; i <= gpGlobals->maxClients; i++ )

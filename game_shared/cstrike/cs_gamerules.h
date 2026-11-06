@@ -281,6 +281,7 @@ public:
 
 	// BOMB MAP FUNCTIONS
 	void GiveC4();
+	void AllocateDefuserForRound();
 	bool IsThereABomber();
 	bool IsThereABomb();
 
@@ -318,6 +319,10 @@ public:
 	// GAME TIMES
 	int m_iFreezeTime;		// (From mp_freezetime) - How many seconds long the intro round (when players are frozen) is.
 	float m_flRestartRoundTime;	// the global time when the round is supposed to end, if this is not 0
+
+	// Defuse kit allocation (mp_defuser_allocation == 1). Entindex of the CT who receives the
+	// round's single free defuse kit, 0 when nobody does. Not networked - see FEATURES.md.
+	int m_iDefuserCarrier;
 
 	int m_iNumTerrorist;		// The number of terrorists on the team (this is generated at the end of a round)
 	int m_iNumCT;				// The number of CTs on the team (this is generated at the end of a round)

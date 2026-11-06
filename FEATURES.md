@@ -29,6 +29,7 @@ Source game. For each feature it records:
 | `mp_death_drop_c4` | `1` | [1. Death drop control](#1-death-drop-control) | 0/1 |
 | `mp_death_drop_defuser` | `1` | [1. Death drop control](#1-death-drop-control) | 0/1 |
 | `mp_death_drop_grenade` | `1` | [1. Death drop control](#1-death-drop-control) | 0=none, 1=best, 2=current or best, 3=all |
+| `mp_defuser_allocation` | `0` | [2. Defuse kit allocation](#2-defuse-kit-allocation) | 0=none, 1=one random CT, 2=every CT |
 
 ---
 
@@ -93,3 +94,44 @@ or ABI surface changed.
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar definitions),
 `dlls/cstrike/cs_player.cpp` (`DropWeapons`).
+
+---
+
+# 2. Defuse kit allocation
+
+**Origin:** CS:GO, `mp_defuser_allocation` (`game/shared/cstrike15/cs_gamerules.cpp`, enum
+`DefuserAllocation` in `cs_gamerules.h`), applied from `CCSPlayer::Spawn` and `item_defuser.cpp`.
+
+**Why:** in stock Counter-Strike: Source a defuse kit only ever exists if a CT buys one. Public
+servers that want every CT equipped, or that want the classic "one kit per round" role without a
+buy menu, have no way to do it. Everything the feature needs already exists in this tree: the
+`item_defuser` entity is precached (`dlls/cstrike/cs_player.cpp`), `CCSPlayer::GiveDefuser()` /
+`RemoveDefuser()` / `HasDefuser()` are implemented, and `m_bHasDefuser` is already a networked
+`SendPropBool`, so the stock HUD and scoreboard already draw the kit.
+
+**What it does.**
+
+* `0` — no free kits; a kit exists only if a CT buys one. **Default**, stock behaviour.
+* `1` — one CT is chosen at random at each round restart (on bomb defuse maps only) and receives a
+  kit. The choice is made by reservoir sampling over the CTs with a playable class, and the chosen
+  entindex is stored in `CCSGameRules::m_iDefuserCarrier`. If that CT leaves, nobody else inherits
+  the kit until the next round.
+* `2` — every CT receives a kit when it spawns, on bomb defuse maps only.
+
+The allocation happens in `CCSGameRules::PlayerSpawn()` (after `GiveDefaultItems()`), so it also
+covers respawns from feature 3: with mode `2` a player who respawns is re-equipped, with mode `1`
+only the round's designated carrier keeps getting one.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_defuser_allocation` | `0` | `0`-`2` | How free defuse kits are handed to CTs |
+
+**Client compatibility.** `m_bHasDefuser` is already networked and already rendered by the v34
+client; the new convar is not replicated. `m_iDefuserCarrier` is a plain, non-networked member: it
+is not added to the network table or to `BEGIN_DATADESC`, so no sendtable or datatable layout
+changes. Server-side ABI is internal to this DLL only.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar, `AllocateDefuserForRound()`,
+`PlayerSpawn`), `game_shared/cstrike/cs_gamerules.h` (`m_iDefuserCarrier`).
