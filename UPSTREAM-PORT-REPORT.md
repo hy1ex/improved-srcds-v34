@@ -7,7 +7,7 @@ without changing the network protocol (a stock v34 client must still connect),
 without breaking ABI against `engine.so`/`tier0`, and without importing
 game-specific features (TF2/CSGO mechanics are out of scope).
 
-**Status (2026-11-04):** current through commit `1ab83b7`. 72 backport
+**Status (2026-11-04):** current through commit `8ef3c55`. 74 backport
 commits have landed since this report was added (`22084c4`) — see
 [Landed backports](#landed-backports) below. `FIXES.md` is an archive of the
 pre-port fix set and is no longer updated; this report is the living
@@ -693,6 +693,56 @@ crush damage and needs a live train map to judge. `doors.cpp`'s
 `( m_bForceClosed || m_flWait < 0 )` solver condition was left alone for the same
 reason.
 
+**Batch 13 — triggers.cpp / buttons.cpp (2026-11-04):** the trigger family
+(12 candidates of 63 functions) and the button movers (6 of 39); two files, four
+fixes, two commits.
+
+- `1136d95` — `CTriggerLook::Trigger` cancelled its timeout think with
+  `SetNextThink( 0 )`, which means next frame rather than never; the trigger
+  stayed on the think list being dispatched against a NULL think function, and
+  every successful look parked another instance of that. Now
+  `TICK_NEVER_THINK` (4/4 refs). `CTriggerHurt::HurtEntity` also short-circuits a
+  player whose client has already gone: a leaver keeps `m_takedamage` and passes
+  the filters for the rest of the frame, so trigger_hurt damaged it and fired
+  `OnHurtPlayer` on it (2/2 refs).
+- `8ef3c55` — `CMomentaryRotButton` handed `min( flAngleDelta / m_flSpeed, 0.1f )`
+  straight to `SetMoveDoneTime`, so a sub-tick interval fired move-done before
+  the angle moved at all and the button snapped/overshot its goal. The interval
+  is now clamped to 1..6 ticks, with the angular velocity raised to cover the
+  remainder inside one tick when the honest interval is below it; the same
+  re-derivation replaces the stale `m_flTimeDelta` in `SetPositionMoveDone`
+  (4/4 refs). `Use` also re-armed the per-frame `UpdateThink` unconditionally, so
+  a held button thought twice in a frame on a stale angular velocity; it now
+  only arms the think when none is pending (4/4 refs).
+
+Reviewed with nothing portable in `triggers.cpp`: `CTriggerCamera::Enable`
+and `Disable` need the `m_nOldTakeDamage` member plus the HL2_EPISODIC
+`m_bInterpolatePosition` path (class E), `CTriggerVPhysicsMotion::Simulate`
+calls `GetCurrentGravity()` which this tree does not have (class C),
+`InitTrigger`'s `FSOLID_TRIGGER_TOUCH_DEBRIS` does not exist here and adding a
+solid-flags bit the collision code never reads would be a no-op (class C),
+`CBaseVPhysicsTrigger::PassesTriggerFilters` is a different class from the
+`CBaseTrigger::` body the refs show (class D), `CBaseTrigger::Touch`'s
+`SF_TRIG_TOUCH_DEBRIS` guard needs `lagcompensation->IsCurrentlyDoingLagCompensation()`
+(class C) and its `m_flPushSpeed` half is a new keyfield (class E), and
+`FindQualifiedNPC`/`InputChangeLevel` change signatures or call
+`GetBonusChallenge()` (class C). In `buttons.cpp`, `InputPress` was folded into a
+`Press()` helper this tree does not have (class C) and the rest is `0` -> `0.f`
+churn (class D).
+
+Also scanned and rejected in the same pass, all engine-layer files still
+unswept: `physconstraint.cpp` (7 candidates, all part of the `OnConstraintSetup`
+/ `GetRagdollConstraintGroup` / `m_minTeleportDistance` / noise-precache rework,
+class C/E), `rope.cpp` (6, the `m_iRopeMaterialModel` -> `m_iRopeMaterialModelIndex`
+networkvar rename plus a `ROPE_NO_WIND` key, class C/E/D), `world.cpp` (4),
+`soundent.cpp` (3), `filters.cpp` (2), `physics_npc_solver.cpp` (2),
+`func_movelinear.cpp` (1) and `util.cpp` (1) — counted but not triaged in
+detail, so they stay in the queue rather than being called clean;
+`physics_impact_damage.cpp`, `entityblocker.cpp`, `mapentities.cpp` and
+`ndebugoverlay.cpp` have no candidates at all. `physics_prop_ragdoll.cpp` (6),
+`world.cpp`, `soundent.cpp`, `filters.cpp`, `physics_npc_solver.cpp`,
+`func_movelinear.cpp` and `util.cpp` remain open for future batches.
+
 ## Landed backports
 
 Commits oldest → newest; each body carries the full explanation (why
@@ -774,6 +824,8 @@ removed the `BUGFIXED` switch and `22084c4` added this report.
 | `f55c2a1` | LevelShutdown holds MDLCACHE_CRITICAL_SECTION across entity teardown and model release (3/3 refs) |
 | `d8abc9f` | CLogicBranchList::DoTest guards the branch handle so a removed logic_branch no longer faults (4/4 refs) |
 | `1ab83b7` | Non-solid-to-player doors also get FL_UNBLOCKABLE_BY_PLAYER so players in the doorway stop blocking the push (3/3 refs) |
+| `1136d95` | trigger_look parks its timeout think with TICK_NEVER_THINK; trigger_hurt skips disconnected players (4/4, 2/2 refs) |
+| `8ef3c55` | momentary_rot_button clamps its move interval to whole ticks and arms the move think only when idle (4/4 refs) |
 
 ## Lag compensation deep dive (hit-registration evidence follow-up)
 
