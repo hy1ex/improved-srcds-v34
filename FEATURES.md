@@ -43,6 +43,10 @@ Source game. For each feature it records:
 | `mp_solid_hostages` | `1` | [5. Player, hostage and grenade solidity](#5-player-hostage-and-grenade-solidity) | 0 = walk through hostages |
 | `mp_solid_grenades` | `1` | [5. Player, hostage and grenade solidity](#5-player-hostage-and-grenade-solidity) | 0 = walk through thrown grenades |
 | `mp_players_nonsolid_time` | `0` | [5. Player, hostage and grenade solidity](#5-player-hostage-and-grenade-solidity) | seconds of spawn/respawn non-solidity |
+| `mp_maxmoney` | `16000` | [6. Economy control](#6-economy-control) | money cap |
+| `mp_afterroundmoney` | `0` | [6. Economy control](#6-economy-control) | flat cash per round |
+| `mp_playercashawards` | `1` | [6. Economy control](#6-economy-control) | individual cash rewards |
+| `mp_teamcashawards` | `1` | [6. Economy control](#6-economy-control) | team win/loss cash |
 
 ---
 
@@ -306,3 +310,48 @@ player can therefore still be nudged apart by physics, which is also how CS:GO b
 `dlls/cstrike/cs_player.cpp` (`GetCollisionTeamMask`, `ShouldCollide`, `Spawn`),
 `dlls/cstrike/cs_player.h`, `dlls/cstrike/hostage/cs_simple_hostage.cpp/.h`,
 `game_shared/cstrike/basecsgrenade_projectile.cpp/.h`.
+
+---
+
+# 6. Economy control
+
+**Origin:** CS:GO `mp_maxmoney`, `mp_afterroundmoney`, `mp_playercashawards` and
+`mp_teamcashawards` (`game/shared/cstrike15/cs_gamerules.cpp`).
+
+**Why:** stock Counter-Strike: Source hardcodes the money cap (`16000`) and always pays both
+individual kill awards and team win/loss cash. Servers running pistol-only, no-economy or
+"everyone earns the same" modes have no switch for either. The four CS:GO convars are the minimal
+set that covers those cases. CS:GO's escalation ladder (`mp_consecutive_loss_max` and friends) is
+deliberately **not** ported: it is a balance redesign of the whole economy, not a switch, and it
+would change stock behaviour for anyone who leaves it alone.
+
+**What it does.**
+
+* `mp_maxmoney` — the cap applied by `CCSPlayer::AddAccount()` after every credit or debit. Stock
+  CS:S clamps at `16000`, which is the default here, so nothing changes until an operator lowers or
+  raises it. `mp_startmoney` still bounds its own value at `16000`.
+* `mp_afterroundmoney` — flat cash handed to every player on both teams together with the round's
+  normal cash, regardless of the round result. `0` (default) means "pay nothing extra", exactly
+  stock behaviour.
+* `mp_playercashawards` — gates the individual cash rewards in `CCSGameRules::PlayerKilled`:
+  the `+300` kill award and the `+2500` VIP kill award. `1` (default) keeps stock behaviour. Team
+  kill penalties (`-3300`) and hostage penalties are *not* gated: they are punishments, not awards.
+* `mp_teamcashawards` — gates the team win/loss cash (`m_iAccountCT` / `m_iAccountTerrorist`)
+  handed out at round restart, including the losing-bonus ladder. `1` (default) keeps stock
+  behaviour.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_maxmoney` | `16000` | `0`+ | Maximum money a player can carry |
+| `mp_afterroundmoney` | `0` | `0`+ | Flat cash per player per round |
+| `mp_playercashawards` | `1` | `0`/`1` | Individual cash rewards (kill/VIP awards) |
+| `mp_teamcashawards` | `1` | `0`/`1` | Team win/loss cash at round start |
+
+**Client compatibility.** Money is already a networked player field rendered by the v34 buy menu and
+HUD, so any value these convars produce is displayed correctly by a stock client. No convars are
+replicated, no netprops, no protocol change.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars, kill awards, round-start cash),
+`dlls/cstrike/cs_player.cpp` (`AddAccount` cap).

@@ -47,6 +47,7 @@ extern ConVar mp_buy_anywhere;
 extern ConVar mp_solid_teammates;
 extern ConVar mp_solid_enemies;
 extern ConVar mp_players_nonsolid_time;
+extern ConVar mp_maxmoney;
 #include "weapon_hegrenade.h"
 #include "weapon_flashbang.h"
 #include "weapon_smokegrenade.h"
@@ -1913,8 +1914,8 @@ void CCSPlayer::AddAccount( int amount, bool bTrackChange )
 
 	if ( m_iAccount < 0 )
 		m_iAccount = 0;
-	else if ( m_iAccount > 16000 )
-		m_iAccount = 16000;
+	else if ( m_iAccount > mp_maxmoney.GetInt() )
+		m_iAccount = mp_maxmoney.GetInt();
 }
 
 void CCSPlayer::MarkAsNotReceivingMoneyNextRound()

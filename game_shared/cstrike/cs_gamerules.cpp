@@ -318,6 +318,39 @@ ConVar mp_players_nonsolid_time(
 	FCVAR_NOTIFY,
 	"Seconds after a spawn/respawn during which a player does not block or get blocked by players" );
 
+// ---------------------------------------------------------------------------------------------------
+// Economy control. Ported from CS:GO's mp_maxmoney / mp_afterroundmoney / mp_playercashawards /
+// mp_teamcashawards. Server side only, never replicated. Defaults are the stock CS:S numbers, so a
+// server that does not touch them behaves exactly like stock.
+// ---------------------------------------------------------------------------------------------------
+ConVar mp_maxmoney(
+	"mp_maxmoney",
+	"16000",
+	FCVAR_NOTIFY,
+	"Maximum amount of money a player can carry",
+	true, 0,
+	false, 0 );
+
+ConVar mp_afterroundmoney(
+	"mp_afterroundmoney",
+	"0",
+	FCVAR_NOTIFY,
+	"Flat amount of money every player receives with the round's cash, whatever the result (0 = stock CS:S)",
+	true, 0,
+	false, 0 );
+
+ConVar mp_playercashawards(
+	"mp_playercashawards",
+	"1",
+	FCVAR_NOTIFY,
+	"Whether players earn individual cash rewards such as kill awards (default: yes, stock CS:S)" );
+
+ConVar mp_teamcashawards(
+	"mp_teamcashawards",
+	"1",
+	FCVAR_NOTIFY,
+	"Whether players earn team win/loss cash at round start (default: yes, stock CS:S)" );
+
 ConVar mp_playerid(
 	"mp_playerid",
 	"0",
@@ -1408,9 +1441,11 @@ ConVar cl_autohelp(
 			if ( pCSVictim->IsVIP() )
 			{
 				pCSScorer->HintMessage( "#Hint_reward_for_killing_vip", true );
-				pCSScorer->AddAccount( 2500 );
+
+				if ( mp_playercashawards.GetBool() )
+					pCSScorer->AddAccount( 2500 );
 			}
-			else
+			else if ( mp_playercashawards.GetBool() )
 			{
 				pCSScorer->AddAccount( 300 );
 			}
@@ -2464,7 +2499,7 @@ ConVar cl_autohelp(
 				
 			if ( pPlayer->GetTeamNumber() == TEAM_CT )
 			{
-				if (pPlayer->DoesPlayerGetRoundStartMoney())
+				if ( pPlayer->DoesPlayerGetRoundStartMoney() && mp_teamcashawards.GetBool() )
 				{
 					pPlayer->AddAccount( m_iAccountCT );
 					pPlayer->m_iShouldHaveCash = pPlayer->m_iAccount;
@@ -2473,11 +2508,19 @@ ConVar cl_autohelp(
 			else if ( pPlayer->GetTeamNumber() == TEAM_TERRORIST )
 			{
 				m_iNumEscapers++;	// Add another potential escaper to the mix!
-				if (pPlayer->DoesPlayerGetRoundStartMoney())
+				if ( pPlayer->DoesPlayerGetRoundStartMoney() && mp_teamcashawards.GetBool() )
 				{
 					pPlayer->AddAccount( m_iAccountTerrorist );
 					pPlayer->m_iShouldHaveCash = pPlayer->m_iAccount;
 				}
+			}
+
+			// mp_afterroundmoney: flat cash for everyone, independent of the round result.
+			if ( mp_afterroundmoney.GetInt() > 0 &&
+				 ( pPlayer->GetTeamNumber() == TEAM_CT || pPlayer->GetTeamNumber() == TEAM_TERRORIST ) )
+			{
+				pPlayer->AddAccount( mp_afterroundmoney.GetInt() );
+				pPlayer->m_iShouldHaveCash = pPlayer->m_iAccount;
 			}
 
 			// tricky, make players non solid while moving to their spawn points
