@@ -1085,13 +1085,24 @@ void CMomentaryRotButton::InputSetPosition( inputdata_t &inputdata )
 	SetNextThink( gpGlobals->curtime );
 
 	//
-	// Think again in 0.1 seconds or the time that it will take us to reach our movement goal,
-	// whichever is the shorter interval. This prevents us from overshooting and stuttering when we
-	// are told to change position in very small increments.
+	// Think again once we reach our movement goal, but never in less than one tick
+	// and never further out than a few ticks. A move time shorter than a tick cannot
+	// be honoured -- the move-done would fire before the object has been moved at
+	// all, so the button would report arrival while still short of the goal and
+	// overshoot on the next increment. Quantising the angular velocity instead lets
+	// a very small increment complete in exactly one tick.
 	//
 	QAngle vecNewAngles = m_start + m_vecMoveAng * ( m_IdealYaw * m_flMoveDistance );
 	float flAngleDelta = fabs( AxisDelta( m_spawnflags, vecNewAngles, GetLocalAngles() ));
-	m_flTimeDelta = min( flAngleDelta / m_flSpeed, 0.1f );
+	float dt = flAngleDelta / m_flSpeed;
+	if ( dt < gpGlobals->interval_per_tick )
+	{
+		dt = gpGlobals->interval_per_tick;
+		float speed = flAngleDelta / gpGlobals->interval_per_tick;
+		SetLocalAngularVelocity( speed * m_vecMoveAng * m_direction );
+	}
+	dt = clamp( dt, gpGlobals->interval_per_tick, gpGlobals->interval_per_tick * 6 );
+	m_flTimeDelta = dt;
 
 	SetMoveDoneTime( m_flTimeDelta );
 }
@@ -1199,8 +1210,24 @@ void CMomentaryRotButton::SetPositionMoveDone(void)
 		return;
 	}
 
+	//
+	// Same tick-quantised move time as InputSetPosition: re-derive it from where we
+	// are now, because m_flTimeDelta was computed for the angle we had when the
+	// position was set and is stale once we have moved part of the way there.
+	//
+	QAngle vecNewAngles = m_start + m_vecMoveAng * ( m_IdealYaw * m_flMoveDistance );
+	float flAngleDelta = fabs( AxisDelta( m_spawnflags, vecNewAngles, GetLocalAngles() ));
+	float dt = flAngleDelta / m_flSpeed;
+	if ( dt < gpGlobals->interval_per_tick )
+	{
+		dt = gpGlobals->interval_per_tick;
+		float speed = flAngleDelta / gpGlobals->interval_per_tick;
+		SetLocalAngularVelocity( speed * m_vecMoveAng * m_direction );
+	}
+	dt = clamp( dt, gpGlobals->interval_per_tick, gpGlobals->interval_per_tick * 6 );
+
 	// TODO: change this to use a Think function like ReturnThink.
-	SetMoveDoneTime( m_flTimeDelta );
+	SetMoveDoneTime( dt );
 }
 
 
@@ -1267,10 +1294,17 @@ void CMomentaryRotButton::Use( CBaseEntity *pActivator, CBaseEntity *pCaller, US
 	UpdateSelf( flPos, bPlaySound );
 
 	//
-	// Think every frame while we are moving.
+	// Think every frame while we are moving. Only arm it if we are not already
+	// thinking: Use can arrive on consecutive frames while the player holds the
+	// button, and re-arming from inside the existing UpdateThink chain makes the
+	// button think twice in the same frame, advancing the angle with a stale
+	// avelocity and stuttering at large m_flSpeed.
 	//
-	SetThink( &CMomentaryRotButton::UpdateThink );
-	SetNextThink( gpGlobals->curtime );
+	if ( !m_pfnThink )
+	{
+		SetThink( &CMomentaryRotButton::UpdateThink );
+		SetNextThink( gpGlobals->curtime );
+	}
 }
 
 
