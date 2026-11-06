@@ -803,6 +803,21 @@ bool CServerGameDLL::LevelInit( const char *pMapName, char const *pMapEntities, 
 	// That happens either in LoadGameState() or in MapEntity_ParseAllEntities()
 	if ( loadGame )
 	{
+		// eLoadType has to be set before anything is restored, not after.  Entity
+		// Restore handlers and the activate paths they reach branch on it -- e.g.
+		// CAmbientGeneric picks SND_SPAWNING vs SND_NOFLAGS from it, logic_auto
+		// selects OnMapTransition/OnLoadGame from it, and the commentary system
+		// gates on it -- so restoring first left every one of them reading the
+		// value left over from the level that was just unloaded.
+		if ( pOldLevel )
+		{
+			gpGlobals->eLoadType = MapLoad_Transition;
+		}
+		else
+		{
+			gpGlobals->eLoadType = MapLoad_LoadGame;
+		}
+
 		BeginRestoreEntities();
 		if ( !engine->LoadGameState( pMapName, 1 ) )
 		{
@@ -811,12 +826,7 @@ bool CServerGameDLL::LevelInit( const char *pMapName, char const *pMapEntities, 
 
 		if ( pOldLevel )
 		{
-			gpGlobals->eLoadType = MapLoad_Transition;
 			engine->LoadAdjacentEnts( pOldLevel, pLandmarkName );
-		}
-		else
-		{
-			gpGlobals->eLoadType = MapLoad_LoadGame;
 		}
 
 		if ( g_OneWayTransition )
