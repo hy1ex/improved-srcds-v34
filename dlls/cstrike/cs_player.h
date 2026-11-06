@@ -345,6 +345,11 @@ public:
 	float m_flSpawnImmuneUntil;			// curtime until which damage is ignored, 0 = not immune
 	char m_szRespawnWeapons[8][48];		// loadout remembered for mp_respawn_weapons 2
 	int m_nRespawnWeaponCount;
+
+	// Collision control (mp_solid_*, mp_players_nonsolid_time). See FEATURES.md.
+	unsigned int GetCollisionTeamMask( void ) const;
+	virtual bool ShouldCollide( int collisionGroup, int contentsMask ) const;
+	float m_flLastSpawnTime;			// curtime of the last spawn, for mp_players_nonsolid_time
 	void CheckTKPunishment( void );
 
 	// Add money to this player's account.

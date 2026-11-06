@@ -30,6 +30,7 @@
 
 
 ConVar mp_hostagepenalty( "mp_hostagepenalty", "13", FCVAR_NOTIFY, "Terrorist are kicked for killing too much hostages" );
+extern ConVar mp_solid_hostages;
 ConVar hostage_debug( "hostage_debug", "0", FCVAR_CHEAT, "Show hostage AI debug information" );
 
 extern ConVar sv_pushaway_force;
@@ -1193,3 +1194,14 @@ unsigned int CHostage::PhysicsSolidMaskForEntity() const
 	return MASK_PLAYERSOLID;
 }
 
+//-----------------------------------------------------------------------------
+// Purpose: mp_solid_hostages. Hostages are COLLISION_GROUP_PLAYER + SOLID_BBOX, so player
+//			movement traces reach this entity; refusing PLAYER_MOVEMENT lets players walk through.
+//-----------------------------------------------------------------------------
+bool CHostage::ShouldCollide( int collisionGroup, int contentsMask ) const
+{
+	if ( collisionGroup == COLLISION_GROUP_PLAYER_MOVEMENT && !mp_solid_hostages.GetBool() )
+		return false;
+
+	return BaseClass::ShouldCollide( collisionGroup, contentsMask );
+}

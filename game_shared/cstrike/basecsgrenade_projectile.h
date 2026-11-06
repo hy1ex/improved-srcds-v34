@@ -26,6 +26,9 @@ public:
 	DECLARE_NETWORKCLASS(); 
 
 	virtual void Spawn();
+#ifndef CLIENT_DLL
+	virtual bool ShouldCollide( int collisionGroup, int contentsMask ) const;
+#endif
 
 
 public:

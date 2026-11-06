@@ -283,6 +283,41 @@ ConVar mp_buy_anywhere(
 	FCVAR_NOTIFY,
 	"Buying outside buy zones: 0=stock CS:S, 1=both teams, 2=Terrorists, 3=Counter-Terrorists" );
 
+// ---------------------------------------------------------------------------------------------------
+// Collision control. Ported from CS:GO's mp_solid_teammates plus the equivalent switches for enemies,
+// hostages and thrown grenades. Server side only, never replicated. Every default is 1, which is
+// stock Counter-Strike: Source behaviour (everything blocks).
+// ---------------------------------------------------------------------------------------------------
+ConVar mp_solid_teammates(
+	"mp_solid_teammates",
+	"1",
+	FCVAR_NOTIFY,
+	"Whether teammates block each other's movement (0 = walk through teammates)" );
+
+ConVar mp_solid_enemies(
+	"mp_solid_enemies",
+	"1",
+	FCVAR_NOTIFY,
+	"Whether enemies block each other's movement (0 = walk through enemies)" );
+
+ConVar mp_solid_hostages(
+	"mp_solid_hostages",
+	"1",
+	FCVAR_NOTIFY,
+	"Whether hostages block player movement (0 = walk through hostages)" );
+
+ConVar mp_solid_grenades(
+	"mp_solid_grenades",
+	"1",
+	FCVAR_NOTIFY,
+	"Whether thrown grenade projectiles block player movement (0 = walk through them)" );
+
+ConVar mp_players_nonsolid_time(
+	"mp_players_nonsolid_time",
+	"0.0",
+	FCVAR_NOTIFY,
+	"Seconds after a spawn/respawn during which a player does not block or get blocked by players" );
+
 ConVar mp_playerid(
 	"mp_playerid",
 	"0",

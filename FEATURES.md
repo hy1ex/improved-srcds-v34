@@ -38,6 +38,11 @@ Source game. For each feature it records:
 | `mp_respawn_weapons` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=default pistol, 1=random, 2=keep |
 | `mp_respawn_buytime` | `4` | [3. Respawn on death](#3-respawn-on-death) | seconds after respawn, 0 = round end |
 | `mp_buy_anywhere` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=stock, 1=both, 2=T, 3=CT |
+| `mp_solid_teammates` | `1` | [5. Player, hostage and grenade solidity](#5-player-hostage-and-grenade-solidity) | 0 = walk through teammates |
+| `mp_solid_enemies` | `1` | [5. Player, hostage and grenade solidity](#5-player-hostage-and-grenade-solidity) | 0 = walk through enemies |
+| `mp_solid_hostages` | `1` | [5. Player, hostage and grenade solidity](#5-player-hostage-and-grenade-solidity) | 0 = walk through hostages |
+| `mp_solid_grenades` | `1` | [5. Player, hostage and grenade solidity](#5-player-hostage-and-grenade-solidity) | 0 = walk through thrown grenades |
+| `mp_players_nonsolid_time` | `0` | [5. Player, hostage and grenade solidity](#5-player-hostage-and-grenade-solidity) | seconds of spawn/respawn non-solidity |
 
 ---
 
@@ -231,3 +236,73 @@ replicated.
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars), `dlls/cstrike/cs_player.cpp`
 (`ScheduleRespawn`, `DoRespawn`, loadout helpers, `PreThink`, `OnTakeDamage`, `IsInBuyZone`,
 `CanPlayerBuy`, `Event_Killed`, `Spawn`), `dlls/cstrike/cs_player.h` (members and declarations).
+
+---
+
+# 5. Player, hostage and grenade solidity
+
+**Origin:** CS:GO `mp_solid_teammates` (`game/shared/cstrike15/cs_gamerules.cpp`) and its
+collision plumbing: `CCSPlayer::ShouldCollide`
+(`game/server/cstrike15/cs_player.cpp`), the team tags returned by
+`CCSPlayer::PhysicsSolidMaskForEntity` (`game/shared/cstrike15/cs_player_shared.cpp`) and the
+movement trace filter (`game/shared/gamemovement.cpp`,
+`CTraceFilterSkipTwoEntitiesAndCheckTeamMask`). The enemy, hostage and grenade switches are the
+same idea applied to the other blockers, and `mp_players_nonsolid_time` is new.
+
+**Why:** stock Counter-Strike: Source makes every player, hostage and thrown grenade solid to
+everyone. That is wrong for deathmatch modes (spawn camping, blocked spawn exits), for
+teammate-friendly modes (stair-stepping on teammates), and for servers that want players to walk
+through hostages or grenades without a physics fight.
+
+**What it does.** A player's movement traces carry a team tag in the trace mask
+(`CONTENTS_TEAM1` for CTs, `CONTENTS_TEAM2` for Terrorists), which `CCSGameMovement::PlayerSolidMask`
+adds from `CCSPlayer::GetCollisionTeamMask()`. When a player's movement trace reaches another
+player, the engine calls that player's `CCSPlayer::ShouldCollide( COLLISION_GROUP_PLAYER_MOVEMENT,
+contentsMask )`, which compares the two tags:
+
+* same tag and `mp_solid_teammates 0` → no collision (walk through teammates),
+* different tags and `mp_solid_enemies 0` → no collision (walk through enemies),
+* everything else → the stock collision rules.
+
+`mp_players_nonsolid_time` uses the same tag: for N seconds after a spawn or respawn a player
+reports **both** tags, and both sides of the comparison treat "both tags" as "no player collision
+at all". That makes the window symmetric - neither the freshly spawned player nor the player
+walking into them is blocked - and it also covers players respawned by feature 3, because the
+timer is started in `CCSPlayer::Spawn()`.
+
+The other two blockers are handled where the entity itself is asked about the collision:
+
+* `mp_solid_hostages 0` — `CHostage::ShouldCollide` refuses `COLLISION_GROUP_PLAYER_MOVEMENT`, so
+  players walk through hostages. (Hostages are `COLLISION_GROUP_PLAYER` + `SOLID_BBOX`, which is
+  why the group-only game-rules hook cannot tell them apart from players.)
+* `mp_solid_grenades 0` — `CBaseCSGrenadeProjectile::ShouldCollide` refuses
+  `COLLISION_GROUP_PLAYER_MOVEMENT`, so players walk through thrown grenades. The projectile still
+  collides with the world and props, and still bounces off players through its own physics - only
+  the "this grenade blocks my walking" test is switched off.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_solid_teammates` | `1` | `0`/`1` | Teammates block movement (stock: yes) |
+| `mp_solid_enemies` | `1` | `0`/`1` | Enemies block movement (stock: yes) |
+| `mp_solid_hostages` | `1` | `0`/`1` | Hostages block movement (stock: yes) |
+| `mp_solid_grenades` | `1` | `0`/`1` | Thrown grenades block movement (stock: yes) |
+| `mp_players_nonsolid_time` | `0` | seconds | Spawn/respawn non-solid window (`0` = off, stock) |
+
+**Client compatibility.** Collision decisions are server-side. Player-vs-player movement collision
+is not predicted by the client, so switching it off cannot desynchronise movement. `CONTENTS_TEAM1`
+and `CONTENTS_TEAM2` are game-specific bits already defined in `public/bspflags.h` and used by no
+other code in this tree, so the extra mask bits cannot change what a trace hits. No netprop, no
+sendtable change, no new entity. `m_flLastSpawnTime` is a plain server-side member.
+
+**Limitations.** These switches cover the *movement* collision test (the one that stops you walking
+through somebody). They do not disable the vphysics push that separates two players whose bodies
+already overlap, and they never affect hitboxes or damage. A player standing exactly inside another
+player can therefore still be nudged apart by physics, which is also how CS:GO behaves.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars),
+`game_shared/cstrike/cs_gamemovement.cpp` (`CCSGameMovement::PlayerSolidMask`),
+`dlls/cstrike/cs_player.cpp` (`GetCollisionTeamMask`, `ShouldCollide`, `Spawn`),
+`dlls/cstrike/cs_player.h`, `dlls/cstrike/hostage/cs_simple_hostage.cpp/.h`,
+`game_shared/cstrike/basecsgrenade_projectile.cpp/.h`.

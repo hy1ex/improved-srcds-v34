@@ -38,6 +38,7 @@ public:
 
 public:
 	virtual void Spawn( void );
+	virtual bool ShouldCollide( int collisionGroup, int contentsMask ) const;
 	virtual void Precache();
 	int ObjectCaps( void ) { return (BaseClass::ObjectCaps() | FCAP_IMPULSE_USE); }	// make hostage "useable"
 

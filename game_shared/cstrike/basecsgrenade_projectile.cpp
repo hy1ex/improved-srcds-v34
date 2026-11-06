@@ -109,6 +109,22 @@ END_NETWORK_TABLE()
 		TheBots->RemoveGrenade( this );
 	}
 
+#ifndef CLIENT_DLL
+extern ConVar mp_solid_grenades;
+
+//-----------------------------------------------------------------------------
+// Purpose: mp_solid_grenades. A thrown grenade is SOLID_BBOX so it collides with props;
+//			this switch lets players walk through it instead.
+//-----------------------------------------------------------------------------
+bool CBaseCSGrenadeProjectile::ShouldCollide( int collisionGroup, int contentsMask ) const
+{
+	if ( collisionGroup == COLLISION_GROUP_PLAYER_MOVEMENT && !mp_solid_grenades.GetBool() )
+		return false;
+
+	return BaseClass::ShouldCollide( collisionGroup, contentsMask );
+}
+#endif
+
 	void CBaseCSGrenadeProjectile::Spawn( void )
 	{
 		BaseClass::Spawn();
