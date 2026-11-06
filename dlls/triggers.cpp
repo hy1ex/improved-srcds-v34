@@ -696,6 +696,12 @@ bool CTriggerHurt::HurtEntity( CBaseEntity *pOther, float damage )
 	if ( !pOther->m_takedamage || !PassesTriggerFilters(pOther) )
 		return false;
 
+	// A player who has already left still has takedamage set and can still pass
+	// the filters for the rest of the frame they disconnected in, so a trigger_hurt
+	// would damage the entity and fire OnHurtPlayer on a client that is gone.
+	if ( pOther->IsPlayer() && !((CBasePlayer *)pOther)->IsConnected() )
+		return false;
+
 	if ( damage < 0 )
 	{
 		pOther->TakeHealth( -damage, m_bitsDamageInflict );
@@ -1158,9 +1164,11 @@ void CTriggerLook::Trigger(CBaseEntity *pActivator, bool bTimeout)
 		m_OnTrigger.FireOutput(pActivator, this);
 		m_flLookTimeTotal = -1;
 
-		// Cancel the timeout think.
+		// Cancel the timeout think.  TICK_NEVER_THINK, not 0 -- SetNextThink( 0 )
+		// leaves us queued on the entity think list for the next frame with a NULL
+		// think function, so the scheduler keeps waking this trigger up forever.
 		SetThink(NULL);
-		SetNextThink(0);
+		SetNextThink( TICK_NEVER_THINK );
 	}
 
 	if (HasSpawnFlags(SF_TRIGGERLOOK_FIREONCE))
