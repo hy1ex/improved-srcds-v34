@@ -364,6 +364,7 @@ CCSPlayer::CCSPlayer()
 	m_nRespawnWeaponCount = 0;
 	m_szRespawnWeapons[0][0] = 0;
 	m_flLastSpawnTime = 0.0f;
+	m_nImmunityRenderAlpha = 255;
 	m_PlayerAnimState = CreatePlayerAnimState( this, this, LEGANIM_9WAY, true );
 
 	UseClientSideAnimation();
@@ -776,6 +777,9 @@ void CCSPlayer::Spawn()
 	m_nRespawnWeaponCount = 0;
 	m_flLastSpawnTime = gpGlobals->curtime;
 
+	// A normal spawn is not an immune respawn, so make sure no immunity fade is left on the model.
+	ResetSpawnImmunityRender();
+
 	StockPlayerAmmo();
 }
 
@@ -950,6 +954,8 @@ int CCSPlayer::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 void CCSPlayer::Event_Killed( const CTakeDamageInfo &info )
 {
 	SetArmorValue( 0 );
+
+	ResetSpawnImmunityRender();
 
 	// Respawn on death: remember the loadout before the death drops take it away.
 	if ( mp_respawn_weapons.GetInt() == 2 )
@@ -2189,6 +2195,16 @@ void CCSPlayer::DoRespawn( void )
 	if ( GetTeamNumber() != TEAM_CT && GetTeamNumber() != TEAM_TERRORIST )
 		return;
 
+	// respawn() runs CCSPlayer::Spawn(), which clears the remembered loadout. Keep a copy so that
+	// mp_respawn_weapons 2 still has the weapons the player was carrying when they died.
+	char szSavedWeapons[ARRAYSIZE( m_szRespawnWeapons )][sizeof( m_szRespawnWeapons[0] )];
+	const int nSavedWeaponCount = m_nRespawnWeaponCount;
+
+	for ( int i = 0; i < nSavedWeaponCount; i++ )
+	{
+		Q_strncpy( szSavedWeapons[i], m_szRespawnWeapons[i], sizeof( szSavedWeapons[i] ) );
+	}
+
 	StopObserverMode();
 	State_Transition( STATE_ACTIVE );
 	respawn( this, false );
@@ -2210,6 +2226,13 @@ void CCSPlayer::DoRespawn( void )
 	}
 	else if ( nWeaponPolicy == 2 )
 	{
+		m_nRespawnWeaponCount = nSavedWeaponCount;
+
+		for ( int i = 0; i < nSavedWeaponCount; i++ )
+		{
+			Q_strncpy( m_szRespawnWeapons[i], szSavedWeapons[i], sizeof( m_szRespawnWeapons[i] ) );
+		}
+
 		RemoveAllItems( false );
 		GiveNamedItem( "weapon_knife" );
 		RestoreLoadoutForRespawn();
@@ -2315,6 +2338,71 @@ void CCSPlayer::GiveRandomLoadout( void )
 bool CCSPlayer::IsSpawnImmune( void ) const
 {
 	return ( m_flSpawnImmuneUntil > 0.0f && gpGlobals->curtime < m_flSpawnImmuneUntil );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: mp_respawn_immunitytime visual. A respawned player's world model starts almost
+//			transparent and fades in to fully opaque as the immunity expires, the way CS:GO
+//			shows spawn protection.
+//			Only m_nRenderMode / m_clrRender are written, and both are stock networked fields
+//			that every v34 client already receives and renders, so no new netprop, usermessage
+//			or client support is involved.
+//-----------------------------------------------------------------------------
+void CCSPlayer::UpdateSpawnImmunityRender( void )
+{
+	const float flTotal = mp_respawn_immunitytime.GetFloat();
+
+	if ( !IsAlive() || m_flSpawnImmuneUntil <= 0.0f || flTotal <= 0.0f )
+	{
+		ResetSpawnImmunityRender();
+		return;
+	}
+
+	const float flRemaining = m_flSpawnImmuneUntil - gpGlobals->curtime;
+
+	if ( flRemaining <= 0.0f )
+	{
+		ResetSpawnImmunityRender();
+		return;
+	}
+
+	float flFade = 1.0f - ( flRemaining / flTotal );
+
+	if ( flFade < 0.0f )
+		flFade = 0.0f;
+	else if ( flFade > 1.0f )
+		flFade = 1.0f;
+
+	// Never fully invisible: a faint model still shows where the protected player is, which is
+	// what CS:GO does too.
+	int nAlpha = (int)( flFade * 255.0f );
+
+	if ( nAlpha < 16 )
+		nAlpha = 16;
+	else if ( nAlpha > 255 )
+		nAlpha = 255;
+
+	if ( nAlpha == m_nImmunityRenderAlpha )
+		return;
+
+	m_nImmunityRenderAlpha = nAlpha;
+
+	SetRenderMode( kRenderTransTexture );
+	SetRenderColorA( (byte)nAlpha );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Put the player's world model back to normal rendering.
+//-----------------------------------------------------------------------------
+void CCSPlayer::ResetSpawnImmunityRender( void )
+{
+	if ( m_nImmunityRenderAlpha == 255 )
+		return;
+
+	m_nImmunityRenderAlpha = 255;
+
+	SetRenderMode( kRenderNormal );
+	SetRenderColorA( 255 );
 }
 
 //-----------------------------------------------------------------------------
@@ -2457,6 +2545,8 @@ void CCSPlayer::PreThink()
 	{
 		DoRespawn();
 	}
+
+	UpdateSpawnImmunityRender();
 
 	ResetMaxSpeed();
 	State_PreThink();

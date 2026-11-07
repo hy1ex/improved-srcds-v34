@@ -339,12 +339,15 @@ public:
 	void RestoreLoadoutForRespawn( void );
 	void GiveRandomLoadout( void );
 	bool IsSpawnImmune( void ) const;
+	void UpdateSpawnImmunityRender( void );
+	void ResetSpawnImmunityRender( void );
 
 	float m_flNextRespawnTime;			// curtime of a pending respawn, 0 when none is pending
 	float m_flRespawnTime;				// curtime of the last respawn-on-death, 0 = never respawned
 	float m_flSpawnImmuneUntil;			// curtime until which damage is ignored, 0 = not immune
 	char m_szRespawnWeapons[8][48];		// loadout remembered for mp_respawn_weapons 2
 	int m_nRespawnWeaponCount;
+	int m_nImmunityRenderAlpha;			// last world-model alpha applied for mp_respawn_immunitytime
 
 	// Collision control (mp_solid_*, mp_players_nonsolid_time). See FEATURES.md.
 	unsigned int GetCollisionTeamMask( void ) const;
