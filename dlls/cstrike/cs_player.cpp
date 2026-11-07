@@ -1559,7 +1559,9 @@ int CCSPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 		pInflictor == this ||
 		info.GetAttacker() == this )
 	{
-		if ( bFriendlyFire && (info.GetDamageType() & DMG_BLAST) == 0 )
+		// mp_teammates_are_enemies: a teammate is a valid target, so no team-attack damage
+		// mitigation either. Bullets and knives do full damage to a teammate in that mode.
+		if ( bFriendlyFire && !mp_teammates_are_enemies.GetBool() && (info.GetDamageType() & DMG_BLAST) == 0 )
 		{
 			if ( pInflictor->GetTeamNumber() == GetTeamNumber() )
 			{
