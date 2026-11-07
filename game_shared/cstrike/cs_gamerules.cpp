@@ -535,7 +535,7 @@ ConVar cl_autohelp(
 		FCVAR_REPLICATED,
 		"amount of money each player gets when they reset",
 		true, 800,
-		true, 16000 );	
+		false, 0 );
 
 	ConVar mp_roundtime( 
 		"mp_roundtime",
