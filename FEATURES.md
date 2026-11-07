@@ -322,7 +322,7 @@ forbids.
   only when it changes, so a runtime flip takes effect on the next frame with no respawn. Players
   inside a vehicle are skipped: the vehicle's own collision decides there. The group is restored to
   `COLLISION_GROUP_PLAYER` as soon as the convar goes back to `1` or the non-solid window below
-  expires.
+  expires, and that transition runs the unstick check described after the list.
 * `mp_players_nonsolid_time` — for N seconds after any spawn or respawn the player is put in
   `COLLISION_GROUP_DEBRIS_TRIGGER`, so neither side is blocked *or* pushed. The timer starts in
   `CCSPlayer::Spawn()`, which covers players respawned by feature 3 as well.
@@ -347,6 +347,18 @@ forbids.
   The stock team-attack damage mitigation is skipped as well, so a teammate takes full bullet and
   knife damage instead of 35%: being a valid target means being a *real* target. Blast damage was
   never mitigated, so grenades are unchanged.
+
+* **Unstick when turning solid** — `CCSPlayer::UnstickFromPlayers()`, called from
+  `UpdateSolidityCollisionGroup()` on the transition from non-solid back to solid, i.e. exactly when
+  `mp_players_nonsolid_time` runs out or `mp_solid_player` is set back to `1`. If the player's box
+  then overlaps another **solid** player's box (the case that used to leave both of them trapped
+  inside each other until the movement solver separated them), he is moved to the nearest free
+  standing spot just outside that box: eight directions around the other player at 36, 56 and 76
+  units, each one verified with a player-hull trace using the movement collision group, then
+  settled onto the floor below it with a short line trace. Velocity is cleared and the move is a
+  teleport of a few tens of units, not a shove. A player who is still non-solid is ignored (he
+  cannot trap anybody), vehicles are not involved, and on a stock server nothing ever fires because
+  the group never leaves `COLLISION_GROUP_PLAYER`, so there is no transition and no check.
 
 **Convars**
 
@@ -373,6 +385,10 @@ replicated. `m_flLastSpawnTime` is a plain server-side member.
   hit, and `mp_teammates_are_enemies` gates damage through the normal friendly-fire path. With the
   switch off, friendly fire keeps the stock 35% team-attack mitigation; with it on, that mitigation
   is skipped and damage is full.
+* The unstick move is a teleport, so a player whose window expires while he is standing inside a
+  teammate sees a small jump instead of a slide. If no free spot exists within 76 units (a crowded
+  corner with walls around the pair), he is left where he is and the movement solver separates the
+  two exactly as it did before this existed.
 * A thrown grenade still *flies* through the world with its own engine-side trace, which uses
   `COLLISION_GROUP_NONE`; `mp_solid_grenades 0` stops it blocking players and stops the push-away,
   but if the projectile's own bounce off a player is still visible that is the projectile's flight

@@ -364,6 +364,7 @@ CCSPlayer::CCSPlayer()
 	m_nRespawnWeaponCount = 0;
 	m_szRespawnWeapons[0][0] = 0;
 	m_flLastSpawnTime = 0.0f;
+	m_bWasNonsolidPlayer = false;
 	m_nImmunityRenderAlpha = 255;
 	m_PlayerAnimState = CreatePlayerAnimState( this, this, LEGANIM_9WAY, true );
 
@@ -2442,6 +2443,116 @@ void CCSPlayer::UpdateSolidityCollisionGroup( void )
 	if ( GetCollisionGroup() != nGroup )
 	{
 		SetCollisionGroup( nGroup );
+
+		// Turning solid again (the non-solid window ran out, or mp_solid_player went back to 1)
+		// while standing inside another player would leave both of them stuck in each other until
+		// the movement solver separates them, so move out of the other player's model right now.
+		if ( !bNonSolid && m_bWasNonsolidPlayer )
+		{
+			UnstickFromPlayers();
+		}
+	}
+
+	m_bWasNonsolidPlayer = bNonSolid;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Called when a player turns solid again. If his boxes overlap another solid player's,
+//			find the nearest free standing spot just outside that player's hull and move him
+//			there, instead of leaving the pair trapped inside each other.
+//-----------------------------------------------------------------------------
+void CCSPlayer::UnstickFromPlayers( void )
+{
+	const Vector vecOrigin = GetAbsOrigin();
+
+	Vector vecMyMin, vecMyMax;
+	CollisionProp()->WorldSpaceAABB( &vecMyMin, &vecMyMax );
+
+	const Vector vecRelativeMins = vecMyMin - vecOrigin;
+	const Vector vecRelativeMaxs = vecMyMax - vecOrigin;
+
+	CTraceFilterSimple filter( this, COLLISION_GROUP_PLAYER_MOVEMENT );
+
+	for ( int i = 1; i <= gpGlobals->maxClients; ++i )
+	{
+		CCSPlayer *pOther = ToCSPlayer( UTIL_PlayerByIndex( i ) );
+
+		if ( !pOther || pOther == this || !pOther->IsAlive() )
+			continue;
+
+		// A player who is still non-solid cannot trap anybody.
+		if ( pOther->GetCollisionGroup() != COLLISION_GROUP_PLAYER )
+			continue;
+
+		Vector vecOtherMin, vecOtherMax;
+		pOther->CollisionProp()->WorldSpaceAABB( &vecOtherMin, &vecOtherMax );
+
+		// Overlapping only if the boxes intersect on all three axes.
+		if ( vecMyMax.x <= vecOtherMin.x || vecMyMin.x >= vecOtherMax.x ||
+			 vecMyMax.y <= vecOtherMin.y || vecMyMin.y >= vecOtherMax.y ||
+			 vecMyMax.z <= vecOtherMin.z || vecMyMin.z >= vecOtherMax.z )
+			continue;
+
+		// Move away from the other player; a fixed direction when the two origins coincide, so the
+		// two players do not both aim for the same spot.
+		Vector vecAway = vecOrigin - pOther->GetAbsOrigin();
+		vecAway.z = 0.0f;
+
+		if ( vecAway.LengthSqr() < 1.0f )
+		{
+			QAngle angPick( 0.0f, entindex() * 47.0f, 0.0f );
+			AngleVectors( angPick, &vecAway, NULL, NULL );
+			vecAway.z = 0.0f;
+		}
+
+		VectorNormalize( vecAway );
+
+		// A ring of directions around the other player, nearest distance first (a player hull is 32
+		// units wide, so 36 already leaves a gap), until one of them is a free standing position.
+		const float flAwayAngle = atan2f( vecAway.y, vecAway.x );
+		bool bMoved = false;
+
+		for ( float flDistance = 36.0f; flDistance <= 76.0f && !bMoved; flDistance += 20.0f )
+		{
+			for ( int iDirection = 0; iDirection < 8 && !bMoved; ++iDirection )
+			{
+				const float flAngle = flAwayAngle + iDirection * ( M_PI / 4.0f );
+				Vector vecTest = pOther->GetAbsOrigin();
+				vecTest.x += cosf( flAngle ) * flDistance;
+				vecTest.y += sinf( flAngle ) * flDistance;
+				vecTest.z = vecOrigin.z;
+
+				trace_t tr;
+				UTIL_TraceHull( vecTest, vecTest, vecRelativeMins, vecRelativeMaxs,
+								MASK_PLAYERSOLID, &filter, &tr );
+
+				if ( tr.startsolid || tr.fraction < 1.0f )
+					continue;
+
+				// Settle the spot onto the floor below it rather than leaving the player in the air.
+				trace_t trGround;
+				UTIL_TraceLine( vecTest + Vector( 0, 0, 4 ), vecTest - Vector( 0, 0, 128 ),
+								MASK_PLAYERSOLID, &filter, &trGround );
+
+				if ( trGround.fraction < 1.0f && trGround.plane.normal.z >= 0.7f )
+					vecTest.z = trGround.endpos.z - vecRelativeMins.z;
+
+				UTIL_TraceHull( vecTest, vecTest, vecRelativeMins, vecRelativeMaxs,
+								MASK_PLAYERSOLID, &filter, &tr );
+
+				if ( tr.startsolid || tr.fraction < 1.0f )
+					continue;
+
+				Teleport( &vecTest, NULL, &vec3_origin );
+				SetAbsVelocity( vec3_origin );
+				SetGroundEntity( NULL );
+
+				bMoved = true;
+			}
+		}
+
+		if ( bMoved )
+			break;
 	}
 }
 
