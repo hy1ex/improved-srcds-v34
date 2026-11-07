@@ -1518,8 +1518,11 @@ int CCSPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 
 	bool bFriendlyFire = CSGameRules()->IsFriendlyFireOn();
 
-	// warn about team attacks
-	if ( bFriendlyFire && pInflictor->GetTeamNumber() == GetTeamNumber() && pInflictor != this && info.GetAttacker() != this )
+	// warn about team attacks. With mp_teammates_are_enemies a teammate is a legal target, so a hit
+	// on one is not a team attack: no "#Game_teammate_attack" in team chat and no
+	// "#Hint_try_not_to_injure_teammates" hint.
+	if ( bFriendlyFire && !mp_teammates_are_enemies.GetBool() &&
+		 pInflictor->GetTeamNumber() == GetTeamNumber() && pInflictor != this && info.GetAttacker() != this )
 	{
 		CCSPlayer *pCSAttacker = ToCSPlayer( pInflictor );
 		if ( !pCSAttacker )

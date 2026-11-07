@@ -339,6 +339,11 @@ forbids.
   a teammate as an enemy. It applies to damage and to the rules built on top of it (team-kill
   punishment, bot targeting); it no longer has any solidity side effect, since solidity is a single
   global switch now.
+  Hitting a teammate in this mode is not reported as a team attack: `CCSPlayer::OnTakeDamage()`
+  skips the whole warning block, so there is no `#Game_teammate_attack` line in team chat, no
+  `attacked a teammate` line in the server log, and no `#Hint_try_not_to_injure_teammates` hint.
+  Killing one is not punished either, because `IPointsForKill()` asks `PlayerRelationship()`: no
+  `-3300`, no `#Killed_Teammate`, no team-kill counter, no autokick.
 
 **Convars**
 
@@ -362,7 +367,9 @@ replicated. `m_flLastSpawnTime` is a plain server-side member.
   client to be told what its prediction must ignore, i.e. a client change, which the stock-client
   rule forbids.
 * Damage and hitboxes are untouched: non-solid players and hostages can still be shot, knives still
-  hit, and `mp_teammates_are_enemies` gates damage through the normal friendly-fire path.
+  hit, and `mp_teammates_are_enemies` gates damage through the normal friendly-fire path. That path
+  still applies the stock team-attack mitigation, so a teammate's bullet does 35% of its damage
+  even in this mode; only the warning and the punishment are gone.
 * A thrown grenade still *flies* through the world with its own engine-side trace, which uses
   `COLLISION_GROUP_NONE`; `mp_solid_grenades 0` stops it blocking players and stops the push-away,
   but if the projectile's own bounce off a player is still visible that is the projectile's flight
