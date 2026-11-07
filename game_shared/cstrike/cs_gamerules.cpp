@@ -283,6 +283,12 @@ ConVar mp_buy_anywhere(
 	FCVAR_NOTIFY,
 	"Buying outside buy zones: 0=stock CS:S, 1=both teams, 2=Terrorists, 3=Counter-Terrorists" );
 
+ConVar mp_ignore_buytime(
+	"mp_ignore_buytime",
+	"0",
+	FCVAR_NOTIFY,
+	"Whether mp_buytime is ignored, letting players buy at any time during the round" );
+
 // ---------------------------------------------------------------------------------------------------
 // Collision control. Ported from CS:GO's mp_solid_teammates, generalised to one switch for every
 // player plus the equivalent switches for hostages and thrown grenades. Server side only, never
