@@ -296,6 +296,15 @@ ConVar mp_ignore_buytime(
 	"Whether mp_buytime is ignored, letting players buy at any time during the round" );
 
 // ---------------------------------------------------------------------------------------------------
+// Burn spread from an ignited player. See CCSGameRules::RadiusDamage() below.
+// ---------------------------------------------------------------------------------------------------
+ConVar mp_burn_radius_damage(
+	"mp_burn_radius_damage",
+	"0",
+	FCVAR_NOTIFY,
+	"Whether a burning player's flame damages entities around him: 0=no (fixes the ignite lag), 1=stock" );
+
+// ---------------------------------------------------------------------------------------------------
 // Collision control. Ported from CS:GO's mp_solid_teammates, generalised to one switch for every
 // player plus the equivalent switches for hostages and thrown grenades. Server side only, never
 // replicated. Every default is 1, which is stock Counter-Strike: Source behaviour (everything
@@ -1172,6 +1181,24 @@ ConVar cl_autohelp(
 
 	void CCSGameRules::RadiusDamage( const CTakeDamageInfo &info, const Vector &vecSrcIn, float flRadius, int iClassIgnore, CBaseEntity * pEntityIgnore )
 	{
+		// Napalm lag fix (the same thing the community "Napalm Lag Fix" SourceMod plugin detours
+		// into this very function for). An ignited player carries a CEntityFlame that calls
+		// RadiusDamage() every FLAME_DAMAGE_INTERVAL (0.2 s) with the burning player himself as
+		// pEntityIgnore, so the fire he is carrying keeps running a full radius pass for as long as
+		// he burns. This class's pass is the expensive one: unlike the HL2 default it probes each
+		// entity in the sphere several times for its explosion adjustment, and the overload below
+		// drops pEntityIgnore on the floor entirely, so the pass also keeps dealing burn damage back
+		// to the burning player and to everyone standing on top of him. With several ignited players
+		// mashed together that repeated cost is enough to hitch or even time the server out, and it
+		// is what the plugin blocks. Dropping these passes is the fix: the burning player still
+		// takes his FLAME_DIRECT_DAMAGE every tick, only the spread to the neighbourhood goes away.
+		// mp_burn_radius_damage 1 restores the stock radius spread for servers that want it.
+		if ( !mp_burn_radius_damage.GetBool() && pEntityIgnore && pEntityIgnore->IsPlayer() &&
+			 ( info.GetDamageType() & DMG_BURN ) )
+		{
+			return;
+		}
+
 		RadiusDamage( info, vecSrcIn, flRadius, iClassIgnore, false );
 	}
 
