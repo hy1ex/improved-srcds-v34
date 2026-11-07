@@ -584,7 +584,22 @@ HL2_DLL_OBJS= \
 	$(HL2_DLL_OBJ_DIR)/ai_behavior_operator.o \
 	$(HL2_DLL_OBJ_DIR)/WaterLODControl.o \
 
-all: dirs $(NAME)_$(ARCH).$(SHLIBEXT)
+all: dirs $(NAME)_$(ARCH).$(SHLIBEXT) undefinedcheck
+
+# The engine supplies a fixed set of exports to the game DLL at load time, so the link cannot
+# use -Wl,--no-undefined. Fail the build instead if the DLL ends up with an undefined symbol
+# that is not one of those exports: the engine would refuse to dlopen it and segfault right
+# after "Console initialized.". See check_undefined.sh. UNDEFCHECK_SKIP=1 bypasses the check.
+UNDEFCHECK_SKIP?=
+
+.PHONY: dirs undefinedcheck
+
+undefinedcheck: $(NAME)_$(ARCH).$(SHLIBEXT)
+	@if [ "$(UNDEFCHECK_SKIP)" = "1" ]; then \
+		echo "undefined symbols: check skipped (UNDEFCHECK_SKIP=1)"; \
+	else \
+		sh ./check_undefined.sh $(BUILD_DIR)/$(NAME)_$(ARCH).$(SHLIBEXT); \
+	fi
 
 dirs:
 	-mkdir -p $(_OBJ_DIR)
