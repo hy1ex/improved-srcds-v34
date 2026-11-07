@@ -45,9 +45,7 @@ extern ConVar mp_respawn_weapons;
 extern ConVar mp_respawn_buytime;
 extern ConVar mp_buy_anywhere;
 extern ConVar mp_solid_player;
-extern ConVar mp_solid_teammates;
 extern ConVar mp_teammates_are_enemies;
-extern ConVar mp_solid_enemies;
 extern ConVar mp_players_nonsolid_time;
 extern ConVar mp_maxmoney;
 #include "weapon_hegrenade.h"
@@ -2408,12 +2406,13 @@ void CCSPlayer::ResetSpawnImmunityRender( void )
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: mp_solid_player / mp_players_nonsolid_time. A collision group belongs to the entity,
-//			not to a relationship, so the group route can only ever express "this player is
-//			non-solid to everyone": that is what mp_solid_player 0 does, and it is the one mode
-//			that removes the push-apart as well as the block. The team-specific switches stay in
-//			ShouldCollide(), and when both of them are off the player is non-solid to everyone,
-//			so the group is used for that case too.
+// Purpose: mp_solid_player / mp_players_nonsolid_time. m_CollisionGroup is a networked field on
+//			every entity and CGameRules::ShouldCollide() drops any pair whose group is
+//			COLLISION_GROUP_DEBRIS_TRIGGER, so player movement, the client's movement prediction
+//			and the prop push-away all ignore a player in that group: the player is walked
+//			through *and* not pushed. A group belongs to the entity rather than to a
+//			relationship, which is why this is one global switch and not a per-team one.
+//			Bullet and damage traces use COLLISION_GROUP_NONE and still hit the player.
 //-----------------------------------------------------------------------------
 void CCSPlayer::UpdateSolidityCollisionGroup( void )
 {
@@ -2424,19 +2423,12 @@ void CCSPlayer::UpdateSolidityCollisionGroup( void )
 
 	if ( !bNonSolid )
 	{
-		if ( !mp_solid_teammates.GetBool() && !mp_solid_enemies.GetBool() )
+		const float flNonSolidTime = mp_players_nonsolid_time.GetFloat();
+
+		if ( flNonSolidTime > 0.0f && m_flLastSpawnTime > 0.0f &&
+			 ( gpGlobals->curtime - m_flLastSpawnTime ) < flNonSolidTime )
 		{
 			bNonSolid = true;
-		}
-		else
-		{
-			const float flNonSolidTime = mp_players_nonsolid_time.GetFloat();
-
-			if ( flNonSolidTime > 0.0f && m_flLastSpawnTime > 0.0f &&
-				 ( gpGlobals->curtime - m_flLastSpawnTime ) < flNonSolidTime )
-			{
-				bNonSolid = true;
-			}
 		}
 	}
 
@@ -2446,75 +2438,6 @@ void CCSPlayer::UpdateSolidityCollisionGroup( void )
 	{
 		SetCollisionGroup( nGroup );
 	}
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: Team tag carried in the player's movement trace mask, so that another player's
-//			ShouldCollide() can tell whether the mover is a teammate or an enemy.
-//			CONTENTS_TEAM1 == CT, CONTENTS_TEAM2 == Terrorist. Both bits mean "recently spawned,
-//			do not collide with players at all" (mp_players_nonsolid_time).
-//-----------------------------------------------------------------------------
-unsigned int CCSPlayer::GetCollisionTeamMask( void ) const
-{
-	unsigned int nMask = 0;
-
-	if ( GetTeamNumber() == TEAM_CT )
-		nMask = CONTENTS_TEAM1;
-	else if ( GetTeamNumber() == TEAM_TERRORIST )
-		nMask = CONTENTS_TEAM2;
-	else
-		return 0;
-
-	const float flNonSolidTime = mp_players_nonsolid_time.GetFloat();
-
-	if ( flNonSolidTime > 0.0f && m_flLastSpawnTime > 0.0f &&
-		 ( gpGlobals->curtime - m_flLastSpawnTime ) < flNonSolidTime )
-	{
-		nMask = CONTENTS_TEAM1 | CONTENTS_TEAM2;
-	}
-
-	return nMask;
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: mp_solid_teammates / mp_solid_enemies. Called for this player with the *other*
-//			entity's collision group and, for movement traces, the mover's solid mask.
-//-----------------------------------------------------------------------------
-bool CCSPlayer::ShouldCollide( int collisionGroup, int contentsMask ) const
-{
-	if ( collisionGroup == COLLISION_GROUP_PLAYER_MOVEMENT )
-	{
-		const unsigned int nBothTeams = CONTENTS_TEAM1 | CONTENTS_TEAM2;
-		const unsigned int nMyMask = GetCollisionTeamMask();
-		const unsigned int nOtherMask = contentsMask & nBothTeams;
-
-		// Either side just spawned: no player-vs-player collision at all.
-		if ( nMyMask == nBothTeams || nOtherMask == nBothTeams )
-			return false;
-
-		if ( nMyMask != 0 && nOtherMask != 0 )
-		{
-			if ( nMyMask == nOtherMask )
-			{
-				// mp_teammates_are_enemies: a teammate counts as an enemy for the solidity rules.
-				if ( mp_teammates_are_enemies.GetBool() )
-				{
-					if ( !mp_solid_enemies.GetBool() )
-						return false;
-				}
-				else if ( !mp_solid_teammates.GetBool() )
-				{
-					return false;
-				}
-			}
-			else if ( !mp_solid_enemies.GetBool() )
-			{
-				return false;
-			}
-		}
-	}
-
-	return BaseClass::ShouldCollide( collisionGroup, contentsMask );
 }
 
 void CCSPlayer::CheckTKPunishment( void )

@@ -114,16 +114,6 @@ unsigned int CCSGameMovement::PlayerSolidMask( bool brushOnly )
 		nMask = isBot ? ( MASK_PLAYERSOLID | CONTENTS_MONSTERCLIP ) : MASK_PLAYERSOLID;
 	}
 
-#ifndef CLIENT_DLL
-	// Feature 5: carry the moving player's team tag in the movement trace mask so that
-	// CCSPlayer::ShouldCollide() can resolve teammate/enemy solidity. The bits are only ever
-	// read back there; they do not match real entity CONTENTS. See FEATURES.md.
-	if ( m_pCSPlayer )
-	{
-		nMask |= m_pCSPlayer->GetCollisionTeamMask();
-	}
-#endif
-
 	return nMask;
 }
 

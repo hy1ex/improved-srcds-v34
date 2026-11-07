@@ -284,21 +284,18 @@ ConVar mp_buy_anywhere(
 	"Buying outside buy zones: 0=stock CS:S, 1=both teams, 2=Terrorists, 3=Counter-Terrorists" );
 
 // ---------------------------------------------------------------------------------------------------
-// Collision control. Ported from CS:GO's mp_solid_teammates plus the equivalent switches for enemies,
-// hostages and thrown grenades. Server side only, never replicated. Every default is 1, which is
-// stock Counter-Strike: Source behaviour (everything blocks).
+// Collision control. Ported from CS:GO's mp_solid_teammates, generalised to one switch for every
+// player plus the equivalent switches for hostages and thrown grenades. Server side only, never
+// replicated. Every default is 1, which is stock Counter-Strike: Source behaviour (everything
+// blocks). A collision group belongs to the entity, so a player cannot be non-solid to teammates
+// only without the stock client pushing him out of the body it still predicts: there is one
+// player switch, not one per team.
 // ---------------------------------------------------------------------------------------------------
-ConVar mp_solid_teammates(
-	"mp_solid_teammates",
+ConVar mp_solid_player(
+	"mp_solid_player",
 	"1",
 	FCVAR_NOTIFY,
-	"Whether teammates block each other's movement (0 = walk through teammates)" );
-
-ConVar mp_solid_enemies(
-	"mp_solid_enemies",
-	"1",
-	FCVAR_NOTIFY,
-	"Whether enemies block each other's movement (0 = walk through enemies)" );
+	"Whether players block each other's movement (0 = walk through every player, no push)" );
 
 ConVar mp_solid_hostages(
 	"mp_solid_hostages",
@@ -311,12 +308,6 @@ ConVar mp_solid_grenades(
 	"1",
 	FCVAR_NOTIFY,
 	"Whether thrown grenade projectiles block player movement (0 = walk through them)" );
-
-ConVar mp_solid_player(
-	"mp_solid_player",
-	"1",
-	FCVAR_NOTIFY,
-	"Whether players block each other at all (0 = every player walks through every other player)" );
 
 ConVar mp_teammates_are_enemies(
 	"mp_teammates_are_enemies",

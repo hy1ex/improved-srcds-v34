@@ -349,9 +349,7 @@ public:
 	int m_nRespawnWeaponCount;
 	int m_nImmunityRenderAlpha;			// last world-model alpha applied for mp_respawn_immunitytime
 
-	// Collision control (mp_solid_*, mp_players_nonsolid_time). See FEATURES.md.
-	unsigned int GetCollisionTeamMask( void ) const;
-	virtual bool ShouldCollide( int collisionGroup, int contentsMask ) const;
+	// Collision control (mp_solid_player, mp_players_nonsolid_time). See FEATURES.md.
 	void UpdateSolidityCollisionGroup( void );
 	float m_flLastSpawnTime;			// curtime of the last spawn, for mp_players_nonsolid_time
 	void CheckTKPunishment( void );

@@ -41,9 +41,7 @@ Source game. For each feature it records:
 | `mp_respawn_weapons` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=default pistol, 1=random, 2=keep |
 | `mp_respawn_buytime` | `4` | [3. Respawn on death](#3-respawn-on-death) | seconds after respawn, 0 = round end |
 | `mp_buy_anywhere` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=stock, 1=both, 2=T, 3=CT (also opens the menu) |
-| `mp_solid_player` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through every player |
-| `mp_solid_teammates` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through teammates |
-| `mp_solid_enemies` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through enemies |
+| `mp_solid_player` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through every player, no push |
 | `mp_solid_hostages` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through hostages |
 | `mp_solid_grenades` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through thrown grenades |
 | `mp_players_nonsolid_time` | `0` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | seconds of spawn/respawn non-solidity |
@@ -274,92 +272,87 @@ not in `BEGIN_DATADESC`, not in the sendtable. The convars are not replicated.
 
 **Origin:** CS:GO `mp_solid_teammates` and `mp_teammates_are_enemies`
 (`game/shared/cstrike15/cs_gamerules.cpp`) together with its collision plumbing, and the shared
-collision-group rules in `game/shared/gamerules.cpp` (`CGameRules::ShouldCollide`). The enemy,
-hostage and grenade switches are the same idea applied to the other blockers;
-`mp_players_nonsolid_time` and `mp_solid_player` are new.
+collision-group rules in `game/shared/gamerules.cpp` (`CGameRules::ShouldCollide`). CS:GO's switch
+is per relationship; this port has one global switch instead, because the engine and a stock client
+cannot express a per-relationship one (see below). The enemy, hostage and grenade switches are the
+same idea applied to the other blockers; `mp_players_nonsolid_time` is new.
 
 **Why:** stock Counter-Strike: Source makes every player, hostage and thrown grenade solid to
-everyone. That is wrong for deathmatch modes (spawn camping, blocked spawn exits), for
-teammate-friendly modes (stair-stepping on teammates), and for servers that want players to walk
-through hostages or grenades without a physics fight.
+everyone. That is wrong for deathmatch modes (spawn camping, blocked spawn exits, no ghosting
+through a crowd), for teammate-friendly modes (stair-stepping on teammates), and for servers that
+want players to walk through hostages or grenades without a physics fight.
 
 **How solidity actually works in this engine.** Two independent filters decide whether you can walk
 into something:
 
-1. **The movement trace.** Player movement traces carry `COLLISION_GROUP_PLAYER_MOVEMENT` and the
-   team tag described below, and both the server's `CTraceFilterSimple` and the client's movement
-   prediction filter entities through `CBaseEntity::ShouldCollide()` and
-   `CGameRules::ShouldCollide()`.
+1. **The movement trace.** Player movement traces carry `COLLISION_GROUP_PLAYER_MOVEMENT`, and both
+   the server's `CTraceFilterSimple` and the client's movement prediction run entities through
+   `CBaseEntity::ShouldCollide()` and `CGameRules::ShouldCollide()`.
 2. **The entity's collision group.** `m_CollisionGroup` is a **networked 5-bit field on every
    entity** (base-entity sendtable), so the client receives it and its prediction uses it too.
    `CGameRules::ShouldCollide()` refuses any pair whose lower group is `COLLISION_GROUP_DEBRIS` or
    `COLLISION_GROUP_DEBRIS_TRIGGER`, so an entity in `COLLISION_GROUP_DEBRIS_TRIGGER` is ignored by
-   player movement, by the prop push-away code (`IsPushAwayEntity` only accepts
-   `COLLISION_GROUP_PUSHAWAY`) and by physics, while traces that use `COLLISION_GROUP_NONE` — bullet
-   and damage traces, most gameplay traces — still hit it. That is why this does not make players
-   unshootable.
+   player movement, by the client's prediction, by the prop push-away code (`IsPushAwayEntity` only
+   accepts `COLLISION_GROUP_PUSHAWAY`) and by physics, while traces that use
+   `COLLISION_GROUP_NONE` — bullet and damage traces, most gameplay traces — still hit it. That is
+   why this does not make players unshootable.
 
-The first filter is enough to *walk through* somebody, but not enough to stop being *pushed*: the
-team switches in `ShouldCollide()` are server-side only, the client cannot see them, and its
-movement prediction keeps resolving the overlap against a body it still believes is solid, so the
-server's correction snaps you out of the other player — "I pass through him but he pushes me". A
-collision group is a property of the entity, not of a relationship, so it can only express "this
-player is non-solid to **everyone**".
+An earlier revision of this feature filtered the *movement trace* only, with a team tag carried in
+the contents mask. Walking through worked, but standing inside somebody still got you pushed out:
+that filter is server-side, the client cannot see it, and its prediction keeps resolving the
+overlap against a body it still believes is solid. The group route was added next to it, and testing
+on this build settled it — `mp_solid_player 0` removes the push, the team-tag switches never did —
+so the team switches were removed. A collision group belongs to the entity, not to a relationship,
+and the client-side push is unavoidable without a client change, which the stock-client rule
+forbids.
 
 **What it does.**
 
-* `mp_solid_player` — `0` puts every player in `COLLISION_GROUP_DEBRIS_TRIGGER` while alive, `1`
-  keeps `COLLISION_GROUP_PLAYER` (stock). This is the mode that removes the block *and* the push,
-  because the client's prediction agrees with the server. It is applied and kept up to date by
-  `CCSPlayer::UpdateSolidityCollisionGroup()` from `PreThink()`, and it is used automatically when
-  both `mp_solid_teammates` and `mp_solid_enemies` are `0`, since that combination means the player
-  is non-solid to everyone anyway.
-* `mp_solid_teammates` / `mp_solid_enemies` — the team-specific switches, implemented as before in
-  `CCSPlayer::ShouldCollide()`: a player's movement traces carry `CONTENTS_TEAM1` (CT) or
-  `CONTENTS_TEAM2` (Terrorist) from `CCSPlayer::GetCollisionTeamMask()`, and the other player's
-  `ShouldCollide()` compares the tags. These cover the walking block; when you are standing *inside*
-  the other player the client-side push described above can still move you, which is the reason
-  `mp_solid_player` exists.
-* `mp_players_nonsolid_time` — for N seconds after a spawn or respawn the player reports **both**
-  tags and is also put in `COLLISION_GROUP_DEBRIS_TRIGGER`, so neither side is blocked or pushed.
-  The timer starts in `CCSPlayer::Spawn()`, which covers players respawned by feature 3 too.
+* `mp_solid_player` — `1` leaves every player in `COLLISION_GROUP_PLAYER` (stock), `0` puts every
+  living player in `COLLISION_GROUP_DEBRIS_TRIGGER`, so no player blocks or pushes any other
+  player. `CCSPlayer::UpdateSolidityCollisionGroup()` runs from `PreThink()` and writes the group
+  only when it changes, so a runtime flip takes effect on the next frame with no respawn. Players
+  inside a vehicle are skipped: the vehicle's own collision decides there. The group is restored to
+  `COLLISION_GROUP_PLAYER` as soon as the convar goes back to `1` or the non-solid window below
+  expires.
+* `mp_players_nonsolid_time` — for N seconds after any spawn or respawn the player is put in
+  `COLLISION_GROUP_DEBRIS_TRIGGER`, so neither side is blocked *or* pushed. The timer starts in
+  `CCSPlayer::Spawn()`, which covers players respawned by feature 3 as well.
 * `mp_solid_hostages` — `0` puts the hostage in `COLLISION_GROUP_DEBRIS_TRIGGER` at spawn, refreshed
   in `CHostage::HostageThink()` so a runtime change takes effect; `1` restores
-  `COLLISION_GROUP_PLAYER` (stock). Players walk through the hostage and neither the player's
-  push-away nor the hostage's own `AvoidPhysicsProps()`/`PushawayThink` shoves anything.
+  `COLLISION_GROUP_PLAYER` (stock). Players walk through the hostage, the player's push-away does
+  not fire, and the hostage's own `AvoidPhysicsProps()`/`PushawayThink` has nothing to shove.
 * `mp_solid_grenades` — `0` puts a thrown projectile in `COLLISION_GROUP_DEBRIS_TRIGGER` in
   `CBaseCSGrenadeProjectile::Spawn()`, which removes it from player movement and from the prop
   push-away; `1` leaves the group the base class assigned (stock). The switch is read when the
   grenade spawns, so it applies to grenades thrown after the change.
-* `mp_teammates_are_enemies` — `1` forces friendly fire on (`CCSGameRules::IsFriendlyFireOn`),
-  makes `CCSGameRules::PlayerRelationship()` report `GR_NOTTEAMMATE` so every rule that asks treats
-  a teammate as an enemy, and makes teammates follow the **enemy** solidity switch instead of the
-  teammate one.
+* `mp_teammates_are_enemies` — `1` forces friendly fire on (`CCSGameRules::IsFriendlyFireOn`) and
+  makes `CCSGameRules::PlayerRelationship()` report `GR_NOTTEAMMATE`, so every rule that asks treats
+  a teammate as an enemy. It applies to damage and to the rules built on top of it (team-kill
+  punishment, bot targeting); it no longer has any solidity side effect, since solidity is a single
+  global switch now.
 
 **Convars**
 
 | Convar | Default | Values | Meaning |
 | --- | --- | --- | --- |
 | `mp_solid_player` | `1` | `0`/`1` | Players block each other at all (stock: yes) |
-| `mp_solid_teammates` | `1` | `0`/`1` | Teammates block movement (stock: yes) |
-| `mp_solid_enemies` | `1` | `0`/`1` | Enemies block movement (stock: yes) |
 | `mp_solid_hostages` | `1` | `0`/`1` | Hostages block movement (stock: yes) |
 | `mp_solid_grenades` | `1` | `0`/`1` | Thrown grenades block movement (stock: yes) |
 | `mp_players_nonsolid_time` | `0` | seconds | Spawn/respawn non-solid window (`0` = off, stock) |
 | `mp_teammates_are_enemies` | `0` | `0`/`1` | Teammates are valid targets (stock: no) |
 
 **Client compatibility.** `m_CollisionGroup` is already in the base-entity sendtable and already
-replicated for every entity, so the client honours these groups without any change on its side.
-`CONTENTS_TEAM1`/`CONTENTS_TEAM2` are game-specific bits already defined in `public/bspflags.h` and
-used by no other code in this tree, so the extra movement-mask bits cannot change what a trace hits.
-No netprop was added, no sendtable changed, no new entity. `m_flLastSpawnTime` is a plain
-server-side member.
+replicated for every entity, so the client honours these groups without any change on its side: no
+netprop was added, no sendtable changed, no new entity, no client command, and the convars are not
+replicated. `m_flLastSpawnTime` is a plain server-side member.
 
 **Limitations.**
 
-* The team switches can still be felt as a push when two players overlap, because the stock client
-  predicts a collision it cannot be told to ignore. Use `mp_solid_player 0` (or set both team
-  switches to `0`) for a push-free mode.
+* Solid or not is all-or-nothing for players: there is no teammate/enemy split and no per-player
+  exclusion, because a collision group is a property of the entity. A per-team split would need the
+  client to be told what its prediction must ignore, i.e. a client change, which the stock-client
+  rule forbids.
 * Damage and hitboxes are untouched: non-solid players and hostages can still be shot, knives still
   hit, and `mp_teammates_are_enemies` gates damage through the normal friendly-fire path.
 * A thrown grenade still *flies* through the world with its own engine-side trace, which uses
@@ -369,8 +362,8 @@ server-side member.
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars, `IsFriendlyFireOn`,
 `PlayerRelationship`), `game_shared/cstrike/cs_gamerules.h`, `dlls/cstrike/cs_player.cpp`
-(`GetCollisionTeamMask`, `ShouldCollide`, `UpdateSolidityCollisionGroup`, `PreThink`, `Spawn`),
-`dlls/cstrike/cs_player.h`, `dlls/cstrike/hostage/cs_simple_hostage.cpp/.h`,
+(`UpdateSolidityCollisionGroup`, `PreThink`, `Spawn`), `dlls/cstrike/cs_player.h`,
+`dlls/cstrike/hostage/cs_simple_hostage.cpp/.h`,
 `game_shared/cstrike/basecsgrenade_projectile.cpp/.h`.
 
 ---
