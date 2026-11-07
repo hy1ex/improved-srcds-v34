@@ -6,6 +6,8 @@
 //=============================================================================//
 
 #include "cbase.h"
+
+extern ConVar mp_buy_anywhere;
 #include "player_command.h"
 #include "igamemovement.h"
 #include "in_buttons.h"
@@ -56,6 +58,16 @@ void CCSPlayerMove::StartCommand( CBasePlayer *player, CUserCmd *cmd )
 	pPlayer->m_bInBombZone = false;
 	pPlayer->m_bInBuyZone = false;
 	pPlayer->m_bInHostageRescueZone = false;
+
+	// mp_buy_anywhere: pin the networked buy-zone bit. The stock v34 client decides on its own
+	// whether to open the buy menu and can only learn about buy zones through this sendprop, so it
+	// has to stay set for a player who is allowed to buy outside a func_buyzone.
+	const int nBuyAnywhere = mp_buy_anywhere.GetInt();
+
+	if ( nBuyAnywhere == 1 || nBuyAnywhere == pPlayer->GetTeamNumber() )
+	{
+		pPlayer->m_bInBuyZone = true;
+	}
 
 	BaseClass::StartCommand( player, cmd );
 }
