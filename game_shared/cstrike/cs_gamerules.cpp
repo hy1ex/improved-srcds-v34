@@ -312,6 +312,18 @@ ConVar mp_solid_grenades(
 	FCVAR_NOTIFY,
 	"Whether thrown grenade projectiles block player movement (0 = walk through them)" );
 
+ConVar mp_solid_player(
+	"mp_solid_player",
+	"1",
+	FCVAR_NOTIFY,
+	"Whether players block each other at all (0 = every player walks through every other player)" );
+
+ConVar mp_teammates_are_enemies(
+	"mp_teammates_are_enemies",
+	"0",
+	FCVAR_NOTIFY,
+	"Treat teammates as enemies: friendly fire is always on and teammates count as enemies" );
+
 ConVar mp_players_nonsolid_time(
 	"mp_players_nonsolid_time",
 	"0.0",
@@ -4699,7 +4711,20 @@ bool CCSGameRules::FAllowNPCs( void )
 
 bool CCSGameRules::IsFriendlyFireOn( void )
 {
-	return friendlyfire.GetBool();
+	// mp_teammates_are_enemies makes teammates valid targets, so friendly fire is always on.
+	return friendlyfire.GetBool() || mp_teammates_are_enemies.GetBool();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: mp_teammates_are_enemies. Teammates stop being teammates for every rule that asks
+//			(damage, team-kill penalties, bots), so they can be shot exactly like an enemy.
+//-----------------------------------------------------------------------------
+int CCSGameRules::PlayerRelationship( CBaseEntity *pPlayer, CBaseEntity *pTarget )
+{
+	if ( mp_teammates_are_enemies.GetBool() )
+		return GR_NOTTEAMMATE;
+
+	return BaseClass::PlayerRelationship( pPlayer, pTarget );
 }
 
 CON_COMMAND( map_showspawnpoints, "Shows player spawn points (red=invalid)" )

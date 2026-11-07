@@ -133,6 +133,14 @@ bool CBaseCSGrenadeProjectile::ShouldCollide( int collisionGroup, int contentsMa
 		SetMoveType( MOVETYPE_FLYGRAVITY, MOVECOLLIDE_FLY_CUSTOM );
 		SetSolid( SOLID_BBOX );	// So it will collide with physics props!
 
+		// mp_solid_grenades 0: the debris group is ignored by player movement and by the prop
+		// push-away, so players walk through the projectile instead of shoving it. 1 keeps the
+		// group the base class gave it, which is stock behaviour.
+		if ( !mp_solid_grenades.GetBool() )
+		{
+			SetCollisionGroup( COLLISION_GROUP_DEBRIS_TRIGGER );
+		}
+
 		// smaller, cube bounding box so we rest on the ground
 		SetSize( Vector ( -2, -2, -2 ), Vector ( 2, 2, 2 ) );
 	}

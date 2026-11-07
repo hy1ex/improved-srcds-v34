@@ -137,7 +137,10 @@ void CHostage::Spawn( void )
 	SetSolid( SOLID_BBOX );
 	AddSolidFlags( FSOLID_NOT_STANDABLE );
 	SetMoveType( MOVETYPE_STEP );
-	SetCollisionGroup( COLLISION_GROUP_PLAYER );
+
+	// mp_solid_hostages 0: put the hostage in the debris group, which neither player movement nor
+	// the prop push-away looks at, so players walk through it without shoving it around.
+	SetCollisionGroup( mp_solid_hostages.GetBool() ? COLLISION_GROUP_PLAYER : COLLISION_GROUP_DEBRIS_TRIGGER );
 
 	SetGravity( 1.0 );
 
@@ -719,6 +722,16 @@ void CHostage::HostageThink( void )
 	UpdateFollowing( deltaT );
 
 	AvoidPhysicsProps();
+
+	// mp_solid_hostages can be changed at runtime, and the group belongs to the entity.
+	{
+		const int nGroup = mp_solid_hostages.GetBool() ? COLLISION_GROUP_PLAYER : COLLISION_GROUP_DEBRIS_TRIGGER;
+
+		if ( GetCollisionGroup() != nGroup )
+		{
+			SetCollisionGroup( nGroup );
+		}
+	}
 
 	// update hostage velocity in the XY plane
 	const float damping = 2.0f;

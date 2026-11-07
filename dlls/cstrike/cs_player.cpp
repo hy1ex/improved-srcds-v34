@@ -44,7 +44,9 @@ extern ConVar mp_respawn_immunitytime;
 extern ConVar mp_respawn_weapons;
 extern ConVar mp_respawn_buytime;
 extern ConVar mp_buy_anywhere;
+extern ConVar mp_solid_player;
 extern ConVar mp_solid_teammates;
+extern ConVar mp_teammates_are_enemies;
 extern ConVar mp_solid_enemies;
 extern ConVar mp_players_nonsolid_time;
 extern ConVar mp_maxmoney;
@@ -2406,6 +2408,47 @@ void CCSPlayer::ResetSpawnImmunityRender( void )
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: mp_solid_player / mp_players_nonsolid_time. A collision group belongs to the entity,
+//			not to a relationship, so the group route can only ever express "this player is
+//			non-solid to everyone": that is what mp_solid_player 0 does, and it is the one mode
+//			that removes the push-apart as well as the block. The team-specific switches stay in
+//			ShouldCollide(), and when both of them are off the player is non-solid to everyone,
+//			so the group is used for that case too.
+//-----------------------------------------------------------------------------
+void CCSPlayer::UpdateSolidityCollisionGroup( void )
+{
+	if ( !IsAlive() || GetVehicle() != NULL )
+		return;
+
+	bool bNonSolid = !mp_solid_player.GetBool();
+
+	if ( !bNonSolid )
+	{
+		if ( !mp_solid_teammates.GetBool() && !mp_solid_enemies.GetBool() )
+		{
+			bNonSolid = true;
+		}
+		else
+		{
+			const float flNonSolidTime = mp_players_nonsolid_time.GetFloat();
+
+			if ( flNonSolidTime > 0.0f && m_flLastSpawnTime > 0.0f &&
+				 ( gpGlobals->curtime - m_flLastSpawnTime ) < flNonSolidTime )
+			{
+				bNonSolid = true;
+			}
+		}
+	}
+
+	const int nGroup = bNonSolid ? COLLISION_GROUP_DEBRIS_TRIGGER : COLLISION_GROUP_PLAYER;
+
+	if ( GetCollisionGroup() != nGroup )
+	{
+		SetCollisionGroup( nGroup );
+	}
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: Team tag carried in the player's movement trace mask, so that another player's
 //			ShouldCollide() can tell whether the mover is a teammate or an enemy.
 //			CONTENTS_TEAM1 == CT, CONTENTS_TEAM2 == Terrorist. Both bits mean "recently spawned,
@@ -2453,8 +2496,16 @@ bool CCSPlayer::ShouldCollide( int collisionGroup, int contentsMask ) const
 		{
 			if ( nMyMask == nOtherMask )
 			{
-				if ( !mp_solid_teammates.GetBool() )
+				// mp_teammates_are_enemies: a teammate counts as an enemy for the solidity rules.
+				if ( mp_teammates_are_enemies.GetBool() )
+				{
+					if ( !mp_solid_enemies.GetBool() )
+						return false;
+				}
+				else if ( !mp_solid_teammates.GetBool() )
+				{
 					return false;
+				}
 			}
 			else if ( !mp_solid_enemies.GetBool() )
 			{
@@ -2547,6 +2598,7 @@ void CCSPlayer::PreThink()
 	}
 
 	UpdateSpawnImmunityRender();
+	UpdateSolidityCollisionGroup();
 
 	ResetMaxSpeed();
 	State_PreThink();

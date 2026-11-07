@@ -306,6 +306,7 @@ protected:
 public:
 
 	bool IsFriendlyFireOn();
+	virtual int PlayerRelationship( CBaseEntity *pPlayer, CBaseEntity *pTarget );
 
 	virtual void	SetAllowWeaponSwitch( bool allow );
 	virtual bool	GetAllowWeaponSwitch( void );

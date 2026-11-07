@@ -352,6 +352,7 @@ public:
 	// Collision control (mp_solid_*, mp_players_nonsolid_time). See FEATURES.md.
 	unsigned int GetCollisionTeamMask( void ) const;
 	virtual bool ShouldCollide( int collisionGroup, int contentsMask ) const;
+	void UpdateSolidityCollisionGroup( void );
 	float m_flLastSpawnTime;			// curtime of the last spawn, for mp_players_nonsolid_time
 	void CheckTKPunishment( void );
 
