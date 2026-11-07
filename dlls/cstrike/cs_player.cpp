@@ -2901,12 +2901,20 @@ bool CCSPlayer::HasSecondaryWeapon( void )
 	return bSuccess;
 }
 
-bool CCSPlayer::IsInBuyZone()
+//-----------------------------------------------------------------------------
+// Purpose: mp_buy_anywhere: is this player allowed to buy outside func_buyzone volumes?
+//			0 = stock CS:S, 1 = both teams, 2 = Terrorists, 3 = Counter-Terrorists.
+//-----------------------------------------------------------------------------
+bool CCSPlayer::IsBuyAnywhere()
 {
-	// mp_buy_anywhere: 0 = stock CS:S, 1 = both teams, 2 = Terrorists, 3 = Counter-Terrorists.
 	const int nBuyAnywhere = mp_buy_anywhere.GetInt();
 
-	if ( nBuyAnywhere == 1 || nBuyAnywhere == GetTeamNumber() )
+	return ( nBuyAnywhere == 1 || nBuyAnywhere == GetTeamNumber() );
+}
+
+bool CCSPlayer::IsInBuyZone()
+{
+	if ( IsBuyAnywhere() )
 		return !IsVIP();
 
 	return m_bInBuyZone && !IsVIP();
@@ -2943,7 +2951,9 @@ bool CCSPlayer::CanPlayerBuy( bool display )
 
 	int buyTime = (int)(mp_buytime.GetFloat() * 60);
 
-	if ( buyTime < mp->GetRoundElapsedTime() && !bRespawnBuyWindow )
+	// mp_buy_anywhere is a mode in which the buy window does not apply: buying stays available for
+	// the whole round, so a long round cannot lock every player out after mp_buytime.
+	if ( buyTime < mp->GetRoundElapsedTime() && !bRespawnBuyWindow && !IsBuyAnywhere() )
 	{
 		if ( display == true )
 		{

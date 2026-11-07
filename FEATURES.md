@@ -40,7 +40,7 @@ Source game. For each feature it records:
 | `mp_respawn_immunitytime` | `4` | [3. Respawn on death](#3-respawn-on-death) | seconds of damage immunity + model fade |
 | `mp_respawn_weapons` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=default pistol, 1=random, 2=keep |
 | `mp_respawn_buytime` | `4` | [3. Respawn on death](#3-respawn-on-death) | seconds after respawn, 0 = round end |
-| `mp_buy_anywhere` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=stock, 1=both, 2=T, 3=CT (also opens the menu) |
+| `mp_buy_anywhere` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=stock, 1=both, 2=T, 3=CT (opens the menu, ignores `mp_buytime`) |
 | `mp_solid_player` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through every player, no push |
 | `mp_solid_hostages` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through hostages |
 | `mp_solid_grenades` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through thrown grenades |
@@ -216,6 +216,12 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
   `func_buy_zone` sets on touch, and it is what a stock v34 client checks before it opens the
   menu. The bit is cleared every command by the stock code and re-set here, so a player who loses
   the right loses the menu again immediately.
+  In this mode `mp_buytime` no longer applies to the players it covers: buying stays available for
+  the whole round instead of only the first `mp_buytime` minutes. Without that, buy anywhere was
+  still useless on a long round, because `CCSPlayer::CanPlayerBuy()` refused every purchase once the
+  window had run out and no one on the server could buy anything. The exemption is per player
+  (`CCSPlayer::IsBuyAnywhere()`), so with `2` or `3` only the enabled team keeps buying late while
+  the other team stays on the stock buy window.
 
 **Convars**
 
@@ -228,7 +234,7 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
 | `mp_respawn_immunitytime` | `4` | seconds, `0` = off | Damage immunity and model fade after a respawn (CS:GO default `4.0`) |
 | `mp_respawn_weapons` | `0` | `0`-`2` | Loadout policy after a respawn |
 | `mp_respawn_buytime` | `4` | seconds, `0` = round end | Buy window after a respawn (default matches `mp_respawn_immunitytime`) |
-| `mp_buy_anywhere` | `0` | `0`-`3` | Buy outside buy zones, optionally per team |
+| `mp_buy_anywhere` | `0` | `0`-`3` | Buy outside buy zones for the whole round, optionally per team (`mp_buytime` ignored) |
 
 The respawn feature itself is **off by default** (`mp_respawn_on_death_ct/t 0`), so a stock server
 never respawns anyone: immunity, the fade, the buy window and the loadout policy are all inert.
@@ -256,6 +262,8 @@ not in `BEGIN_DATADESC`, not in the sendtable. The convars are not replicated.
 * Round win conditions are unchanged: respawning does not disable `mp_roundtime`, `mp_maxrounds`,
   `mp_winlimit` or the objective checks. Servers that want pure deathmatch should set a long round
   time and `ignore_round_win_conditions`-style rules themselves.
+* `mp_buytime` is ignored only for the players `mp_buy_anywhere` covers; the round's own buy
+  window still applies to everyone else, so a mixed server keeps stock timing for the other team.
 * The buy-menu bit is the only buy-zone signal a stock client exposes. If a particular client build
   gates the menu on something else, `mp_buy_anywhere` keeps working for the console commands but the
   VGUI menu cannot be opened without a client DLL change, which the stock-client rule forbids.

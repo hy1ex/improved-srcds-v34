@@ -586,6 +586,7 @@ public:
 	int m_iBombSiteIndex;
 
 	bool IsInBuyZone();
+	bool IsBuyAnywhere();
 	bool CanPlayerBuy( bool display );
 
 	CNetworkVar( bool, m_bInHostageRescueZone );
