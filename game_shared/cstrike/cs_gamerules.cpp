@@ -277,6 +277,12 @@ ConVar mp_respawn_buytime(
 	FCVAR_NOTIFY,
 	"Seconds after respawning during which the player may buy; 0 = until the round ends" );
 
+ConVar mp_respawn_immunity_fade(
+	"mp_respawn_immunity_fade",
+	"1",
+	FCVAR_NOTIFY,
+	"Visual for mp_respawn_immunitytime: 0=none, 1=fade in, 2=fixed half transparency, snap back" );
+
 ConVar mp_buy_anywhere(
 	"mp_buy_anywhere",
 	"0",

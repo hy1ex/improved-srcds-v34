@@ -41,6 +41,7 @@ extern ConVar mp_respawn_on_death_t;
 extern ConVar mp_respawnwavetime_ct;
 extern ConVar mp_respawnwavetime_t;
 extern ConVar mp_respawn_immunitytime;
+extern ConVar mp_respawn_immunity_fade;
 extern ConVar mp_respawn_weapons;
 extern ConVar mp_respawn_buytime;
 extern ConVar mp_buy_anywhere;
@@ -2348,18 +2349,20 @@ bool CCSPlayer::IsSpawnImmune( void ) const
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: mp_respawn_immunitytime visual. A respawned player's world model starts almost
-//			transparent and fades in to fully opaque as the immunity expires, the way CS:GO
-//			shows spawn protection.
+// Purpose: mp_respawn_immunitytime visual, selected by mp_respawn_immunity_fade:
+//			0 = no visual at all, 1 = the world model starts almost transparent and fades in to
+//			fully opaque as the immunity expires (CS:GO's spawn protection look), 2 = a fixed half
+//			transparency for the whole window and a straight snap back to opaque when it ends.
 //			Only m_nRenderMode / m_clrRender are written, and both are stock networked fields
 //			that every v34 client already receives and renders, so no new netprop, usermessage
 //			or client support is involved.
 //-----------------------------------------------------------------------------
 void CCSPlayer::UpdateSpawnImmunityRender( void )
 {
+	const int nFadeMode = mp_respawn_immunity_fade.GetInt();
 	const float flTotal = mp_respawn_immunitytime.GetFloat();
 
-	if ( !IsAlive() || m_flSpawnImmuneUntil <= 0.0f || flTotal <= 0.0f )
+	if ( nFadeMode == 0 || !IsAlive() || m_flSpawnImmuneUntil <= 0.0f || flTotal <= 0.0f )
 	{
 		ResetSpawnImmunityRender();
 		return;
@@ -2373,20 +2376,32 @@ void CCSPlayer::UpdateSpawnImmunityRender( void )
 		return;
 	}
 
-	float flFade = 1.0f - ( flRemaining / flTotal );
+	int nAlpha;
 
-	if ( flFade < 0.0f )
-		flFade = 0.0f;
-	else if ( flFade > 1.0f )
-		flFade = 1.0f;
+	if ( nFadeMode == 2 )
+	{
+		// Half transparent for the whole immunity window; the reset below snaps it back to 255
+		// with no transition once the window is over.
+		nAlpha = 128;
+	}
+	else
+	{
+		float flFade = 1.0f - ( flRemaining / flTotal );
 
-	// Never fully invisible: a faint model still shows where the protected player is, which is
-	// what CS:GO does too.
-	int nAlpha = (int)( flFade * 255.0f );
+		if ( flFade < 0.0f )
+			flFade = 0.0f;
+		else if ( flFade > 1.0f )
+			flFade = 1.0f;
 
-	if ( nAlpha < 16 )
-		nAlpha = 16;
-	else if ( nAlpha > 255 )
+		// Never fully invisible: a faint model still shows where the protected player is, which
+		// is what CS:GO does too.
+		nAlpha = (int)( flFade * 255.0f );
+
+		if ( nAlpha < 16 )
+			nAlpha = 16;
+	}
+
+	if ( nAlpha > 255 )
 		nAlpha = 255;
 
 	if ( nAlpha == m_nImmunityRenderAlpha )

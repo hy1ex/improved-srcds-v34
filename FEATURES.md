@@ -38,6 +38,7 @@ Source game. For each feature it records:
 | `mp_respawnwavetime_ct` | `10` | [3. Respawn on death](#3-respawn-on-death) | seconds |
 | `mp_respawnwavetime_t` | `10` | [3. Respawn on death](#3-respawn-on-death) | seconds |
 | `mp_respawn_immunitytime` | `4` | [3. Respawn on death](#3-respawn-on-death) | seconds of damage immunity + model fade |
+| `mp_respawn_immunity_fade` | `1` | [3. Respawn on death](#3-respawn-on-death) | 0=none, 1=fade in, 2=half transparent |
 | `mp_respawn_weapons` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=default pistol, 1=random, 2=keep |
 | `mp_respawn_buytime` | `4` | [3. Respawn on death](#3-respawn-on-death) | seconds after respawn, 0 = round end |
 | `mp_buy_anywhere` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=stock, 1=both, 2=T, 3=CT (also opens the menu) |
@@ -194,13 +195,23 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
 * `mp_respawn_immunitytime` grants damage immunity after a respawn. Damage is dropped at the top of
   `CCSPlayer::OnTakeDamage`, so nothing (bullets, grenades, falls) can hurt the player during the
   window. `0` disables it.
-  The same window fades the player's **world model** in: `CCSPlayer::UpdateSpawnImmunityRender()`
-  runs from `PreThink()` and drives `SetRenderMode( kRenderTransTexture )` +
-  `SetRenderColorA()`, from almost transparent right after the respawn to fully opaque when the
-  immunity expires, which is how CS:GO shows spawn protection. The fade is cleared again by
-  `ResetSpawnImmunityRender()` when the immunity ends, on death and on an ordinary spawn, so a
-  player can never be left translucent. `m_nRenderMode` and `m_clrRender` are stock networked
-  entity fields, so this needs no new netprop and no client support.
+  The same window can show on the player's **world model**, selected by
+  `mp_respawn_immunity_fade`: `0` draws nothing at all (immunity is then invisible), `1` (default)
+  fades the model in, and `2` holds it at half transparency for the whole window. The fade mode is
+  `CCSPlayer::UpdateSpawnImmunityRender()`, which runs from `PreThink()` and drives
+  `SetRenderMode( kRenderTransTexture )` + `SetRenderColorA()`:
+  * `1` — almost transparent right after the respawn, getting more opaque every frame, fully opaque
+    exactly when the immunity expires. This is how CS:GO shows spawn protection. Alpha never drops
+    below 16, so the player is never completely invisible.
+  * `2` — alpha pinned at 128 (50%) for the entire immunity window with no animation, then a
+    straight snap back to 255 when the window ends. No transition frame is drawn by the server: the
+    model simply becomes opaque.
+  * `0` — no render changes at all, so a protected player looks like everybody else.
+
+  Every mode is cleared again by `ResetSpawnImmunityRender()` when the immunity ends, on death, on
+  an ordinary spawn and when the mode is switched to `0` mid-window, so a player can never be left
+  translucent. `m_nRenderMode` and `m_clrRender` are stock networked entity fields, so this needs no
+  new netprop and no client support.
 * `mp_respawn_buytime` re-opens the buy menu for a short window after a respawn even when the
   round's normal `mp_buytime` has already elapsed. `0` means "until the round ends". This window
   only ever applies to players actually respawned by this feature (`m_flRespawnTime` is cleared by
@@ -234,6 +245,7 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
 | `mp_respawnwavetime_ct` | `10` | seconds | CT respawn delay |
 | `mp_respawnwavetime_t` | `10` | seconds | Terrorist respawn delay |
 | `mp_respawn_immunitytime` | `4` | seconds, `0` = off | Damage immunity and model fade after a respawn (CS:GO default `4.0`) |
+| `mp_respawn_immunity_fade` | `1` | `0`-`2` | Immunity visual: `0` none, `1` fade in, `2` fixed half transparency |
 | `mp_respawn_weapons` | `0` | `0`-`2` | Loadout policy after a respawn |
 | `mp_respawn_buytime` | `4` | seconds, `0` = round end | Buy window after a respawn (default matches `mp_respawn_immunitytime`) |
 | `mp_buy_anywhere` | `0` | `0`-`3` | Buy outside buy zones, optionally per team |
