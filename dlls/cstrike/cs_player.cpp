@@ -45,7 +45,6 @@ extern ConVar mp_respawn_immunity_fade;
 extern ConVar mp_respawn_weapons;
 extern ConVar mp_respawn_buytime;
 extern ConVar mp_buy_anywhere;
-extern ConVar mp_ignore_buytime;
 extern ConVar mp_solid_player;
 extern ConVar mp_teammates_are_enemies;
 extern ConVar mp_players_nonsolid_time;
@@ -3091,9 +3090,7 @@ bool CCSPlayer::CanPlayerBuy( bool display )
 
 	int buyTime = (int)(mp_buytime.GetFloat() * 60);
 
-	// mp_ignore_buytime: the buy window does not apply, so buying stays available for the whole
-	// round instead of locking everybody out once mp_buytime has run out.
-	if ( buyTime < mp->GetRoundElapsedTime() && !bRespawnBuyWindow && !mp_ignore_buytime.GetBool() )
+	if ( buyTime < mp->GetRoundElapsedTime() && !bRespawnBuyWindow )
 	{
 		if ( display == true )
 		{

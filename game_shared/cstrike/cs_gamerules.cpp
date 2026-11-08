@@ -289,12 +289,6 @@ ConVar mp_buy_anywhere(
 	FCVAR_NOTIFY,
 	"Buying outside buy zones: 0=stock CS:S, 1=both teams, 2=Terrorists, 3=Counter-Terrorists" );
 
-ConVar mp_ignore_buytime(
-	"mp_ignore_buytime",
-	"0",
-	FCVAR_NOTIFY,
-	"Whether mp_buytime is ignored, letting players buy at any time during the round" );
-
 // ---------------------------------------------------------------------------------------------------
 // Burn spread from an ignited player. See CCSGameRules::RadiusDamage() below.
 // ---------------------------------------------------------------------------------------------------
