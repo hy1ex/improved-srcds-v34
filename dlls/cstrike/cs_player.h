@@ -352,6 +352,7 @@ public:
 	// Collision control (mp_solid_player, mp_players_nonsolid_time). See FEATURES.md.
 	void UpdateSolidityCollisionGroup( void );
 	void UnstickFromPlayers( void );
+	void DebugSolidityState( void );		// TEMPORARY DEBUG, remove with the rest of the debug helpers
 	float m_flLastSpawnTime;			// curtime of the last spawn, for mp_players_nonsolid_time
 	bool m_bWasNonsolidPlayer;			// last group was the non-solid one, for the unstick check
 	void CheckTKPunishment( void );

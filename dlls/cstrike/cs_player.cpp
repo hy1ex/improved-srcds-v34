@@ -50,6 +50,17 @@ extern ConVar mp_solid_player;
 extern ConVar mp_teammates_are_enemies;
 extern ConVar mp_players_nonsolid_time;
 extern ConVar mp_maxmoney;
+
+// ---------------------------------------------------------------------------------------------------
+// TEMPORARY DEBUG (remove before release): traces the solidity / unstick state.
+//   mp_debug_solidity 0         off
+//   mp_debug_solidity 1         log every solidity state change, every unstick pass
+//   mp_debug_solidity 2         also log every think and every rejected unstick candidate
+//   mp_solidity_dump            print the current state of every player
+//   mp_solidity_unstick <idx>   force the unstick pass on one player
+// ---------------------------------------------------------------------------------------------------
+ConVar mp_debug_solidity( "mp_debug_solidity", "0", FCVAR_NONE,
+	"TEMPORARY DEBUG: 0 off, 1 log solidity state changes, 2 log every think" );
 #include "weapon_hegrenade.h"
 #include "weapon_flashbang.h"
 #include "weapon_smokegrenade.h"
@@ -2438,8 +2449,18 @@ void CCSPlayer::ResetSpawnImmunityRender( void )
 //-----------------------------------------------------------------------------
 void CCSPlayer::UpdateSolidityCollisionGroup( void )
 {
+	// TEMPORARY DEBUG (mp_debug_solidity), remove with the rest of the debug helpers.
+	const int nDebug = mp_debug_solidity.GetInt();
+
 	if ( !IsAlive() || GetVehicle() != NULL )
+	{
+		if ( nDebug >= 2 )
+		{
+			Msg( "[solidity] ent %d think skipped: alive=%d vehicle=%d group=%d wasNonsolid=%d\n",
+				entindex(), IsAlive() ? 1 : 0, GetVehicle() ? 1 : 0, GetCollisionGroup(), m_bWasNonsolidPlayer ? 1 : 0 );
+		}
 		return;
+	}
 
 	bool bNonSolid = !mp_solid_player.GetBool();
 
@@ -2455,16 +2476,37 @@ void CCSPlayer::UpdateSolidityCollisionGroup( void )
 	}
 
 	const int nGroup = bNonSolid ? COLLISION_GROUP_DEBRIS_TRIGGER : COLLISION_GROUP_PLAYER;
+	const bool bGroupChanged = ( GetCollisionGroup() != nGroup );
 
-	if ( GetCollisionGroup() != nGroup )
+	if ( nDebug >= 2 || ( nDebug >= 1 && ( bGroupChanged || bNonSolid != m_bWasNonsolidPlayer ) ) )
 	{
+		Msg( "[solidity] ent %d think: curtime=%.3f solid_player=%d nonsolid_time=%.2f lastSpawn=%.2f age=%.2f bNonSolid=%d group=%d target=%d groupChanged=%d wasNonsolid=%d\n",
+			entindex(), gpGlobals->curtime, mp_solid_player.GetBool() ? 1 : 0, mp_players_nonsolid_time.GetFloat(),
+			m_flLastSpawnTime, ( m_flLastSpawnTime > 0.0f ) ? ( gpGlobals->curtime - m_flLastSpawnTime ) : -1.0f,
+			bNonSolid ? 1 : 0, GetCollisionGroup(), nGroup, bGroupChanged ? 1 : 0, m_bWasNonsolidPlayer ? 1 : 0 );
+	}
+
+	if ( bGroupChanged )
+	{
+		const int nOldGroup = GetCollisionGroup();
+
 		SetCollisionGroup( nGroup );
+
+		if ( nDebug >= 1 )
+		{
+			Msg( "[solidity] ent %d collision group %d -> %d\n", entindex(), nOldGroup, nGroup );
+		}
 
 		// Turning solid again (the non-solid window ran out, or mp_solid_player went back to 1)
 		// while standing inside another player would leave both of them stuck in each other until
 		// the movement solver separates them, so move out of the other player's model right now.
 		if ( !bNonSolid && m_bWasNonsolidPlayer )
 		{
+			if ( nDebug >= 1 )
+			{
+				Msg( "[solidity] ent %d turned solid again, running the unstick pass\n", entindex() );
+			}
+
 			UnstickFromPlayers();
 		}
 	}
@@ -2479,6 +2521,10 @@ void CCSPlayer::UpdateSolidityCollisionGroup( void )
 //-----------------------------------------------------------------------------
 void CCSPlayer::UnstickFromPlayers( void )
 {
+	// TEMPORARY DEBUG (mp_debug_solidity), remove with the rest of the debug helpers.
+	const int nDebug = mp_debug_solidity.GetInt();
+	bool bAnyMoved = false;
+
 	const Vector vecOrigin = GetAbsOrigin();
 
 	Vector vecMyMin, vecMyMax;
@@ -2486,6 +2532,15 @@ void CCSPlayer::UnstickFromPlayers( void )
 
 	const Vector vecRelativeMins = vecMyMin - vecOrigin;
 	const Vector vecRelativeMaxs = vecMyMax - vecOrigin;
+
+	if ( nDebug >= 1 )
+	{
+		Msg( "[unstick] ent %d start: origin=(%.1f %.1f %.1f) aabb=(%.1f %.1f %.1f)..(%.1f %.1f %.1f) hull=(%.1f %.1f %.1f)..(%.1f %.1f %.1f)\n",
+			entindex(), vecOrigin.x, vecOrigin.y, vecOrigin.z,
+			vecMyMin.x, vecMyMin.y, vecMyMin.z, vecMyMax.x, vecMyMax.y, vecMyMax.z,
+			vecRelativeMins.x, vecRelativeMins.y, vecRelativeMins.z,
+			vecRelativeMaxs.x, vecRelativeMaxs.y, vecRelativeMaxs.z );
+	}
 
 	CTraceFilterSimple filter( this, COLLISION_GROUP_PLAYER_MOVEMENT );
 
@@ -2496,17 +2551,26 @@ void CCSPlayer::UnstickFromPlayers( void )
 		if ( !pOther || pOther == this || !pOther->IsAlive() )
 			continue;
 
-		// A player who is still non-solid cannot trap anybody.
-		if ( pOther->GetCollisionGroup() != COLLISION_GROUP_PLAYER )
-			continue;
-
 		Vector vecOtherMin, vecOtherMax;
 		pOther->CollisionProp()->WorldSpaceAABB( &vecOtherMin, &vecOtherMax );
 
 		// Overlapping only if the boxes intersect on all three axes.
-		if ( vecMyMax.x <= vecOtherMin.x || vecMyMin.x >= vecOtherMax.x ||
-			 vecMyMax.y <= vecOtherMin.y || vecMyMin.y >= vecOtherMax.y ||
-			 vecMyMax.z <= vecOtherMin.z || vecMyMin.z >= vecOtherMax.z )
+		const bool bOverlapping = !( vecMyMax.x <= vecOtherMin.x || vecMyMin.x >= vecOtherMax.x ||
+									 vecMyMax.y <= vecOtherMin.y || vecMyMin.y >= vecOtherMax.y ||
+									 vecMyMax.z <= vecOtherMin.z || vecMyMin.z >= vecOtherMax.z );
+
+		if ( nDebug >= 1 )
+		{
+			Msg( "[unstick] ent %d vs ent %d: otherGroup=%d overlapping=%d otherOrigin=(%.1f %.1f %.1f)\n",
+				entindex(), pOther->entindex(), pOther->GetCollisionGroup(), bOverlapping ? 1 : 0,
+				pOther->GetAbsOrigin().x, pOther->GetAbsOrigin().y, pOther->GetAbsOrigin().z );
+		}
+
+		// A player who is still non-solid cannot trap anybody.
+		if ( pOther->GetCollisionGroup() != COLLISION_GROUP_PLAYER )
+			continue;
+
+		if ( !bOverlapping )
 			continue;
 
 		// Move away from the other player; a fixed direction when the two origins coincide, so the
@@ -2543,7 +2607,15 @@ void CCSPlayer::UnstickFromPlayers( void )
 								MASK_PLAYERSOLID, &filter, &tr );
 
 				if ( tr.startsolid || tr.fraction < 1.0f )
+				{
+					if ( nDebug >= 2 )
+					{
+						Msg( "[unstick] ent %d candidate dist=%.0f dir=%d pos=(%.1f %.1f %.1f) blocked (startsolid=%d fraction=%.2f hit=%s)\n",
+							entindex(), flDistance, iDirection, vecTest.x, vecTest.y, vecTest.z,
+							tr.startsolid ? 1 : 0, tr.fraction, tr.m_pEnt ? tr.m_pEnt->GetClassname() : "none" );
+					}
 					continue;
+				}
 
 				// Settle the spot onto the floor below it rather than leaving the player in the air.
 				trace_t trGround;
@@ -2557,20 +2629,130 @@ void CCSPlayer::UnstickFromPlayers( void )
 								MASK_PLAYERSOLID, &filter, &tr );
 
 				if ( tr.startsolid || tr.fraction < 1.0f )
+				{
+					if ( nDebug >= 2 )
+					{
+						Msg( "[unstick] ent %d candidate dist=%.0f dir=%d pos=(%.1f %.1f %.1f) blocked after ground snap (startsolid=%d fraction=%.2f)\n",
+							entindex(), flDistance, iDirection, vecTest.x, vecTest.y, vecTest.z,
+							tr.startsolid ? 1 : 0, tr.fraction );
+					}
 					continue;
+				}
 
 				Teleport( &vecTest, NULL, &vec3_origin );
 				SetAbsVelocity( vec3_origin );
 				SetGroundEntity( NULL );
 
+				if ( nDebug >= 1 )
+				{
+					Msg( "[unstick] ent %d moved to (%.1f %.1f %.1f) from (%.1f %.1f %.1f), %.0f units from ent %d\n",
+						entindex(), vecTest.x, vecTest.y, vecTest.z, vecOrigin.x, vecOrigin.y, vecOrigin.z,
+						flDistance, pOther->entindex() );
+				}
+
 				bMoved = true;
+				bAnyMoved = true;
 			}
 		}
 
 		if ( bMoved )
 			break;
 	}
+
+	if ( nDebug >= 1 && !bAnyMoved )
+	{
+		Msg( "[unstick] ent %d finished without moving\n", entindex() );
+	}
 }
+
+//-----------------------------------------------------------------------------
+// TEMPORARY DEBUG (remove before release): state dump and forced unstick, driven by
+// mp_debug_solidity / mp_solidity_dump / mp_solidity_unstick.
+//-----------------------------------------------------------------------------
+void CCSPlayer::DebugSolidityState( void )
+{
+	Vector vecMin, vecMax;
+	CollisionProp()->WorldSpaceAABB( &vecMin, &vecMax );
+
+	Msg( "[solidity] ent %2d %-16s alive=%d vehicle=%d group=%d wasNonsolid=%d lastSpawn=%.2f age=%.2f origin=(%.1f %.1f %.1f) aabb=(%.1f %.1f %.1f)..(%.1f %.1f %.1f) solid_player=%d nonsolid_time=%.2f debug=%d\n",
+		entindex(), GetPlayerName(), IsAlive() ? 1 : 0, GetVehicle() ? 1 : 0, GetCollisionGroup(),
+		m_bWasNonsolidPlayer ? 1 : 0, m_flLastSpawnTime,
+		( m_flLastSpawnTime > 0.0f ) ? ( gpGlobals->curtime - m_flLastSpawnTime ) : -1.0f,
+		GetAbsOrigin().x, GetAbsOrigin().y, GetAbsOrigin().z,
+		vecMin.x, vecMin.y, vecMin.z, vecMax.x, vecMax.y, vecMax.z,
+		mp_solid_player.GetBool() ? 1 : 0, mp_players_nonsolid_time.GetFloat(), mp_debug_solidity.GetInt() );
+}
+
+static void cc_SolidityDump_f()
+{
+	Msg( "[solidity] curtime=%.3f solid_player=%d nonsolid_time=%.2f debug=%d\n",
+		gpGlobals->curtime, mp_solid_player.GetBool() ? 1 : 0, mp_players_nonsolid_time.GetFloat(), mp_debug_solidity.GetInt() );
+
+	for ( int i = 1; i <= gpGlobals->maxClients; ++i )
+	{
+		CCSPlayer *pPlayer = ToCSPlayer( UTIL_PlayerByIndex( i ) );
+
+		if ( pPlayer )
+			pPlayer->DebugSolidityState();
+	}
+
+	for ( int i = 1; i <= gpGlobals->maxClients; ++i )
+	{
+		CCSPlayer *pA = ToCSPlayer( UTIL_PlayerByIndex( i ) );
+
+		if ( !pA || !pA->IsAlive() )
+			continue;
+
+		Vector vecAMin, vecAMax;
+		pA->CollisionProp()->WorldSpaceAABB( &vecAMin, &vecAMax );
+
+		for ( int j = i + 1; j <= gpGlobals->maxClients; ++j )
+		{
+			CCSPlayer *pB = ToCSPlayer( UTIL_PlayerByIndex( j ) );
+
+			if ( !pB || !pB->IsAlive() )
+				continue;
+
+			Vector vecBMin, vecBMax;
+			pB->CollisionProp()->WorldSpaceAABB( &vecBMin, &vecBMax );
+
+			if ( vecAMax.x <= vecBMin.x || vecAMin.x >= vecBMax.x ||
+				 vecAMax.y <= vecBMin.y || vecAMin.y >= vecBMax.y ||
+				 vecAMax.z <= vecBMin.z || vecAMin.z >= vecBMax.z )
+				continue;
+
+			Msg( "[solidity] OVERLAP ent %d (group %d, wasNonsolid=%d) with ent %d (group %d, wasNonsolid=%d)\n",
+				pA->entindex(), pA->GetCollisionGroup(), pA->m_bWasNonsolidPlayer ? 1 : 0,
+				pB->entindex(), pB->GetCollisionGroup(), pB->m_bWasNonsolidPlayer ? 1 : 0 );
+		}
+	}
+
+	Msg( "[solidity] dump done\n" );
+}
+
+static ConCommand cc_SolidityDump( "mp_solidity_dump", cc_SolidityDump_f, "TEMPORARY DEBUG: print the solidity state of every player" );
+
+static void cc_SolidityUnstick_f()
+{
+	if ( engine->Cmd_Argc() < 2 )
+	{
+		Msg( "usage: mp_solidity_unstick <player index>\n" );
+		return;
+	}
+
+	CCSPlayer *pPlayer = ToCSPlayer( UTIL_PlayerByIndex( atoi( engine->Cmd_Argv( 1 ) ) ) );
+
+	if ( !pPlayer || !pPlayer->IsAlive() )
+	{
+		Msg( "mp_solidity_unstick: no such alive player\n" );
+		return;
+	}
+
+	Msg( "[unstick] forcing the pass on ent %d\n", pPlayer->entindex() );
+	pPlayer->UnstickFromPlayers();
+}
+
+static ConCommand cc_SolidityUnstick( "mp_solidity_unstick", cc_SolidityUnstick_f, "TEMPORARY DEBUG: force the unstick pass on one player" );
 
 void CCSPlayer::CheckTKPunishment( void )
 {
