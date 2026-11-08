@@ -2533,6 +2533,12 @@ void CCSPlayer::UnstickFromPlayers( void )
 	const Vector vecRelativeMins = vecMyMin - vecOrigin;
 	const Vector vecRelativeMaxs = vecMyMax - vecOrigin;
 
+	// Candidate positions are tested with a hull shrunk by one unit on every side. A player standing
+	// on the floor has his hull bottom exactly on the surface, and a zero length hull trace started
+	// there reports startsolid against worldspawn, which would reject every candidate on flat ground.
+	const Vector vecProbeMins = vecRelativeMins + Vector( 1, 1, 1 );
+	const Vector vecProbeMaxs = vecRelativeMaxs - Vector( 1, 1, 1 );
+
 	if ( nDebug >= 1 )
 	{
 		Msg( "[unstick] ent %d start: origin=(%.1f %.1f %.1f) aabb=(%.1f %.1f %.1f)..(%.1f %.1f %.1f) hull=(%.1f %.1f %.1f)..(%.1f %.1f %.1f)\n",
@@ -2603,7 +2609,7 @@ void CCSPlayer::UnstickFromPlayers( void )
 				vecTest.z = vecOrigin.z;
 
 				trace_t tr;
-				UTIL_TraceHull( vecTest, vecTest, vecRelativeMins, vecRelativeMaxs,
+				UTIL_TraceHull( vecTest, vecTest, vecProbeMins, vecProbeMaxs,
 								MASK_PLAYERSOLID, &filter, &tr );
 
 				if ( tr.startsolid || tr.fraction < 1.0f )
@@ -2619,13 +2625,13 @@ void CCSPlayer::UnstickFromPlayers( void )
 
 				// Settle the spot onto the floor below it rather than leaving the player in the air.
 				trace_t trGround;
-				UTIL_TraceLine( vecTest + Vector( 0, 0, 4 ), vecTest - Vector( 0, 0, 128 ),
+				UTIL_TraceLine( vecTest + Vector( 0, 0, 4 ), vecTest - Vector( 0, 0, 32 ),
 								MASK_PLAYERSOLID, &filter, &trGround );
 
 				if ( trGround.fraction < 1.0f && trGround.plane.normal.z >= 0.7f )
 					vecTest.z = trGround.endpos.z - vecRelativeMins.z;
 
-				UTIL_TraceHull( vecTest, vecTest, vecRelativeMins, vecRelativeMaxs,
+				UTIL_TraceHull( vecTest, vecTest, vecProbeMins, vecProbeMaxs,
 								MASK_PLAYERSOLID, &filter, &tr );
 
 				if ( tr.startsolid || tr.fraction < 1.0f )
