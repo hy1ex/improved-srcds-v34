@@ -589,6 +589,7 @@ public:
 
 	bool IsInBuyZone();
 	bool IsBuyAnywhere();
+	bool IsBuyTimeAvailable();
 	bool CanPlayerBuy( bool display );
 
 	CNetworkVar( bool, m_bInHostageRescueZone );

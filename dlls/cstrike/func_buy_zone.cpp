@@ -70,7 +70,14 @@ void CBuyZone::BuyZoneTouch( CBaseEntity* pOther )
 		// compare player team with buy zone team number
 		if ( p->GetTeamNumber() == GetTeamNumber() )
 		{
-			p->m_bInBuyZone = true;
+			// m_bInBuyZone is networked and is the only buy-zone signal a stock v34 client has: its
+			// buymenu/buyequip commands refuse to open the menu when it is false. Only set it while
+			// the buy window is actually open, so a player whose window has run out keeps the menu
+			// closed instead of opening it and having every click refused by the server.
+			if ( p->IsBuyTimeAvailable() )
+			{
+				p->m_bInBuyZone = true;
+			}
 		}
 	}
 }

@@ -61,10 +61,12 @@ void CCSPlayerMove::StartCommand( CBasePlayer *player, CUserCmd *cmd )
 
 	// mp_buy_anywhere: pin the networked buy-zone bit. The stock v34 client decides on its own
 	// whether to open the buy menu and can only learn about buy zones through this sendprop, so it
-	// has to stay set for a player who is allowed to buy outside a func_buyzone.
+	// has to stay set for a player who is allowed to buy outside a func_buyzone. The buy window is
+	// the same gate as in CBuyZone::BuyZoneTouch: the bit means "this player may buy right now",
+	// not "this player is standing in a zone".
 	const int nBuyAnywhere = mp_buy_anywhere.GetInt();
 
-	if ( nBuyAnywhere == 1 || nBuyAnywhere == pPlayer->GetTeamNumber() )
+	if ( ( nBuyAnywhere == 1 || nBuyAnywhere == pPlayer->GetTeamNumber() ) && pPlayer->IsBuyTimeAvailable() )
 	{
 		pPlayer->m_bInBuyZone = true;
 	}

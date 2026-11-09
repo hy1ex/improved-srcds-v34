@@ -3059,6 +3059,29 @@ bool CCSPlayer::IsInBuyZone()
 	return m_bInBuyZone && !IsVIP();
 }
 
+//-----------------------------------------------------------------------------
+// Purpose: Is buying allowed by the clock? The round's mp_buytime window for a player who has not
+//			respawned this round, or his own mp_respawn_buytime window once he has. The networked
+//			buy-zone bit follows this answer (see CBuyZone::BuyZoneTouch and CCSPlayerMove, which is
+//			how the stock client is kept from opening the buy menu), so this is the one place that
+//			decides when the buy window is open.
+//-----------------------------------------------------------------------------
+bool CCSPlayer::IsBuyTimeAvailable()
+{
+	if ( m_flRespawnTime > 0.0f )
+	{
+		// A player brought back by mp_respawn_on_death_* buys inside his own window instead of the
+		// round's, in both directions: inside it he may buy even once the round's buy time has run
+		// out, and outside it he may not buy even while the round's buy time is still running.
+		// mp_respawn_buytime 0 = no cutoff.
+		const float flRespawnBuyTime = mp_respawn_buytime.GetFloat();
+
+		return ( flRespawnBuyTime <= 0.0f || gpGlobals->curtime <= m_flRespawnTime + flRespawnBuyTime );
+	}
+
+	return ( (int)( mp_buytime.GetFloat() * 60 ) >= CSGameRules()->GetRoundElapsedTime() );
+}
+
 bool CCSPlayer::CanPlayerBuy( bool display )
 {
 	// is the player alive?
@@ -3066,7 +3089,30 @@ bool CCSPlayer::CanPlayerBuy( bool display )
 	{
 		return false;
 	}
-	
+
+	// The window is tested before the zone: the zone bit is already false once the window has run
+	// out, so testing the zone first would refuse silently and the reason would never be printed.
+	if ( !IsBuyTimeAvailable() )
+	{
+		if ( display == true )
+		{
+			if ( m_flRespawnTime > 0.0f )
+			{
+				// #Cant_buy counts minutes, which would read as "for 0 minutes" for a respawn
+				// window of a few seconds, so this case gets its own line.
+				ClientPrint( this, HUD_PRINTCENTER, "Your respawn buy time has expired" );
+			}
+			else
+			{
+				char strBuyTime[16];
+				Q_snprintf( strBuyTime, sizeof( strBuyTime ), "%d", (int)( mp_buytime.GetFloat() * 60 ) );
+				ClientPrint( this, HUD_PRINTCENTER, "#Cant_buy", strBuyTime );
+			}
+		}
+
+		return false;
+	}
+
 	// is the player in a buy zone?
 	if ( !IsInBuyZone() )
 	{
@@ -3074,41 +3120,6 @@ bool CCSPlayer::CanPlayerBuy( bool display )
 	}
 
 	CCSGameRules* mp = CSGameRules();
-
-	int buyTime = (int)(mp_buytime.GetFloat() * 60);
-
-	// A player brought back by mp_respawn_on_death_* buys inside his own window after the respawn
-	// instead of inside the round's mp_buytime window, in both directions: inside it he may buy even
-	// once the round's buy time has run out, and outside it he may not buy even while the round's
-	// buy time is still running. mp_respawn_buytime 0 = no cutoff. A player who has not respawned
-	// this round keeps the stock window.
-	if ( m_flRespawnTime > 0.0f )
-	{
-		const float flRespawnBuyTime = mp_respawn_buytime.GetFloat();
-
-		if ( flRespawnBuyTime > 0.0f && gpGlobals->curtime > m_flRespawnTime + flRespawnBuyTime )
-		{
-			if ( display == true )
-			{
-				// #Cant_buy counts minutes, which would read as "for 0 minutes" for a respawn
-				// window of a few seconds, so this case gets its own line.
-				ClientPrint( this, HUD_PRINTCENTER, "Your respawn buy time has expired" );
-			}
-
-			return false;
-		}
-	}
-	else if ( buyTime < mp->GetRoundElapsedTime() )
-	{
-		if ( display == true )
-		{
-			char strBuyTime[16];
-			Q_snprintf( strBuyTime, sizeof( strBuyTime ), "%d", buyTime );
-			ClientPrint( this, HUD_PRINTCENTER, "#Cant_buy", strBuyTime );
-		}
-
-		return false;
-	}
 
 	if ( m_bIsVIP )
 	{

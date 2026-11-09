@@ -219,10 +219,13 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
   untouched.
   The server refuses every buy command in that state - `buy`, `autobuy`, `rebuy` and the ammo and
   equipment aliases alike - with "Your respawn buy time has expired" rather than the stock
-  `#Cant_buy` line, which counts whole minutes. The VGUI buy menu is the one exception: the stock
-  client decides on its own whether to open it, knows nothing about the respawn window, and only
-  checks `mp_buytime`, so a respawned player whose window ended can still open the menu while
-  `mp_buytime` is running; every click is refused by the server.
+  `#Cant_buy` line, which counts whole minutes. The VGUI buy menu closes with it: the networked
+  `m_bInBuyZone` bit is only set while the window is open (`CBuyZone::BuyZoneTouch`, and the
+  `mp_buy_anywhere` pin in `CCSPlayerMove::StartCommand`), so a stock client, which reads that bit
+  before it opens the menu, refuses to open it. The reverse direction is not possible from the
+  server: a respawned player inside his window while `mp_buytime` has already elapsed can buy with
+  the commands but still cannot open the menu, because the client's own `IsBuyTimeElapsed()` check
+  knows nothing about the respawn window.
 * `mp_buy_anywhere` lets players buy outside `func_buyzone` volumes:
   * `0` — stock behaviour, buy zones only (**default**),
   * `1` — both teams may buy anywhere,
@@ -234,7 +237,9 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
   `m_bInBuyZone` bit for players who are allowed to buy: that is the same 1-bit sendprop
   `func_buy_zone` sets on touch, and it is what a stock v34 client checks before it opens the
   menu. The bit is cleared every command by the stock code and re-set here, so a player who loses
-  the right loses the menu again immediately.
+  the right loses the menu again immediately. Both writers of the bit test
+  `CCSPlayer::IsBuyTimeAvailable()`, so the bit means "this player may buy right now" rather than
+  "this player is standing in a zone", and the buy window closes the menu as well as the commands.
 * Buying for the whole round is a `mp_buytime` setting, not a separate switch: `mp_buytime` is
   `FCVAR_REPLICATED`, so the server and the stock client agree on the window, and raising it (for
   example `mp_buytime 999`) keeps the VGUI buy menu open as well as the commands. A server-only
