@@ -478,13 +478,3 @@ replicated, no netprops, no protocol change.
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars, `mp_startmoney` bounds, kill awards,
 round-start cash), `dlls/cstrike/cs_player.cpp` (`AddAccount` cap).
-
----
-
-# 6. Overtime (not ported, pending)
-
-CS:GO's overtime (`mp_overtime_enable`, `mp_overtime_maxrounds`, `mp_overtime_startmoney`,
-`mp_overtime_halftime_pausetimer`) is **not implemented and not approved**. It is kept as the last
-number so the ported features stay contiguous, per rule 5 above. No convar, no code and no
-documentation promise exists for it in this tree: if it is ever approved it will get its own
-section here with its own explanation, exactly like every other feature.
