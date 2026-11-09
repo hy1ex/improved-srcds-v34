@@ -273,9 +273,9 @@ ConVar mp_respawn_weapons(
 
 ConVar mp_respawn_buytime(
 	"mp_respawn_buytime",
-	"4.0",
+	"-1",
 	FCVAR_NOTIFY,
-	"Seconds after respawning during which the player may buy; 0 = until the round ends" );
+	"Buy window after a respawn: -1 = the round's mp_buytime like stock, 0 = until the round ends, otherwise seconds after respawning" );
 
 ConVar mp_respawn_immunity_fade(
 	"mp_respawn_immunity_fade",

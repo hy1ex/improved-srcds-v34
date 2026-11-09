@@ -3060,15 +3060,18 @@ bool CCSPlayer::IsInBuyZone()
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: Is buying allowed by the clock? The round's mp_buytime window for a player who has not
-//			respawned this round, or his own mp_respawn_buytime window once he has. The networked
-//			buy-zone bit follows this answer (see CBuyZone::BuyZoneTouch and CCSPlayerMove, which is
-//			how the stock client is kept from opening the buy menu), so this is the one place that
-//			decides when the buy window is open.
+// Purpose: Is buying allowed by the clock? The round's mp_buytime window, or a respawned player's
+//			own window when mp_respawn_buytime asks for one. The networked buy-zone bit follows this
+//			answer (see CBuyZone::BuyZoneTouch and CCSPlayerMove, which is how the stock client is
+//			kept from opening the buy menu), so this is the one place that decides when the buy window
+//			is open.
 //-----------------------------------------------------------------------------
 bool CCSPlayer::IsBuyTimeAvailable()
 {
-	if ( m_flRespawnTime > 0.0f )
+	// mp_respawn_buytime < 0 is the default and means "no separate respawn window": a respawned
+	// player follows the round's timer exactly like a stock player, so the feature is off unless a
+	// server asks for it.
+	if ( m_flRespawnTime > 0.0f && mp_respawn_buytime.GetFloat() >= 0.0f )
 	{
 		// A player brought back by mp_respawn_on_death_* buys inside his own window instead of the
 		// round's, in both directions: inside it he may buy even once the round's buy time has run
@@ -3076,7 +3079,7 @@ bool CCSPlayer::IsBuyTimeAvailable()
 		// mp_respawn_buytime 0 = no cutoff.
 		const float flRespawnBuyTime = mp_respawn_buytime.GetFloat();
 
-		return ( flRespawnBuyTime <= 0.0f || gpGlobals->curtime <= m_flRespawnTime + flRespawnBuyTime );
+		return ( flRespawnBuyTime == 0.0f || gpGlobals->curtime <= m_flRespawnTime + flRespawnBuyTime );
 	}
 
 	return ( (int)( mp_buytime.GetFloat() * 60 ) >= CSGameRules()->GetRoundElapsedTime() );
@@ -3096,7 +3099,9 @@ bool CCSPlayer::CanPlayerBuy( bool display )
 	{
 		if ( display == true )
 		{
-			if ( m_flRespawnTime > 0.0f )
+			// Only blame the respawn window when one is actually in use; with mp_respawn_buytime -1
+			// a respawned player is simply on the round's timer and gets the stock line.
+			if ( m_flRespawnTime > 0.0f && mp_respawn_buytime.GetFloat() >= 0.0f )
 			{
 				// #Cant_buy counts minutes, which would read as "for 0 minutes" for a respawn
 				// window of a few seconds, so this case gets its own line.

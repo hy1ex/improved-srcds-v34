@@ -40,7 +40,7 @@ Source game. For each feature it records:
 | `mp_respawn_immunitytime` | `4` | [3. Respawn on death](#3-respawn-on-death) | seconds of damage immunity + model fade |
 | `mp_respawn_immunity_fade` | `1` | [3. Respawn on death](#3-respawn-on-death) | 0=none, 1=fade in, 2=half transparent |
 | `mp_respawn_weapons` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=default pistol, 1=random, 2=keep |
-| `mp_respawn_buytime` | `4` | [3. Respawn on death](#3-respawn-on-death) | hard cutoff after respawn, 0 = no cutoff |
+| `mp_respawn_buytime` | `-1` | [3. Respawn on death](#3-respawn-on-death) | -1 = stock round window, 0 = no cutoff, else hard cutoff after respawn |
 | `mp_buy_anywhere` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=stock, 1=both, 2=T, 3=CT (also opens the menu) |
 | `mp_solid_player` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through every player, no push |
 | `mp_solid_hostages` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through hostages |
@@ -211,12 +211,15 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
   an ordinary spawn and when the mode is switched to `0` mid-window, so a player can never be left
   translucent. `m_nRenderMode` and `m_clrRender` are stock networked entity fields, so this needs no
   new netprop and no client support.
-* `mp_respawn_buytime` gives a respawned player his own buy window instead of the round's, in both
-  directions: inside it he may buy even when the round's `mp_buytime` has already elapsed, and once
-  it runs out he may not buy even while the round's `mp_buytime` is still running. `0` means "no
-  cutoff", so buying stays available for the rest of the round. It only applies to players actually
-  respawned by this feature (`m_flRespawnTime` is cleared by a normal spawn), so stock behaviour is
-  untouched.
+* `mp_respawn_buytime` gives a respawned player his own buy window:
+  * `-1` - no separate window, the respawned player follows the round's `mp_buytime` exactly like
+    stock (**default**, so the feature is off unless a server asks for it),
+  * `0` - no cutoff at all, buying stays available for the rest of the round,
+  * `N > 0` - `N` seconds after the respawn.
+  When it is set, the window replaces the round's in both directions: inside it the player may buy
+  even when the round's `mp_buytime` has already elapsed, and once it runs out he may not buy even
+  while the round's `mp_buytime` is still running. It only applies to players actually respawned by
+  this feature (`m_flRespawnTime` is cleared by a normal spawn).
   The server refuses every buy command in that state - `buy`, `autobuy`, `rebuy` and the ammo and
   equipment aliases alike - with "Your respawn buy time has expired" rather than the stock
   `#Cant_buy` line, which counts whole minutes. The VGUI buy menu closes with it: the networked
@@ -257,7 +260,7 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
 | `mp_respawn_immunitytime` | `4` | seconds, `0` = off | Damage immunity and model fade after a respawn (CS:GO default `4.0`) |
 | `mp_respawn_immunity_fade` | `1` | `0`-`2` | Immunity visual: `0` none, `1` fade in, `2` fixed half transparency |
 | `mp_respawn_weapons` | `0` | `0`-`2` | Loadout policy after a respawn |
-| `mp_respawn_buytime` | `4` | seconds, `0` = no cutoff | Buy window after a respawn; replaces the round's `mp_buytime` for that player (default matches `mp_respawn_immunitytime`) |
+| `mp_respawn_buytime` | `-1` | `-1` = stock, `0` = no cutoff, else seconds | Buy window after a respawn; when set it replaces the round's `mp_buytime` for that player |
 | `mp_buy_anywhere` | `0` | `0`-`3` | Buy outside buy zones, optionally per team |
 
 The respawn feature itself is **off by default** (`mp_respawn_on_death_ct/t 0`), so a stock server
