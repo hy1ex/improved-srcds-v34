@@ -1526,15 +1526,6 @@ int CCSPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 	if ( GetMoveType() == MOVETYPE_NOCLIP || GetMoveType() == MOVETYPE_OBSERVER )
 		return 0;
 
-	// mp_damage_headshot_only: nothing but a bullet that hit the head hurts a player. The bullet bit
-	// has to be required as well, because explosion, fire, fall and knife damage never own a head
-	// hitgroup - m_LastHitGroup would still hold whatever the victim was last shot in.
-	if ( mp_damage_headshot_only.GetBool() &&
-		 ( !( info.GetDamageType() & DMG_BULLET ) || m_LastHitGroup != HITGROUP_HEAD ) )
-	{
-		return 0;
-	}
-
 	float flArmorBonus = 0.5f;
 	float flArmorRatio = 0.5f;
 	float flDamage = info.GetDamage();
@@ -1871,6 +1862,17 @@ void CCSPlayer::TraceAttack( const CTakeDamageInfo &info, const Vector &vecDir, 
 	// Since this code only runs on the server, make sure it shows the tempents it creates.
 	CDisablePredictionFiltering disabler;
 	
+	// mp_damage_headshot_only: as in CS:GO this only disables non-headshot damage from guns.
+	// It is a trace rule, so explosions, fire, falling and knives still hurt, and the hit
+	// spawns a spark instead of blood.
+	if ( mp_damage_headshot_only.GetBool() && ( info.GetDamageType() & DMG_BULLET ) != 0 && !bHeadShot )
+	{
+		g_pEffects->Sparks( ptr->endpos, 1, 1, &vecDir );
+
+		flDamage = 0.0f;
+		bShouldBleed = false;
+	}
+
 	if ( bShouldBleed )
 	{
 		// This does smaller splotches on the guy and splats blood on the world.
@@ -1903,7 +1905,15 @@ void CCSPlayer::TraceAttack( const CTakeDamageInfo &info, const Vector &vecDir, 
 	// bullet that hit; OnTakeDamage only sees the accumulated damage of the whole frame.
 	if ( !bHitShield )
 	{
-		const bool bHead = ( ptr->hitgroup == HITGROUP_HEAD );
+		// Only the hit groups CS:GO scales get a scale: its multipliers live in the switch cases
+		// above, so HITGROUP_GENERIC damage is left alone.
+		const int nHitGroup = ptr->hitgroup;
+
+		const bool bHead = ( nHitGroup == HITGROUP_HEAD );
+
+		const bool bScaled = bHead || nHitGroup == HITGROUP_CHEST || nHitGroup == HITGROUP_STOMACH ||
+			nHitGroup == HITGROUP_LEFTARM || nHitGroup == HITGROUP_RIGHTARM ||
+			nHitGroup == HITGROUP_LEFTLEG || nHitGroup == HITGROUP_RIGHTLEG;
 
 		float flScale;
 
@@ -1912,7 +1922,7 @@ void CCSPlayer::TraceAttack( const CTakeDamageInfo &info, const Vector &vecDir, 
 		else
 			flScale = bHead ? mp_damage_scale_t_head.GetFloat() : mp_damage_scale_t_body.GetFloat();
 
-		if ( flScale != 1.0f )
+		if ( bScaled && flScale != 1.0f )
 			flDamage *= flScale;
 	}
 

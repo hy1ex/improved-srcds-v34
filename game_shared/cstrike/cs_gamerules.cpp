@@ -338,7 +338,7 @@ ConVar mp_damage_headshot_only(
 	"mp_damage_headshot_only",
 	"0",
 	FCVAR_NOTIFY,
-	"Only bullets that hit the head deal damage (0 = stock damage model)" );
+	"Only bullets that hit the head deal damage; explosions, fire, falling and knives still hurt (0 = stock damage model)" );
 
 // ---------------------------------------------------------------------------------------------------
 // Free armour at spawn. Ported from CS:GO (mp_free_armor). Server side only; armour is already a

@@ -529,11 +529,13 @@ default to stock behaviour.
 
 * `mp_damage_scale_ct_head` / `mp_damage_scale_t_head` — multiplied into the damage of a bullet that
   hit that team's head, after the stock `4x` headshot multiplier.
-* `mp_damage_scale_ct_body` / `mp_damage_scale_t_body` — the same for every other hitgroup of that
-  team (chest, stomach, arms, legs), after the stock per-hitgroup multipliers.
-* `mp_damage_headshot_only` — a player takes damage only from a bullet that hit his head. Everything
-  else is dropped before any armour, force or `Damage` usermessage work happens: body shots, knife
-  hits, explosions, fire and fall damage. `0` (default) keeps the stock damage model.
+* `mp_damage_scale_ct_body` / `mp_damage_scale_t_body` — the same for the other hitgroups of that
+  team (chest, stomach, arms, legs), after the stock per-hitgroup multipliers. `HITGROUP_GENERIC`
+  is left unscaled, exactly like CS:GO, where the scale lives inside its hitgroup switch cases.
+* `mp_damage_headshot_only` — non-headshot **bullet** damage is zeroed in the trace, so a player only
+  loses health to a bullet that hit his head. As in CS:GO this is a gun rule: explosions, fire, fall
+  and knife damage still hurt, and the blocked hit spawns a spark instead of blood. `0` (default)
+  keeps the stock damage model.
 
 Scaling happens in `CCSPlayer::TraceAttack`, in the per-bullet path where `ptr->hitgroup` is known,
 so shotgun pellets are scaled individually and a trace that hits the helmet is scaled as a head hit.
@@ -558,12 +560,12 @@ the only thing the stock client receives is the resulting health change and the 
 usermessage. No convar is replicated, no netprop and no usermessage is added, so a v34 client needs no
 knowledge of any of this.
 
-One consequence worth knowing: with `mp_damage_headshot_only 1` a client still receives blood, spark
-and flinch feedback for a body hit, because that happens in the trace before the damage is dropped.
-Only the health loss is suppressed.
+With `mp_damage_headshot_only 1` a body hit still shows the stock flinch and impact sound, but no
+blood: the damage is zeroed before the bleed dispatch, and `g_pEffects->Sparks()` marks the hit the
+way CS:GO does.
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars), `dlls/cstrike/cs_player.cpp`
-(`TraceAttack` scaling, `OnTakeDamage` headshot gate).
+(`TraceAttack`: per-hitgroup scaling and the headshot-only rule).
 
 ---
 
