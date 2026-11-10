@@ -360,33 +360,147 @@ ConVar mp_free_armor(
 	true, 2 );
 
 // ---------------------------------------------------------------------------------------------------
-// Purchase restrictions. Ported from CS:GO (mp_buy_allow_guns, mp_buy_allow_grenades, mp_max_armor).
-// Server side only: the decision is taken when a purchase arrives, so nothing is replicated. The
-// defaults allow everything that stock CS:S allows, so nothing changes until an operator opts in.
+// Purchase restrictions. Server side only: the decision is taken when a purchase arrives, so
+// nothing is replicated. Every rule is per team, and only covers weapons that team can actually
+// buy: the other team's weapons are already refused by their weapon script in
+// CCSPlayer::HandleCommand_Buy(), so they have no bit here. The defaults allow everything stock
+// CS:S allows, so nothing changes until an operator opts in.
 // ---------------------------------------------------------------------------------------------------
 ConVar mp_buy_allow_guns(
 	"mp_buy_allow_guns",
-	"255",
-	FCVAR_NOTIFY,
-	"Weapon groups that may be bought, as a bitfield: pistols 1, SMGs 2, rifles 4, shotguns 8, sniper rifles 16, machine guns 32 (255 = all)",
-	true, 0,
-	true, 255 );
-
-ConVar mp_buy_allow_grenades(
-	"mp_buy_allow_grenades",
 	"1",
 	FCVAR_NOTIFY,
-	"Whether grenades may be bought (1 = stock)",
+	"Which teams may buy guns: 0=nobody, 1=both teams (stock), 2=Terrorists only, 3=CT only",
+	true, 0,
+	true, 3 );
+
+ConVar mp_max_armor_ct(
+	"mp_max_armor_ct",
+	"2",
+	FCVAR_NOTIFY,
+	"Highest armour CT may buy: 0=none, 1=kevlar, 2=kevlar and helmet (2 = stock)",
+	true, 0,
+	true, 2 );
+
+ConVar mp_max_armor_t(
+	"mp_max_armor_t",
+	"2",
+	FCVAR_NOTIFY,
+	"Highest armour Terrorists may buy: 0=none, 1=kevlar, 2=kevlar and helmet (2 = stock)",
+	true, 0,
+	true, 2 );
+
+ConVar mp_buy_allow_grenades_ct(
+	"mp_buy_allow_grenades_ct",
+	"7",
+	FCVAR_NOTIFY,
+	"Grenades CT may buy, as a bitfield: HE 1, flashbang 2, smoke 4 (7 = all)",
+	true, 0,
+	true, 7 );
+
+ConVar mp_buy_allow_grenades_t(
+	"mp_buy_allow_grenades_t",
+	"7",
+	FCVAR_NOTIFY,
+	"Grenades Terrorists may buy, as a bitfield: HE 1, flashbang 2, smoke 4 (7 = all)",
+	true, 0,
+	true, 7 );
+
+ConVar mp_buy_allow_pistols_ct(
+	"mp_buy_allow_pistols_ct",
+	"15",
+	FCVAR_NOTIFY,
+	"Pistols CT may buy, as a bitfield: USP 1, P228 2, Desert Eagle 4, Five-SeveN 8 (15 = all)",
+	true, 0,
+	true, 15 );
+
+ConVar mp_buy_allow_pistols_t(
+	"mp_buy_allow_pistols_t",
+	"15",
+	FCVAR_NOTIFY,
+	"Pistols Terrorists may buy, as a bitfield: Glock 1, P228 2, Desert Eagle 4, Dual Berettas 8 (15 = all)",
+	true, 0,
+	true, 15 );
+
+ConVar mp_buy_allow_smgs_ct(
+	"mp_buy_allow_smgs_ct",
+	"15",
+	FCVAR_NOTIFY,
+	"Sub machine guns CT may buy, as a bitfield: TMP 1, MP5 Navy 2, UMP-45 4, P90 8 (15 = all)",
+	true, 0,
+	true, 15 );
+
+ConVar mp_buy_allow_smgs_t(
+	"mp_buy_allow_smgs_t",
+	"15",
+	FCVAR_NOTIFY,
+	"Sub machine guns Terrorists may buy, as a bitfield: MAC-10 1, MP5 Navy 2, UMP-45 4, P90 8 (15 = all)",
+	true, 0,
+	true, 15 );
+
+ConVar mp_buy_allow_rifles_ct(
+	"mp_buy_allow_rifles_ct",
+	"7",
+	FCVAR_NOTIFY,
+	"Rifles CT may buy, as a bitfield: FAMAS 1, M4A1 2, AUG 4 (7 = all)",
+	true, 0,
+	true, 7 );
+
+ConVar mp_buy_allow_rifles_t(
+	"mp_buy_allow_rifles_t",
+	"7",
+	FCVAR_NOTIFY,
+	"Rifles Terrorists may buy, as a bitfield: Galil 1, AK-47 2, SG552 4 (7 = all)",
+	true, 0,
+	true, 7 );
+
+ConVar mp_buy_allow_shotguns_ct(
+	"mp_buy_allow_shotguns_ct",
+	"3",
+	FCVAR_NOTIFY,
+	"Shotguns CT may buy, as a bitfield: M3 1, XM1014 2 (3 = all)",
+	true, 0,
+	true, 3 );
+
+ConVar mp_buy_allow_shotguns_t(
+	"mp_buy_allow_shotguns_t",
+	"3",
+	FCVAR_NOTIFY,
+	"Shotguns Terrorists may buy, as a bitfield: M3 1, XM1014 2 (3 = all)",
+	true, 0,
+	true, 3 );
+
+ConVar mp_buy_allow_snipers_ct(
+	"mp_buy_allow_snipers_ct",
+	"7",
+	FCVAR_NOTIFY,
+	"Sniper rifles CT may buy, as a bitfield: Scout 1, AWP 2, SG550 4 (7 = all)",
+	true, 0,
+	true, 7 );
+
+ConVar mp_buy_allow_snipers_t(
+	"mp_buy_allow_snipers_t",
+	"7",
+	FCVAR_NOTIFY,
+	"Sniper rifles Terrorists may buy, as a bitfield: Scout 1, AWP 2, G3SG1 4 (7 = all)",
+	true, 0,
+	true, 7 );
+
+ConVar mp_buy_allow_machine_guns_ct(
+	"mp_buy_allow_machine_guns_ct",
+	"1",
+	FCVAR_NOTIFY,
+	"Machine guns CT may buy, as a bitfield: M249 1 (1 = all)",
 	true, 0,
 	true, 1 );
 
-ConVar mp_max_armor(
-	"mp_max_armor",
-	"2",
+ConVar mp_buy_allow_machine_guns_t(
+	"mp_buy_allow_machine_guns_t",
+	"1",
 	FCVAR_NOTIFY,
-	"Highest armour that may be bought: 0=none, 1=kevlar, 2=kevlar and helmet (2 = stock)",
+	"Machine guns Terrorists may buy, as a bitfield: M249 1 (1 = all)",
 	true, 0,
-	true, 2 );
+	true, 1 );
 
 // ---------------------------------------------------------------------------------------------------
 // Halftime. Ported from CS:GO (mp_halftime). Server side only: team membership, the team scores and

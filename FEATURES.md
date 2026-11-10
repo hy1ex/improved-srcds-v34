@@ -58,9 +58,23 @@ Source game. For each feature it records:
 | `mp_damage_scale_t_body` | `1` | [6. Damage scaling](#6-damage-scaling) | multiplier for the rest of a Terrorist |
 | `mp_damage_headshot_only` | `0` | [6. Damage scaling](#6-damage-scaling) | 0/1, only headshot bullets deal damage |
 | `mp_free_armor` | `0` | [7. Free armour](#7-free-armour) | 0=none, 1=kevlar, 2=kevlar and helmet |
-| `mp_buy_allow_guns` | `255` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 pistols, 2 SMGs, 4 rifles, 8 shotguns, 16 snipers, 32 machine guns |
-| `mp_buy_allow_grenades` | `1` | [8. Purchase restrictions](#8-purchase-restrictions) | 0/1 |
-| `mp_max_armor` | `2` | [8. Purchase restrictions](#8-purchase-restrictions) | 0=none, 1=kevlar, 2=kevlar and helmet |
+| `mp_buy_allow_guns` | `1` | [8. Purchase restrictions](#8-purchase-restrictions) | 0=nobody, 1=both teams, 2=T, 3=CT: who may buy guns |
+| `mp_buy_allow_grenades_ct` | `7` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 HE, 2 flashbang, 4 smoke |
+| `mp_buy_allow_grenades_t` | `7` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 HE, 2 flashbang, 4 smoke |
+| `mp_buy_allow_machine_guns_ct` | `1` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 M249 |
+| `mp_buy_allow_machine_guns_t` | `1` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 M249 |
+| `mp_buy_allow_pistols_ct` | `15` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 USP, 2 P228, 4 Deagle, 8 Five-SeveN |
+| `mp_buy_allow_pistols_t` | `15` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 Glock, 2 P228, 4 Deagle, 8 Dual Berettas |
+| `mp_buy_allow_rifles_ct` | `7` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 FAMAS, 2 M4A1, 4 AUG |
+| `mp_buy_allow_rifles_t` | `7` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 Galil, 2 AK-47, 4 SG552 |
+| `mp_buy_allow_shotguns_ct` | `3` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 M3, 2 XM1014 |
+| `mp_buy_allow_shotguns_t` | `3` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 M3, 2 XM1014 |
+| `mp_buy_allow_smgs_ct` | `15` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 TMP, 2 MP5 Navy, 4 UMP-45, 8 P90 |
+| `mp_buy_allow_smgs_t` | `15` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 MAC-10, 2 MP5 Navy, 4 UMP-45, 8 P90 |
+| `mp_buy_allow_snipers_ct` | `7` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 Scout, 2 AWP, 4 SG550 |
+| `mp_buy_allow_snipers_t` | `7` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 Scout, 2 AWP, 4 G3SG1 |
+| `mp_max_armor_ct` | `2` | [8. Purchase restrictions](#8-purchase-restrictions) | 0=none, 1=kevlar, 2=kevlar and helmet |
+| `mp_max_armor_t` | `2` | [8. Purchase restrictions](#8-purchase-restrictions) | 0=none, 1=kevlar, 2=kevlar and helmet |
 | `mp_halftime` | `0` | [9. Halftime](#9-halftime) | 0 = never swap, 1 = swap at half of mp_maxrounds |
 | `mp_randomspawn` | `0` | [10. Random deathmatch spawns](#10-random-deathmatch-spawns) | 0=default, 1=both teams, 2=Terrorists, 3=CTs |
 | `mp_randomspawn_los` | `1` | [10. Random deathmatch spawns](#10-random-deathmatch-spawns) | 0/1, require the spot to be out of the enemy team's sight |
@@ -633,36 +647,71 @@ at spawn instead of paying for it, and keep the money.
 
 # 8. Purchase restrictions
 
-**Origin:** CS:GO `mp_buy_allow_guns`, `mp_buy_allow_grenades` and `mp_max_armor`
-(`game/shared/cstrike15/cs_gamerules.cpp`).
-
 **Why:** stock Counter-Strike: Source has no way to limit what may be bought beyond the map's buy
 zones. Pistol-only nights, "no AWP" and "no grenades" servers therefore rely on external plugins or
-on trust. These are the three CS:GO convars that cover the whole buy menu, and their defaults allow
-everything stock CS:S allows.
+on trust. These convars cover the whole buy menu, and every rule is set per team, so the two sides can
+be given different shopping lists. Every default allows everything stock CS:S allows.
 
 **What it does.** Every purchase goes through `CCSPlayer::HandleCommand_Buy()`, which is the single
 place the buy menu commands, the `buy` aliases, `autobuy`/`rebuy`, the per-item buy binds and the
 bots end up (bots issue `buy <alias>` through `ClientCommand`, so they are covered by the same rule).
-One check there applies the three convars:
+One check there applies the convars:
 
-* `mp_buy_allow_guns` — a bitfield over weapon groups. A group whose bit is clear cannot be bought.
-  `255` (default) sets every defined bit and is therefore stock behaviour.
+* `mp_buy_allow_guns` — who may buy guns at all: `0` nobody, `1` both teams (default), `2`
+  Terrorists only, `3` CT only. Grenades and armour are not guns and are governed by their own
+  convars, so a server that only wants to stop rifles uses the rifle convar below instead.
+* `mp_max_armor_ct` / `mp_max_armor_t` — the highest armour that team may buy: `0` nothing, `1`
+  kevlar, `2` kevlar and helmet (default). The `mp_free_armor` refusal below applies on top.
+* `mp_buy_allow_grenades_ct` / `mp_buy_allow_grenades_t` — one bit per grenade: `1` HE, `2`
+  flashbang, `4` smoke. `7` (default) is all three.
+* `mp_buy_allow_<group>_ct` / `mp_buy_allow_<group>_t` — one bit per weapon, for each of the six
+  weapon groups. A weapon whose bit is clear cannot be bought by that team.
 
-  | Bit | Value | Group |
-  | --- | --- | --- |
-  | 0 | `1` | Pistols |
-  | 1 | `2` | Sub machine guns |
-  | 2 | `4` | Rifles |
-  | 3 | `8` | Shotguns |
-  | 4 | `16` | Sniper rifles |
-  | 5 | `32` | Machine guns |
+Only weapons a team can actually buy have a bit. The other side's own weapons (Glock, MAC-10, Galil,
+AK-47, SG552, G3SG1 and their CT counterparts) can never be bought across teams anyway: the weapon
+script's own team refuses them before these rules are reached. Bit positions follow the buy menu and
+line up on both sides, so the same number means the same slot for either team and a value can be
+copied between the `_ct` and `_t` convar of a group.
 
-  Bits 6 and 7 (`64`, `128`) are unused, exactly like CS:GO. The categories come from the weapon's own
-  `CSWeaponType` in its weapon script, so the rule is data driven and does not list weapon names.
-* `mp_buy_allow_grenades` — `0` refuses HE, flashbang and smoke purchases. `1` (default) is stock.
-* `mp_max_armor` — caps armour purchases: `0` refuses vest and vest+helmet, `1` refuses only
-  vest+helmet, `2` (default) is stock.
+**Pistols** — `mp_buy_allow_pistols_ct`, `mp_buy_allow_pistols_t`, highest value `15`
+
+| Value | CT | T |
+| --- | --- | --- |
+| `1` | USP | Glock |
+| `2` | P228 | P228 |
+| `4` | Desert Eagle | Desert Eagle |
+| `8` | Five-SeveN | Dual Berettas |
+
+**Sub machine guns** — `mp_buy_allow_smgs_ct`, `mp_buy_allow_smgs_t`, highest value `15`
+
+| Value | CT | T |
+| --- | --- | --- |
+| `1` | TMP | MAC-10 |
+| `2` | MP5 Navy | MP5 Navy |
+| `4` | UMP-45 | UMP-45 |
+| `8` | P90 | P90 |
+
+**Rifles** — `mp_buy_allow_rifles_ct`, `mp_buy_allow_rifles_t`, highest value `7`
+
+| Value | CT | T |
+| --- | --- | --- |
+| `1` | FAMAS | Galil |
+| `2` | M4A1 | AK-47 |
+| `4` | AUG | SG552 |
+
+**Shotguns** — `mp_buy_allow_shotguns_ct`, `mp_buy_allow_shotguns_t`, highest value `3`: `1` M3
+Super 90, `2` XM1014, the same for both teams.
+
+**Sniper rifles** — `mp_buy_allow_snipers_ct`, `mp_buy_allow_snipers_t`, highest value `7`
+
+| Value | CT | T |
+| --- | --- | --- |
+| `1` | Scout | Scout |
+| `2` | AWP | AWP |
+| `4` | SG550 | G3SG1 |
+
+**Machine guns** — `mp_buy_allow_machine_guns_ct`, `mp_buy_allow_machine_guns_t`, highest value `1`:
+`1` M249, the same for both teams.
 
 A refused purchase prints "This item cannot be bought on this server" in the centre of the screen
 (suppressed for `autobuy`/`rebuy` feedback, like the other buy results) and returns `BUY_NOT_ALLOWED`.
@@ -670,11 +719,9 @@ A refused purchase prints "This item cannot be bought on this server" in the cen
 **What it deliberately does not do.**
 
 * It restricts **purchases only**. Armour can still arrive through `game_player_equip` or through
-  feature 7's `mp_free_armor`, and a weapon picked up from the ground is not taken away. This is
-  exactly the CS:GO behaviour of these convars.
-* Defuse kits, nightvision and the tactical shield are not covered. CS:GO restricts those with
-  `mp_items_prohibited` (a comma separated list of item indices), which is a different mechanism and
-  not part of this port.
+  feature 7's `mp_free_armor`, and a weapon picked up from the ground is not taken away.
+* Defuse kits, nightvision and the tactical shield are not covered: none of them is a gun, a grenade
+  or armour, and the shield has no bit in any group.
 * Ammo (`primammo`/`secammo`) is not restricted: a player who already owns a weapon can still refill
   it, so a restriction never strands a player with an empty gun.
 * The stock v34 buy menu still lists every item. The client cannot be told to hide entries without
@@ -685,18 +732,30 @@ A refused purchase prints "This item cannot be bought on this server" in the cen
 
 | Convar | Default | Values | Meaning |
 | --- | --- | --- | --- |
-| `mp_buy_allow_guns` | `255` | `0`–`255` | Weapon groups that may be bought (bitfield above) |
-| `mp_buy_allow_grenades` | `1` | `0`/`1` | Whether grenades may be bought |
-| `mp_max_armor` | `2` | `0`/`1`/`2` | Highest armour that may be bought |
+| `mp_buy_allow_guns` | `1` | `0`-`3` | `0` nobody, `1` both teams, `2` Terrorists, `3` CT |
+| `mp_max_armor_ct` | `2` | `0`-`2` | Highest armour CT may buy |
+| `mp_max_armor_t` | `2` | `0`-`2` | Highest armour Terrorists may buy |
+| `mp_buy_allow_grenades_ct` | `7` | `0`-`7` | Grenades CT may buy (bitfield above) |
+| `mp_buy_allow_grenades_t` | `7` | `0`-`7` | Grenades Terrorists may buy (bitfield above) |
+| `mp_buy_allow_pistols_ct` | `15` | `0`-`15` | Pistols CT may buy (bitfield above) |
+| `mp_buy_allow_pistols_t` | `15` | `0`-`15` | Pistols Terrorists may buy (bitfield above) |
+| `mp_buy_allow_smgs_ct` | `15` | `0`-`15` | Sub machine guns CT may buy (bitfield above) |
+| `mp_buy_allow_smgs_t` | `15` | `0`-`15` | Sub machine guns Terrorists may buy (bitfield above) |
+| `mp_buy_allow_rifles_ct` | `7` | `0`-`7` | Rifles CT may buy (bitfield above) |
+| `mp_buy_allow_rifles_t` | `7` | `0`-`7` | Rifles Terrorists may buy (bitfield above) |
+| `mp_buy_allow_shotguns_ct` | `3` | `0`-`3` | Shotguns CT may buy (bitfield above) |
+| `mp_buy_allow_shotguns_t` | `3` | `0`-`3` | Shotguns Terrorists may buy (bitfield above) |
+| `mp_buy_allow_snipers_ct` | `7` | `0`-`7` | Sniper rifles CT may buy (bitfield above) |
+| `mp_buy_allow_snipers_t` | `7` | `0`-`7` | Sniper rifles Terrorists may buy (bitfield above) |
+| `mp_buy_allow_machine_guns_ct` | `1` | `0`/`1` | Machine guns CT may buy (bitfield above) |
+| `mp_buy_allow_machine_guns_t` | `1` | `0`/`1` | Machine guns Terrorists may buy (bitfield above) |
 
 **Client compatibility.** Nothing about a purchase is client-authoritative and none of these convars is
 replicated. The stock client sends its usual `buy` command, receives the usual `BuyResult` handling
 (account and weapon state, or a centre-screen refusal), and needs no knowledge of the rules.
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars), `dlls/cstrike/cs_player.cpp`
-(`IsBuyDisallowedByRules`, called from `HandleCommand_Buy`).
-
----
+(`IsWeaponAllowedForTeam` and `IsBuyDisallowedByRules`, called from `HandleCommand_Buy`).
 
 # 9. Halftime
 

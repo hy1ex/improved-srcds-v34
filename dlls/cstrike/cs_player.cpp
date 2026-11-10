@@ -56,8 +56,22 @@ extern ConVar mp_damage_scale_t_head;
 extern ConVar mp_damage_scale_t_body;
 extern ConVar mp_damage_headshot_only;
 extern ConVar mp_buy_allow_guns;
-extern ConVar mp_buy_allow_grenades;
-extern ConVar mp_max_armor;
+extern ConVar mp_max_armor_ct;
+extern ConVar mp_max_armor_t;
+extern ConVar mp_buy_allow_grenades_ct;
+extern ConVar mp_buy_allow_grenades_t;
+extern ConVar mp_buy_allow_pistols_ct;
+extern ConVar mp_buy_allow_pistols_t;
+extern ConVar mp_buy_allow_smgs_ct;
+extern ConVar mp_buy_allow_smgs_t;
+extern ConVar mp_buy_allow_rifles_ct;
+extern ConVar mp_buy_allow_rifles_t;
+extern ConVar mp_buy_allow_shotguns_ct;
+extern ConVar mp_buy_allow_shotguns_t;
+extern ConVar mp_buy_allow_snipers_ct;
+extern ConVar mp_buy_allow_snipers_t;
+extern ConVar mp_buy_allow_machine_guns_ct;
+extern ConVar mp_buy_allow_machine_guns_t;
 // Random deathmatch spawning (see FEATURES.md). Defined in game_shared/cstrike/cs_gamerules.cpp.
 extern ConVar mp_randomspawn;
 extern ConVar mp_randomspawn_los;
@@ -3414,38 +3428,154 @@ BuyResult_e CCSPlayer::AttemptToBuyNightVision( void )
 
 
 //-----------------------------------------------------------------------------
-// Purpose: Apply the purchase restrictions (mp_buy_allow_guns, mp_buy_allow_grenades,
-//          mp_max_armor) to one purchase. Returns true when the item may not be bought.
-//          Armour is not part of the gun bitfield in CS:GO, it has its own cap; defuse kits,
-//          nightvision and the shield are not restricted by any of these convars.
+// Purpose: Which of a team's own weapons may be bought, from that team's per group bitfield.
+//          Bit positions follow the buy menu and line up on both sides, so the same number means the
+//          same slot for either team. A weapon without a bit (the shield) is not restricted.
 //-----------------------------------------------------------------------------
-static bool IsBuyDisallowedByRules( CCSWeaponInfo *pWeaponInfo, const char *szWpnName )
+static bool IsWeaponAllowedForTeam( CSWeaponID id, int iTeam )
 {
-	// mp_free_armor hands the armour out at spawn, and CS:GO then refuses to sell it: its
-	// CanAcquire() answers NotAllowedForPurchase for kevlar while IsArmorFree() is true and for the
-	// assault suit while IsHelmetFree() is true, so a player cannot waste money on it. With 1 the
-	// helmet is still for sale, because IsHelmetFree() needs 2.
+	if ( iTeam == TEAM_CT )
+	{
+		switch ( id )
+		{
+		// Pistols: bit 0 USP, 1 P228, 2 Desert Eagle, 3 Five-SeveN
+		case WEAPON_USP:			return ( mp_buy_allow_pistols_ct.GetInt() & 1 ) != 0;
+		case WEAPON_P228:			return ( mp_buy_allow_pistols_ct.GetInt() & 2 ) != 0;
+		case WEAPON_DEAGLE:			return ( mp_buy_allow_pistols_ct.GetInt() & 4 ) != 0;
+		case WEAPON_FIVESEVEN:		return ( mp_buy_allow_pistols_ct.GetInt() & 8 ) != 0;
+
+		// Sub machine guns: bit 0 TMP, 1 MP5 Navy, 2 UMP-45, 3 P90
+		case WEAPON_TMP:			return ( mp_buy_allow_smgs_ct.GetInt() & 1 ) != 0;
+		case WEAPON_MP5NAVY:		return ( mp_buy_allow_smgs_ct.GetInt() & 2 ) != 0;
+		case WEAPON_UMP45:			return ( mp_buy_allow_smgs_ct.GetInt() & 4 ) != 0;
+		case WEAPON_P90:			return ( mp_buy_allow_smgs_ct.GetInt() & 8 ) != 0;
+
+		// Rifles: bit 0 FAMAS, 1 M4A1, 2 AUG
+		case WEAPON_FAMAS:			return ( mp_buy_allow_rifles_ct.GetInt() & 1 ) != 0;
+		case WEAPON_M4A1:			return ( mp_buy_allow_rifles_ct.GetInt() & 2 ) != 0;
+		case WEAPON_AUG:			return ( mp_buy_allow_rifles_ct.GetInt() & 4 ) != 0;
+
+		// Shotguns: bit 0 M3, 1 XM1014
+		case WEAPON_M3:				return ( mp_buy_allow_shotguns_ct.GetInt() & 1 ) != 0;
+		case WEAPON_XM1014:			return ( mp_buy_allow_shotguns_ct.GetInt() & 2 ) != 0;
+
+		// Sniper rifles: bit 0 Scout, 1 AWP, 2 SG550
+		case WEAPON_SCOUT:			return ( mp_buy_allow_snipers_ct.GetInt() & 1 ) != 0;
+		case WEAPON_AWP:			return ( mp_buy_allow_snipers_ct.GetInt() & 2 ) != 0;
+		case WEAPON_SG550:			return ( mp_buy_allow_snipers_ct.GetInt() & 4 ) != 0;
+
+		// Machine guns: bit 0 M249
+		case WEAPON_M249:			return ( mp_buy_allow_machine_guns_ct.GetInt() & 1 ) != 0;
+
+		default:					return true;
+		}
+	}
+
+	if ( iTeam == TEAM_TERRORIST )
+	{
+		switch ( id )
+		{
+		// Pistols: bit 0 Glock, 1 P228, 2 Desert Eagle, 3 Dual Berettas
+		case WEAPON_GLOCK:			return ( mp_buy_allow_pistols_t.GetInt() & 1 ) != 0;
+		case WEAPON_P228:			return ( mp_buy_allow_pistols_t.GetInt() & 2 ) != 0;
+		case WEAPON_DEAGLE:			return ( mp_buy_allow_pistols_t.GetInt() & 4 ) != 0;
+		case WEAPON_ELITE:			return ( mp_buy_allow_pistols_t.GetInt() & 8 ) != 0;
+
+		// Sub machine guns: bit 0 MAC-10, 1 MP5 Navy, 2 UMP-45, 3 P90
+		case WEAPON_MAC10:			return ( mp_buy_allow_smgs_t.GetInt() & 1 ) != 0;
+		case WEAPON_MP5NAVY:		return ( mp_buy_allow_smgs_t.GetInt() & 2 ) != 0;
+		case WEAPON_UMP45:			return ( mp_buy_allow_smgs_t.GetInt() & 4 ) != 0;
+		case WEAPON_P90:			return ( mp_buy_allow_smgs_t.GetInt() & 8 ) != 0;
+
+		// Rifles: bit 0 Galil, 1 AK-47, 2 SG552
+		case WEAPON_GALIL:			return ( mp_buy_allow_rifles_t.GetInt() & 1 ) != 0;
+		case WEAPON_AK47:			return ( mp_buy_allow_rifles_t.GetInt() & 2 ) != 0;
+		case WEAPON_SG552:			return ( mp_buy_allow_rifles_t.GetInt() & 4 ) != 0;
+
+		// Shotguns: bit 0 M3, 1 XM1014
+		case WEAPON_M3:				return ( mp_buy_allow_shotguns_t.GetInt() & 1 ) != 0;
+		case WEAPON_XM1014:			return ( mp_buy_allow_shotguns_t.GetInt() & 2 ) != 0;
+
+		// Sniper rifles: bit 0 Scout, 1 AWP, 2 G3SG1
+		case WEAPON_SCOUT:			return ( mp_buy_allow_snipers_t.GetInt() & 1 ) != 0;
+		case WEAPON_AWP:			return ( mp_buy_allow_snipers_t.GetInt() & 2 ) != 0;
+		case WEAPON_G3SG1:			return ( mp_buy_allow_snipers_t.GetInt() & 4 ) != 0;
+
+		// Machine guns: bit 0 M249
+		case WEAPON_M249:			return ( mp_buy_allow_machine_guns_t.GetInt() & 1 ) != 0;
+
+		default:					return true;
+		}
+	}
+
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Apply the purchase restrictions to one purchase. Returns true when the item may not be
+//          bought. Only weapons the player's own team can buy have a bit: the other team's weapons
+//          are refused in HandleCommand_Buy() by their weapon script, before any of this matters.
+//          Defuse kits, nightvision and the shield are not restricted; ammo is not either.
+//-----------------------------------------------------------------------------
+static bool IsBuyDisallowedByRules( CSWeaponID id, CCSWeaponInfo *pWeaponInfo, const char *szWpnName, int iTeam )
+{
+	const int nMaxArmor = ( iTeam == TEAM_TERRORIST ) ? mp_max_armor_t.GetInt() : mp_max_armor_ct.GetInt();
+
+	// mp_free_armor hands the armour out at spawn, and the player is then refused a purchase of it, so
+	// he cannot waste money on it. With 1 the helmet is still for sale, because the helmet is only
+	// free at 2.
 	if ( Q_stristr( szWpnName, "kevlar" ) )
-		return mp_max_armor.GetInt() < 1 || mp_free_armor.GetInt() >= 1;
+		return nMaxArmor < 1 || mp_free_armor.GetInt() >= 1;
 
 	if ( Q_stristr( szWpnName, "assaultsuit" ) )
-		return mp_max_armor.GetInt() < 2 || mp_free_armor.GetInt() >= 2;
+		return nMaxArmor < 2 || mp_free_armor.GetInt() >= 2;
 
+	// Grenades: one bit each, in the player's team's own bitfield.
 	if ( pWeaponInfo->m_WeaponType == WEAPONTYPE_GRENADE )
-		return !mp_buy_allow_grenades.GetBool();
+	{
+		const int nAllowed = ( iTeam == TEAM_TERRORIST ) ? mp_buy_allow_grenades_t.GetInt()
+															: mp_buy_allow_grenades_ct.GetInt();
+		int nBit = 0;
 
-	const int nAllowed = mp_buy_allow_guns.GetInt();
+		switch ( id )
+		{
+		case WEAPON_HEGRENADE:		nBit = 1; break;
+		case WEAPON_FLASHBANG:		nBit = 2; break;
+		case WEAPON_SMOKEGRENADE:	nBit = 4; break;
+		default:					break;
+		}
 
+		return nBit != 0 && ( nAllowed & nBit ) == 0;
+	}
+
+	// Only the six weapon groups below are guns for the purpose of these convars. Nightvision and the
+	// shield are not, and neither is anything else the weapon scripts may classify differently, so they
+	// keep stock behaviour whatever mp_buy_allow_guns says.
 	switch ( pWeaponInfo->m_WeaponType )
 	{
-	case WEAPONTYPE_PISTOL:			return ( nAllowed & 1 ) == 0;		// bit 0: pistols
-	case WEAPONTYPE_SUBMACHINEGUN:	return ( nAllowed & 2 ) == 0;		// bit 1: sub machine guns
-	case WEAPONTYPE_RIFLE:			return ( nAllowed & 4 ) == 0;		// bit 2: rifles
-	case WEAPONTYPE_SHOTGUN:		return ( nAllowed & 8 ) == 0;		// bit 3: shotguns
-	case WEAPONTYPE_SNIPER_RIFLE:	return ( nAllowed & 16 ) == 0;		// bit 4: sniper rifles
-	case WEAPONTYPE_MACHINEGUN:		return ( nAllowed & 32 ) == 0;		// bit 5: machine guns
-	default:						return false;
+	case WEAPONTYPE_PISTOL:
+	case WEAPONTYPE_SUBMACHINEGUN:
+	case WEAPONTYPE_RIFLE:
+	case WEAPONTYPE_SHOTGUN:
+	case WEAPONTYPE_SNIPER_RIFLE:
+	case WEAPONTYPE_MACHINEGUN:
+		break;
+
+	default:
+		return false;
 	}
+
+	// mp_buy_allow_guns decides who may shop for guns at all, then the team's bitfield for the
+	// weapon's group decides which ones. Grenades and armour are not guns and have their own convars.
+	switch ( mp_buy_allow_guns.GetInt() )
+	{
+	case 1:		break;										// both teams (stock)
+	case 2:		if ( iTeam != TEAM_TERRORIST )	return true; break;	// Terrorists only
+	case 3:		if ( iTeam != TEAM_CT )		return true; break;	// CT only
+	default:	return true;								// 0: nobody
+	}
+
+	return !IsWeaponAllowedForTeam( id, iTeam );
 }
 
 // Handles the special "buy" alias commands we're creating to accommodate the buy
@@ -3464,7 +3594,8 @@ BuyResult_e CCSPlayer::HandleCommand_Buy( const char *item )
 	char wpnName[128];
 	Q_snprintf( wpnName, sizeof( wpnName ), "weapon_%s", itemNameUsed );
 
-	CCSWeaponInfo *pWeaponInfo = GetWeaponInfo( (CSWeaponID)ClassnameToWeaponID( wpnName ) );
+	CSWeaponID nWeaponID = (CSWeaponID)ClassnameToWeaponID( wpnName );
+	CCSWeaponInfo *pWeaponInfo = GetWeaponInfo( nWeaponID );
 	if ( pWeaponInfo == NULL )
 	{
 		if ( Q_stricmp( itemNameUsed, "primammo" ) == 0 )
@@ -3507,7 +3638,7 @@ BuyResult_e CCSPlayer::HandleCommand_Buy( const char *item )
 		// Purchase rules. Checked here, in the one place every buy ends up (buy menu, buy aliases,
 		// autobuy/rebuy and the bots, which buy with "buy <alias>"), so all of them obey the same
 		// rule and no path can slip past it.
-		if ( IsBuyDisallowedByRules( pWeaponInfo, wpnName ) )
+		if ( IsBuyDisallowedByRules( nWeaponID, pWeaponInfo, wpnName, GetTeamNumber() ) )
 		{
 			if ( !m_bIsInAutoBuy && !m_bIsInRebuy )
 				ClientPrint( this, HUD_PRINTCENTER, "This item cannot be bought on this server" );
