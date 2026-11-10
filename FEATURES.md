@@ -60,6 +60,7 @@ Source game. For each feature it records:
 | `mp_buy_allow_guns` | `255` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 pistols, 2 SMGs, 4 rifles, 8 shotguns, 16 snipers, 32 machine guns |
 | `mp_buy_allow_grenades` | `1` | [8. Purchase restrictions](#8-purchase-restrictions) | 0/1 |
 | `mp_max_armor` | `2` | [8. Purchase restrictions](#8-purchase-restrictions) | 0=none, 1=kevlar, 2=kevlar and helmet |
+| `mp_halftime` | `0` | [9. Halftime](#9-halftime) | 0 = never swap, 1 = swap at half of mp_maxrounds |
 
 ---
 
@@ -648,3 +649,69 @@ replicated. The stock client sends its usual `buy` command, receives the usual `
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars), `dlls/cstrike/cs_player.cpp`
 (`IsBuyDisallowedByRules`, called from `HandleCommand_Buy`).
+
+---
+
+# 9. Halftime
+
+**Origin:** CS:GO `mp_halftime` (`game/shared/cstrike15/cs_gamerules.cpp:18692`), the side swap in
+`CCSGameRules::SwitchTeamsAtRoundReset()` (`:18239`) and `CCSPlayer`'s
+`m_switchTeamsOnNextRoundReset` block (`game/server/cstrike15/cs_player.cpp:16815`).
+
+**Why:** stock Counter-Strike: Source never swaps sides: a match is played on the same side from
+start to finish, so an asymmetric map is never played both ways. CS:GO's halftime is the switch that
+makes a full match fair, and it is a single convar.
+
+**What it does.** When `mp_halftime` is `1` and `mp_maxrounds` is greater than `1`, the round restart
+that follows the first half of the match (`m_iTotalRoundsPlayed == mp_maxrounds / 2`) does the
+following, before anybody is spawned for the new round:
+
+* Every player on CT or T is moved to the other side with `CCSPlayer::SwitchTeam()`, which drops the
+  defuse kit, re-maps the player class to the corresponding model of the new side and refreshes the
+  team counts. Dead players are swapped as well, so they return on the correct side; spectators and
+  unassigned players are left alone.
+* `m_iNumCTWins` and `m_iNumTerroristWins` are exchanged, so the score stays with the side that
+  actually won the rounds, and `UpdateTeamScores()` publishes it.
+* The loss ladder is **reset**, not exchanged: both consecutive-loss counters go to `0` and
+  `m_iLoserBonus` goes back to `1400`, the value a fresh match starts with. CS:GO does the same thing
+  with `mp_starting_losses` (a new half starts a clean streak), and in this tree the counters only
+  feed the shared losing bonus of feature 5.
+* Each swapped player is reset exactly like CS:GO's `SwitchTeamsAtRoundReset()` does it:
+  `RemoveAllItems( true )` destroys weapons and armour, the account is set back to `mp_startmoney`,
+  and `MarkAsNotReceivingMoneyNextRound()` skips the round's win/loss cash award (which runs later in
+  the same restart), so the second half genuinely begins on start money instead of start money plus a
+  bonus.
+
+The swap happens during the restart rather than in a separate halftime phase: v34 has no match phase
+system, so the CS:GO sequence "announce, freeze, swap at the round reset" collapses into "swap during
+the round reset". A player therefore sees his side change as the new round starts, which is the moment
+CS:GO applies it too.
+
+`0` (default) is stock Counter-Strike: Source: no swap ever happens.
+
+**Details and limits.**
+
+* Assassination maps (`func_vip_safetyzone`) are skipped: they are built around a fixed VIP and have
+  no meaningful side swap, so `mp_halftime` silently does nothing there.
+* The trigger is an equality test, so it fires exactly once per match. `mp_restartgame` also counts as
+  a played round, so an admin restart can trigger it early and consume it; lowering `mp_maxrounds`
+  mid-match below twice the rounds already played means it never fires.
+* `mp_humanteam` is applied earlier in the same restart (`MoveHumansToHumanTeam`) and is then undone
+  by the swap: the two convars should not be combined.
+* Odd `mp_maxrounds` floors the halfway point (`3` rounds swaps after round 1).
+* Ammo and grenades are removed together with the weapons (`RemoveAllItems`), which is what CS:GO
+  does at a side swap; `mp_free_armor` and feature 3's respawn policies then apply normally.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_halftime` | `0` | `0`/`1` | Swap the teams after the first half of `mp_maxrounds` |
+
+**Client compatibility.** The client already handles a team change: `CBasePlayer::ChangeTeam` fires
+the stock `player_team` game event, the score comes from the replicated team scores, and the player
+model follows the re-mapped class at respawn. No convar is replicated, no netprop and no usermessage
+is added, so a v34 client needs no knowledge of halftime.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar, `SwapTeamsForHalftime`, the trigger in
+`RestartRound`), `game_shared/cstrike/cs_gamerules.h` (declaration).

@@ -282,6 +282,7 @@ public:
 	// BOMB MAP FUNCTIONS
 	void GiveC4();
 	void AllocateDefuserForRound();
+	void SwapTeamsForHalftime();
 	bool IsThereABomber();
 	bool IsThereABomb();
 

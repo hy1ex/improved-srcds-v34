@@ -376,6 +376,17 @@ ConVar mp_max_armor(
 	true, 2 );
 
 // ---------------------------------------------------------------------------------------------------
+// Halftime. Ported from CS:GO (mp_halftime). Server side only: team membership, the team scores and
+// money are already networked, so a stock client follows the swap without any new message or netprop.
+// Default 0 keeps stock CS:S behaviour, where the sides never change.
+// ---------------------------------------------------------------------------------------------------
+ConVar mp_halftime(
+	"mp_halftime",
+	"0",
+	FCVAR_NOTIFY,
+	"Swap the teams halfway through mp_maxrounds (0 = stock CS:S, never swap)" );
+
+// ---------------------------------------------------------------------------------------------------
 // Collision control. Ported from CS:GO's mp_solid_teammates, generalised to one switch for every
 // player plus the equivalent switches for hostages and thrown grenades. Server side only, never
 // replicated. Every default is 1, which is stock Counter-Strike: Source behaviour (everything
@@ -2314,6 +2325,61 @@ ConVar cl_autohelp(
 	}
 
 
+	//-----------------------------------------------------------------------------
+	// Purpose: Halftime (mp_halftime). Swap every player to the other side and reset the economy,
+	//			so the second half is played with the sides exchanged.
+	//-----------------------------------------------------------------------------
+	void CCSGameRules::SwapTeamsForHalftime( void )
+	{
+		// Assassination maps are built around a fixed VIP and have no meaningful side swap.
+		if ( IsVIPMap() )
+			return;
+
+		// The score belongs to the sides, not to the players, so it stays where it is: swapping it
+		// keeps "CT rounds won" pointing at the side that actually won them.
+		const short nCTWins = m_iNumCTWins;
+		m_iNumCTWins = m_iNumTerroristWins;
+		m_iNumTerroristWins = nCTWins;
+
+		// CS:GO starts a fresh half instead of carrying the first half's loss ladder over: both
+		// counters are cleared and the shared losing bonus goes back to the value a fresh match uses
+		// (the same 1400 that CCSGameRules sets in the m_bCompleteReset block above, standing in for
+		// CS:GO's mp_starting_losses).
+		m_iNumConsecutiveCTLoses = 0;
+		m_iNumConsecutiveTerroristLoses = 0;
+		m_iLoserBonus = 1400;
+
+		UpdateTeamScores();
+
+		for ( int i = 1; i <= gpGlobals->maxClients; i++ )
+		{
+			CCSPlayer *pPlayer = ToCSPlayer( UTIL_PlayerByIndex( i ) );
+
+			if ( !pPlayer )
+				continue;
+
+			// SwitchTeam() drops the defuse kit, resets the player class to the model of the new side
+			// and refreshes the team counts. Dead players are swapped as well, otherwise they would
+			// come back on their old side when the round restarts.
+			if ( pPlayer->GetTeamNumber() == TEAM_CT )
+				pPlayer->SwitchTeam( TEAM_TERRORIST );
+			else if ( pPlayer->GetTeamNumber() == TEAM_TERRORIST )
+				pPlayer->SwitchTeam( TEAM_CT );
+
+			// Everything below is CS:GO's CCSPlayer::SwitchTeamsAtRoundReset: the second half starts
+			// as if it were the first one. Weapons and armour are destroyed, the account goes back to
+			// the start money, and the round's win/loss payout is skipped so the reset is not undone
+			// by the cash awards later in this same RestartRound().
+			pPlayer->RemoveAllItems( true );
+
+			pPlayer->AddAccount( mp_startmoney.GetInt() - pPlayer->m_iAccount );
+			pPlayer->m_iShouldHaveCash = pPlayer->m_iAccount;
+			pPlayer->MarkAsNotReceivingMoneyNextRound();
+		}
+
+		UTIL_ClientPrintAll( HUD_PRINTCENTER, "Teams are switching sides for the second half" );
+	}
+
 	void CCSGameRules::RestartRound()
 	{
 		if ( !IsFinite( gpGlobals->curtime ) )
@@ -2415,6 +2481,15 @@ ConVar cl_autohelp(
 				if ( pPlayer && !FNullEnt( pPlayer->edict() ) )
 					pPlayer->Reset();
 			}
+		}
+
+		// Halftime: after the first half of the match, swap sides and reset the economy. This runs
+		// before the round spawns anyone, so every player respawns on his new side with the new
+		// team's model and spawn points.
+		if ( mp_halftime.GetBool() && mp_maxrounds.GetInt() > 1 &&
+			 m_iTotalRoundsPlayed == mp_maxrounds.GetInt() / 2 )
+		{
+			SwapTeamsForHalftime();
 		}
 
 		m_bFreezePeriod = true;
