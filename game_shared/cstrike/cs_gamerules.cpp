@@ -347,6 +347,35 @@ ConVar mp_free_armor(
 	true, 2 );
 
 // ---------------------------------------------------------------------------------------------------
+// Purchase restrictions. Ported from CS:GO (mp_buy_allow_guns, mp_buy_allow_grenades, mp_max_armor).
+// Server side only: the decision is taken when a purchase arrives, so nothing is replicated. The
+// defaults allow everything that stock CS:S allows, so nothing changes until an operator opts in.
+// ---------------------------------------------------------------------------------------------------
+ConVar mp_buy_allow_guns(
+	"mp_buy_allow_guns",
+	"255",
+	FCVAR_NOTIFY,
+	"Weapon groups that may be bought, as a bitfield: pistols 1, SMGs 2, rifles 4, shotguns 8, sniper rifles 16, machine guns 32 (255 = all)",
+	true, 0,
+	true, 255 );
+
+ConVar mp_buy_allow_grenades(
+	"mp_buy_allow_grenades",
+	"1",
+	FCVAR_NOTIFY,
+	"Whether grenades may be bought (1 = stock)",
+	true, 0,
+	true, 1 );
+
+ConVar mp_max_armor(
+	"mp_max_armor",
+	"2",
+	FCVAR_NOTIFY,
+	"Highest armour that may be bought: 0=none, 1=kevlar, 2=kevlar and helmet (2 = stock)",
+	true, 0,
+	true, 2 );
+
+// ---------------------------------------------------------------------------------------------------
 // Collision control. Ported from CS:GO's mp_solid_teammates, generalised to one switch for every
 // player plus the equivalent switches for hostages and thrown grenades. Server side only, never
 // replicated. Every default is 1, which is stock Counter-Strike: Source behaviour (everything

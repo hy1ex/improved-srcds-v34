@@ -57,6 +57,9 @@ Source game. For each feature it records:
 | `mp_damage_scale_t_body` | `1` | [6. Damage scaling](#6-damage-scaling) | multiplier for the rest of a Terrorist |
 | `mp_damage_headshot_only` | `0` | [6. Damage scaling](#6-damage-scaling) | 0/1, only headshot bullets deal damage |
 | `mp_free_armor` | `0` | [7. Free armour](#7-free-armour) | 0=none, 1=kevlar, 2=kevlar and helmet |
+| `mp_buy_allow_guns` | `255` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 pistols, 2 SMGs, 4 rifles, 8 shotguns, 16 snipers, 32 machine guns |
+| `mp_buy_allow_grenades` | `1` | [8. Purchase restrictions](#8-purchase-restrictions) | 0/1 |
+| `mp_max_armor` | `2` | [8. Purchase restrictions](#8-purchase-restrictions) | 0=none, 1=kevlar, 2=kevlar and helmet |
 
 ---
 
@@ -578,3 +581,70 @@ Bots are unaffected: they still decide to buy armour on their own, so an operato
 just sees them keep that money.
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar, grant in `PlayerSpawn`).
+
+---
+
+# 8. Purchase restrictions
+
+**Origin:** CS:GO `mp_buy_allow_guns`, `mp_buy_allow_grenades` and `mp_max_armor`
+(`game/shared/cstrike15/cs_gamerules.cpp`).
+
+**Why:** stock Counter-Strike: Source has no way to limit what may be bought beyond the map's buy
+zones. Pistol-only nights, "no AWP" and "no grenades" servers therefore rely on external plugins or
+on trust. These are the three CS:GO convars that cover the whole buy menu, and their defaults allow
+everything stock CS:S allows.
+
+**What it does.** Every purchase goes through `CCSPlayer::HandleCommand_Buy()`, which is the single
+place the buy menu commands, the `buy` aliases, `autobuy`/`rebuy`, the per-item buy binds and the
+bots end up (bots issue `buy <alias>` through `ClientCommand`, so they are covered by the same rule).
+One check there applies the three convars:
+
+* `mp_buy_allow_guns` — a bitfield over weapon groups. A group whose bit is clear cannot be bought.
+  `255` (default) sets every defined bit and is therefore stock behaviour.
+
+  | Bit | Value | Group |
+  | --- | --- | --- |
+  | 0 | `1` | Pistols |
+  | 1 | `2` | Sub machine guns |
+  | 2 | `4` | Rifles |
+  | 3 | `8` | Shotguns |
+  | 4 | `16` | Sniper rifles |
+  | 5 | `32` | Machine guns |
+
+  Bits 6 and 7 (`64`, `128`) are unused, exactly like CS:GO. The categories come from the weapon's own
+  `CSWeaponType` in its weapon script, so the rule is data driven and does not list weapon names.
+* `mp_buy_allow_grenades` — `0` refuses HE, flashbang and smoke purchases. `1` (default) is stock.
+* `mp_max_armor` — caps armour purchases: `0` refuses vest and vest+helmet, `1` refuses only
+  vest+helmet, `2` (default) is stock.
+
+A refused purchase prints "This item cannot be bought on this server" in the centre of the screen
+(suppressed for `autobuy`/`rebuy` feedback, like the other buy results) and returns `BUY_NOT_ALLOWED`.
+
+**What it deliberately does not do.**
+
+* It restricts **purchases only**. Armour can still arrive through `game_player_equip` or through
+  feature 7's `mp_free_armor`, and a weapon picked up from the ground is not taken away. This is
+  exactly the CS:GO behaviour of these convars.
+* Defuse kits, nightvision and the tactical shield are not covered. CS:GO restricts those with
+  `mp_items_prohibited` (a comma separated list of item indices), which is a different mechanism and
+  not part of this port.
+* Ammo (`primammo`/`secammo`) is not restricted: a player who already owns a weapon can still refill
+  it, so a restriction never strands a player with an empty gun.
+* The stock v34 buy menu still lists every item. The client cannot be told to hide entries without
+  changing the client, so a restricted item is shown and simply refuses to buy. That is the same
+  compromise as feature 3's buy-window rule and the only server-side option.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_buy_allow_guns` | `255` | `0`–`255` | Weapon groups that may be bought (bitfield above) |
+| `mp_buy_allow_grenades` | `1` | `0`/`1` | Whether grenades may be bought |
+| `mp_max_armor` | `2` | `0`/`1`/`2` | Highest armour that may be bought |
+
+**Client compatibility.** Nothing about a purchase is client-authoritative and none of these convars is
+replicated. The stock client sends its usual `buy` command, receives the usual `BuyResult` handling
+(account and weapon state, or a centre-screen refusal), and needs no knowledge of the rules.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars), `dlls/cstrike/cs_player.cpp`
+(`IsBuyDisallowedByRules`, called from `HandleCommand_Buy`).

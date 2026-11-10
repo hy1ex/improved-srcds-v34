@@ -54,6 +54,9 @@ extern ConVar mp_damage_scale_ct_body;
 extern ConVar mp_damage_scale_t_head;
 extern ConVar mp_damage_scale_t_body;
 extern ConVar mp_damage_headshot_only;
+extern ConVar mp_buy_allow_guns;
+extern ConVar mp_buy_allow_grenades;
+extern ConVar mp_max_armor;
 
 #include "weapon_hegrenade.h"
 #include "weapon_flashbang.h"
@@ -3425,6 +3428,37 @@ BuyResult_e CCSPlayer::AttemptToBuyNightVision( void )
 }
 
 
+//-----------------------------------------------------------------------------
+// Purpose: Apply the purchase restrictions (mp_buy_allow_guns, mp_buy_allow_grenades,
+//          mp_max_armor) to one purchase. Returns true when the item may not be bought.
+//          Armour is not part of the gun bitfield in CS:GO, it has its own cap; defuse kits,
+//          nightvision and the shield are not restricted by any of these convars.
+//-----------------------------------------------------------------------------
+static bool IsBuyDisallowedByRules( CCSWeaponInfo *pWeaponInfo, const char *szWpnName )
+{
+	if ( Q_stristr( szWpnName, "kevlar" ) )
+		return mp_max_armor.GetInt() < 1;
+
+	if ( Q_stristr( szWpnName, "assaultsuit" ) )
+		return mp_max_armor.GetInt() < 2;
+
+	if ( pWeaponInfo->m_WeaponType == WEAPONTYPE_GRENADE )
+		return !mp_buy_allow_grenades.GetBool();
+
+	const int nAllowed = mp_buy_allow_guns.GetInt();
+
+	switch ( pWeaponInfo->m_WeaponType )
+	{
+	case WEAPONTYPE_PISTOL:			return ( nAllowed & 1 ) == 0;		// bit 0: pistols
+	case WEAPONTYPE_SUBMACHINEGUN:	return ( nAllowed & 2 ) == 0;		// bit 1: sub machine guns
+	case WEAPONTYPE_RIFLE:			return ( nAllowed & 4 ) == 0;		// bit 2: rifles
+	case WEAPONTYPE_SHOTGUN:		return ( nAllowed & 8 ) == 0;		// bit 3: shotguns
+	case WEAPONTYPE_SNIPER_RIFLE:	return ( nAllowed & 16 ) == 0;		// bit 4: sniper rifles
+	case WEAPONTYPE_MACHINEGUN:		return ( nAllowed & 32 ) == 0;		// bit 5: machine guns
+	default:						return false;
+	}
+}
+
 // Handles the special "buy" alias commands we're creating to accommodate the buy
 // scripts players use (now that we've rearranged the buy menus and broken the scripts)
 BuyResult_e CCSPlayer::HandleCommand_Buy( const char *item )
@@ -3479,6 +3513,17 @@ BuyResult_e CCSPlayer::HandleCommand_Buy( const char *item )
 		if( !CanPlayerBuy( true ) )
 		{
 			return BUY_PLAYER_CANT_BUY;
+		}
+
+		// Purchase rules. Checked here, in the one place every buy ends up (buy menu, buy aliases,
+		// autobuy/rebuy and the bots, which buy with "buy <alias>"), so all of them obey the same
+		// rule and no path can slip past it.
+		if ( IsBuyDisallowedByRules( pWeaponInfo, wpnName ) )
+		{
+			if ( !m_bIsInAutoBuy && !m_bIsInRebuy )
+				ClientPrint( this, HUD_PRINTCENTER, "This item cannot be bought on this server" );
+
+			return BUY_NOT_ALLOWED;
 		}
 
 		bool bPurchase = false;
