@@ -56,6 +56,7 @@ Source game. For each feature it records:
 | `mp_damage_scale_t_head` | `1` | [6. Damage scaling](#6-damage-scaling) | multiplier for Terrorist headshots |
 | `mp_damage_scale_t_body` | `1` | [6. Damage scaling](#6-damage-scaling) | multiplier for the rest of a Terrorist |
 | `mp_damage_headshot_only` | `0` | [6. Damage scaling](#6-damage-scaling) | 0/1, only headshot bullets deal damage |
+| `mp_free_armor` | `0` | [7. Free armour](#7-free-armour) | 0=none, 1=kevlar, 2=kevlar and helmet |
 
 ---
 
@@ -537,3 +538,43 @@ Only the health loss is suppressed.
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars), `dlls/cstrike/cs_player.cpp`
 (`TraceAttack` scaling, `OnTakeDamage` headshot gate).
+
+---
+
+# 7. Free armour
+
+**Origin:** CS:GO `mp_free_armor` (`game/shared/cstrike15/cs_gamerules.cpp`).
+
+**Why:** Counter-Strike: Source has no way to hand out armour: it can only be bought in the buy
+zone. Pistol-only rounds, deathmatch-style configurations and any mode where the operator wants
+everyone on an equal footing therefore have to script it. CS:GO's single convar covers the whole
+case.
+
+**What it does.** Every time a player spawns, `CCSGameRules::PlayerSpawn()` sets his armour to `100`
+and, with `2`, gives him a helmet as well. Because it runs in `PlayerSpawn`, it applies to round
+starts and to both respawn paths (`RoundRespawn` and feature 3's `DoRespawn`), and it runs after the
+`game_player_equip` loadout, so maps that hand out items themselves still get it.
+
+Two details that differ from a literal reading of the convar name:
+
+* It **tops up** rather than filling only an empty vest. A player who survived the round with `40`
+  armour comes back with `100`, which is what CS:GO does when armour carries over.
+* With `1` it never removes a helmet the player already has; it simply does not add one.
+
+`0` (default) is stock Counter-Strike: Source: nothing is granted, armour is still bought as usual.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_free_armor` | `0` | `0`/`1`/`2` | Armour granted on spawn: none, kevlar, kevlar and helmet |
+
+**Client compatibility.** Armour and the helmet flag are already networked player fields drawn by the
+v34 HUD (the armour counter) and used by the client for its hit feedback, so a stock client shows the
+granted armour exactly like bought armour. No convar is replicated, no netprop and no usermessage is
+added.
+
+Bots are unaffected: they still decide to buy armour on their own, so an operator who enables this
+just sees them keep that money.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar, grant in `PlayerSpawn`).

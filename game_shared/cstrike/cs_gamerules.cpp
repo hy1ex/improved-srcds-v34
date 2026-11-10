@@ -334,6 +334,19 @@ ConVar mp_damage_headshot_only(
 	"Only bullets that hit the head deal damage (0 = stock damage model)" );
 
 // ---------------------------------------------------------------------------------------------------
+// Free armour at spawn. Ported from CS:GO (mp_free_armor). Server side only; armour is already a
+// networked player field, so nothing new is sent to clients. Default 0 keeps stock CS:S, where
+// armour can only be bought.
+// ---------------------------------------------------------------------------------------------------
+ConVar mp_free_armor(
+	"mp_free_armor",
+	"0",
+	FCVAR_NOTIFY,
+	"Armour every player gets when he spawns: 0=none (stock), 1=kevlar, 2=kevlar and helmet",
+	true, 0,
+	true, 2 );
+
+// ---------------------------------------------------------------------------------------------------
 // Collision control. Ported from CS:GO's mp_solid_teammates, generalised to one switch for every
 // player plus the equivalent switches for hostages and thrown grenades. Server side only, never
 // replicated. Every default is 1, which is stock Counter-Strike: Source behaviour (everything
@@ -1006,6 +1019,19 @@ ConVar cl_autohelp(
 
 		if ( addDefault || pPlayer->m_bIsVIP )
 			pPlayer->GiveDefaultItems();
+
+		// Free armour (mp_free_armor). Applied after the loadout so it also reaches players on maps
+		// that hand out their items through game_player_equip, and it tops a surviving player back up
+		// to full armour instead of only filling an empty vest.
+		const int nFreeArmor = mp_free_armor.GetInt();
+
+		if ( nFreeArmor > 0 )
+		{
+			pPlayer->SetArmorValue( 100 );
+
+			if ( nFreeArmor >= 2 )
+				pPlayer->m_bHasHelmet = true;
+		}
 
 		// Defuse kit allocation (mp_defuser_allocation). Only meaningful on bomb defuse maps and
 		// only for CTs; with 1 ("one random CT") just the player picked at round start gets one.
