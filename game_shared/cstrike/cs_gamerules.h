@@ -112,6 +112,7 @@ public:
 	bool IsSpawnPointHiddenFromOtherPlayers( CBaseEntity *pSpot, CBasePlayer *pPlayer, int nHideFromTeam = 0 );
 	int  MaxNumPlayersOnTerrTeam( void );
 	int  MaxNumPlayersOnCTTeam( void );
+	int  GetDeathmatchKillScore( CBaseCombatWeapon *pWeapon );
 
 	bool IsBuyTimeElapsed();
 	

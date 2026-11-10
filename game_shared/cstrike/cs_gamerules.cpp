@@ -755,6 +755,25 @@ ConVar cl_autohelp(
 		true, 0,
 		false, 0 );
 
+	// Deathmatch kill scoring (CS:GO cs_gamerules.cpp:2346 and :18728). CS:GO has no switch for it
+	// because its game mode decides; there is no game mode here, so mp_dm_scoring is that switch and
+	// defaults to off, which keeps stock Counter-Strike: Source scoring.
+	ConVar mp_dm_scoring(
+		"mp_dm_scoring",
+		"0",
+		FCVAR_NOTIFY,
+		"Award CS:GO deathmatch points for kills. 0 = stock frags, 1 = mp_dm_kill_base_score per kill with a weapon price bonus.",
+		true, 0,
+		true, 1 );
+
+	ConVar mp_dm_kill_base_score(
+		"mp_dm_kill_base_score",
+		"10",
+		FCVAR_NONE,
+		"Number of base points to award for a kill in deathmatch. Cheaper weapons award 1 or 2 additional points.",
+		true, 0,
+		false, 0 );
+
 
 	// Deathmatch spawn point generation, defined further down next to the other spawn helpers.
 	static void MaintainDMSpawnPopulation( void );
@@ -1727,6 +1746,17 @@ ConVar cl_autohelp(
 			{
 				pCSScorer->m_iDisplayHistoryBits |= DHF_ENEMY_KILLED;
 				pCSScorer->HintMessage( "#Hint_win_round_by_killing_enemy", false );
+			}
+
+			// mp_dm_scoring: CS:GO's deathmatch kill score. It goes into the frag count because that
+			// is the only per-player score a v34 scoreboard shows, and the base rules have already
+			// given one frag for this kill.
+			if ( mp_dm_scoring.GetBool() )
+			{
+				int nScore = GetDeathmatchKillScore( pCSScorer->GetActiveCSWeapon() );
+
+				if ( nScore > 1 )
+					pCSScorer->IncrementFragCount( nScore - 1 );
 			}
 		}
 	}
@@ -4485,6 +4515,34 @@ extern bool UTIL_IsVisibleToTeam( const Vector &spot, int team );
 		}
 
 		return false;
+	}
+
+	// CS:GO cs_gamerules.cpp:18728 - a deathmatch kill is worth mp_dm_kill_base_score, plus 10 when
+	// the kill was made with the knife, plus 2 for a weapon cheaper than 1400 and plus 1 for a weapon
+	// cheaper than 3500. CS:GO looks the weapon up through the econ loadout slot; weapons are
+	// addressed by their info in this tree, which carries the same price.
+	int CCSGameRules::GetDeathmatchKillScore( CBaseCombatWeapon *pWeapon )
+	{
+		CWeaponCSBase *pCSWeapon = dynamic_cast< CWeaponCSBase * >( pWeapon );
+
+		if ( !pCSWeapon )
+			return 0;
+
+		if ( pCSWeapon->GetWeaponID() == WEAPON_KNIFE )
+			return 10 + mp_dm_kill_base_score.GetInt();
+
+		int nScore = mp_dm_kill_base_score.GetInt();
+		int nPrice = pCSWeapon->GetCSWpnData().GetWeaponPrice();
+
+		if ( nPrice < 0 )
+			return 1;	// no price in the weapon script, CS:GO falls back to a single point
+
+		if ( nPrice < 1400 )
+			nScore += 2;
+		else if ( nPrice < 3500 )
+			nScore += 1;
+
+		return nScore;
 	}
 
 	// --------------------------------------------------------------------------------------------------- //
