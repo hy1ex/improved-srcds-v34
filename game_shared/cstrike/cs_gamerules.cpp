@@ -635,7 +635,7 @@ ConVar cl_autohelp(
 		"800", 
 		FCVAR_REPLICATED,
 		"amount of money each player gets when they reset",
-		true, 800,
+		true, 0,
 		false, 0 );
 
 	ConVar mp_roundtime( 
@@ -1050,7 +1050,12 @@ ConVar cl_autohelp(
 			return;
 
 		pPlayer->EquipSuit();
-		
+
+		// A random kit is one kit per round, so CS:GO strips whatever defuser a player still carries
+		// before it hands the round's kit out below (CCSGameRules::PlayerSpawn).
+		if ( mp_defuser_allocation.GetInt() == DEFUSER_ALLOCATION_RANDOM )
+			pPlayer->RemoveDefuser();
+
 		bool addDefault = true;
 
 		CBaseEntity	*pWeaponEntity = NULL;

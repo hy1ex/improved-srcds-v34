@@ -3415,11 +3415,15 @@ BuyResult_e CCSPlayer::AttemptToBuyNightVision( void )
 //-----------------------------------------------------------------------------
 static bool IsBuyDisallowedByRules( CCSWeaponInfo *pWeaponInfo, const char *szWpnName )
 {
+	// mp_free_armor hands the armour out at spawn, and CS:GO then refuses to sell it: its
+	// CanAcquire() answers NotAllowedForPurchase for kevlar while IsArmorFree() is true and for the
+	// assault suit while IsHelmetFree() is true, so a player cannot waste money on it. With 1 the
+	// helmet is still for sale, because IsHelmetFree() needs 2.
 	if ( Q_stristr( szWpnName, "kevlar" ) )
-		return mp_max_armor.GetInt() < 1;
+		return mp_max_armor.GetInt() < 1 || mp_free_armor.GetInt() >= 1;
 
 	if ( Q_stristr( szWpnName, "assaultsuit" ) )
-		return mp_max_armor.GetInt() < 2;
+		return mp_max_armor.GetInt() < 2 || mp_free_armor.GetInt() >= 2;
 
 	if ( pWeaponInfo->m_WeaponType == WEAPONTYPE_GRENADE )
 		return !mp_buy_allow_grenades.GetBool();

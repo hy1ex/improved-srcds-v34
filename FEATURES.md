@@ -147,7 +147,9 @@ buy menu, have no way to do it. Everything the feature needs already exists in t
 * `1` — one CT is chosen at random at each round restart (on bomb defuse maps only) and receives a
   kit. The choice is made by reservoir sampling over the CTs with a playable class, and the chosen
   entindex is stored in `CCSGameRules::m_iDefuserCarrier`. If that CT leaves, nobody else inherits
-  the kit until the next round.
+  the kit until the next round. Every spawn also strips a leftover kit first, exactly like CS:GO
+  (`if ( mp_defuser_allocation.GetInt() == DefuserAllocation::Random ) pPlayer->RemoveDefuser();`),
+  so a kit bought last round cannot turn the "one random kit" round into a two-kit round.
 * `2` — every CT receives a kit when it spawns, on bomb defuse maps only.
 
 The allocation happens in `CCSGameRules::PlayerSpawn()` (after `GiveDefaultItems()`), so it also
@@ -478,10 +480,12 @@ would change stock behaviour for anyone who leaves it alone.
 * `mp_maxmoney` — the cap applied by `CCSPlayer::AddAccount()` after every credit or debit. Stock
   CS:S clamps at `16000`, which is the default here, so nothing changes until an operator lowers or
   raises it.
-* `mp_startmoney` — unbounded on the upper side: the convar used to be declared with a hard maximum
-  of `16000`, so any larger start money was clamped before a player ever saw it. The minimum is
-  still `800`. The effective ceiling remains `mp_maxmoney`, because that is what clamps the
-  account: raising the start money above `mp_maxmoney` therefore also needs `mp_maxmoney` raised.
+* `mp_startmoney` — unbounded in both directions: the convar used to be declared with a hard
+  maximum of `16000`, so any larger start money was clamped before a player ever saw it, and a
+  minimum of `800`, which made "start with nothing" modes impossible. Both bounds are now CS:GO's
+  (`true, 0, false, 0`), so `mp_startmoney 0` is legal and the default stays `800`. The effective
+  ceiling remains `mp_maxmoney`, because that is what clamps the account: raising the start money
+  above `mp_maxmoney` therefore also needs `mp_maxmoney` raised.
 * `mp_afterroundmoney` — flat cash handed to every player on both teams together with the round's
   normal cash, regardless of the round result. `0` (default) means "pay nothing extra", exactly
   stock behaviour.
@@ -501,8 +505,8 @@ would change stock behaviour for anyone who leaves it alone.
 | `mp_playercashawards` | `1` | `0`/`1` | Individual cash rewards (kill/VIP awards) |
 | `mp_teamcashawards` | `1` | `0`/`1` | Team win/loss cash at round start |
 
-`mp_startmoney` itself is a stock CS:S convar, not one added by this port; only its upper bound was
-removed.
+`mp_startmoney` itself is a stock CS:S convar, not one added by this port; only its bounds were
+changed, to the ones CS:GO uses.
 
 **Client compatibility.** Money is already a networked player field rendered by the v34 buy menu and
 HUD, so any value these convars produce is displayed correctly by a stock client. No convars are
@@ -589,6 +593,13 @@ Two details that differ from a literal reading of the convar name:
   armour comes back with `100`, which is what CS:GO does when armour carries over.
 * With `1` it never removes a helmet the player already has; it simply does not add one.
 
+While the convar is on, armour is **not for sale**, again like CS:GO: `CanAcquire()` answers
+`NotAllowedForPurchase` for kevlar while `IsArmorFree()` is true and for the assault suit while
+`IsHelmetFree()` is true, so a player cannot spend money on armour he is given anyway. With `2`
+neither item can be bought; with `1` only the vest is blocked and the helmet can still be bought.
+The check lives in `IsBuyDisallowedByRules()`, the single funnel every purchase passes through, so
+the buy menu, the buy aliases and the bots all obey it.
+
 `0` (default) is stock Counter-Strike: Source: nothing is granted, armour is still bought as usual.
 
 **Convars**
@@ -602,8 +613,8 @@ v34 HUD (the armour counter) and used by the client for its hit feedback, so a s
 granted armour exactly like bought armour. No convar is replicated, no netprop and no usermessage is
 added.
 
-Bots are unaffected: they still decide to buy armour on their own, so an operator who enables this
-just sees them keep that money.
+Bots decide to buy armour on their own, and the refusal above catches that too: they get the armour
+at spawn instead of paying for it, and keep the money.
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar, grant in `PlayerSpawn`).
 
