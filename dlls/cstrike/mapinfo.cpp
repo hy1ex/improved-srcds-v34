@@ -17,6 +17,7 @@ CMapInfo::CMapInfo()
 {
 	m_flBombRadius = 500.0f;
 	m_iBuyingStatus = 0;
+	m_bUseNormalSpawnsForDM = false;
 
 	if ( g_pMapInfo )
 	{
@@ -42,6 +43,11 @@ bool CMapInfo::KeyValue( const char *szKeyName, const char *szValue )
 	if (FStrEq(szKeyName, "buying"))
 	{
 		m_iBuyingStatus = atoi(szValue);
+		return true;
+	}
+	else if (FStrEq(szKeyName, "usenormalspawnsfordm"))
+	{
+		m_bUseNormalSpawnsForDM = (atoi(szValue) != 0);
 		return true;
 	}
 	else if (FStrEq(szKeyName, "bombradius"))

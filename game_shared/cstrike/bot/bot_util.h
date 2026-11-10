@@ -82,6 +82,8 @@ extern bool UTIL_KickBotFromTeam( int kickTeam ); ///< kick a bot from the given
 
 extern bool UTIL_IsVisibleToTeam( const Vector &spot, int team ); ///< return true if anyone on the given team can see the given spot
 
+extern bool UTIL_IsRandomSpawnFarEnoughAwayFromTeam( const Vector &spot, int team ); ///< return false if every member of the given team is closer than mp_randomspawn_dist
+
 /// return true if moving from "start" to "finish" will cross a player's line of fire.
 extern bool IsCrossingLineOfFire( const Vector &start, const Vector &finish, CBaseEntity *ignore = NULL, int ignoreTeam = 0 );
 

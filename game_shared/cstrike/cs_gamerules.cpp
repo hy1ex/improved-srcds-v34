@@ -87,6 +87,9 @@ static CViewVectors g_CSViewVectors(
 LINK_ENTITY_TO_CLASS(info_player_terrorist, CPointEntity);
 LINK_ENTITY_TO_CLASS(info_player_counterterrorist,CPointEntity);
 LINK_ENTITY_TO_CLASS(info_player_logo,CPointEntity);
+// Deathmatch spawn points (CS:GO cs_gamerules.cpp:334). CS:GO's SpawnPoint is server-only, which
+// is why a stock client never has to know about it; ours is a plain point entity for the same reason.
+LINK_ENTITY_TO_CLASS(info_deathmatch_spawn,CPointEntity);
 #endif
 
 REGISTER_GAMERULES_CLASS( CCSGameRules );
@@ -717,6 +720,36 @@ ConVar cl_autohelp(
 		"Number of seconds to delay before restarting a round after a win" );
 
 	ConCommand EndRound( "endround", &CCSGameRules::EndRound, "End the current round.", FCVAR_CHEAT );
+
+	// --------------------------------------------------------------------------------------------------- //
+	// Deathmatch random spawning (ported from CS:GO cs_gamerules.cpp:18693)
+	//
+	// CS:GO replicates these because its client can draw deathmatch spawn overlays. We have no client
+	// support for deathmatch, so they stay server-side and the stock v34 client never sees them.
+	// --------------------------------------------------------------------------------------------------- //
+	ConVar mp_randomspawn(
+		"mp_randomspawn",
+		"0",
+		FCVAR_NOTIFY,
+		"Determines whether players spawn at random deathmatch spawn points. 0 = default; 1 = both teams; 2 = Terrorists; 3 = CTs.",
+		true, 0,
+		true, 3 );
+
+	ConVar mp_randomspawn_los(
+		"mp_randomspawn_los",
+		"1",
+		FCVAR_NONE,
+		"Only pick random spawn points that the enemy team cannot see",
+		true, 0,
+		true, 1 );
+
+	ConVar mp_randomspawn_dist(
+		"mp_randomspawn_dist",
+		"0",
+		FCVAR_NONE,
+		"Minimum distance an enemy must be from a random spawn point. 0 disables the test.",
+		true, 0,
+		false, 0 );
 
 
 	// --------------------------------------------------------------------------------------------------- //
@@ -3765,6 +3798,24 @@ ConVar cl_autohelp(
 	}
 
 
+	// CS:GO cs_gamerules.cpp:13701 - the team size cap is based on the number of spawn points, except
+	// on a team that spawns at random deathmatch spawn points, where it is the player cap. Without this
+	// a map that only has info_deathmatch_spawn entities would report both teams as full at zero
+	// players, because it has no info_player_terrorist/counterterrorist points.
+	int CCSGameRules::MaxNumPlayersOnTerrTeam()
+	{
+		bool bRandomTSpawn = ( mp_randomspawn.GetInt() == 1 || mp_randomspawn.GetInt() == TEAM_TERRORIST );
+
+		return bRandomTSpawn ? MAX_PLAYERS : m_iSpawnPointCount_Terrorist;
+	}
+
+	int CCSGameRules::MaxNumPlayersOnCTTeam()
+	{
+		bool bRandomCTSpawn = ( mp_randomspawn.GetInt() == 1 || mp_randomspawn.GetInt() == TEAM_CT );
+
+		return bRandomCTSpawn ? MAX_PLAYERS : m_iSpawnPointCount_CT;
+	}
+
 	bool CCSGameRules::TeamFull( int team_id )
 	{
 		CheckLevelInitialized();
@@ -3772,10 +3823,10 @@ ConVar cl_autohelp(
 		switch ( team_id )
 		{
 		case TEAM_TERRORIST:
-			return m_iNumTerrorist >= m_iSpawnPointCount_Terrorist;
+			return m_iNumTerrorist >= MaxNumPlayersOnTerrTeam();
 
 		case TEAM_CT:
-			return m_iNumCT >= m_iSpawnPointCount_CT;
+			return m_iNumCT >= MaxNumPlayersOnCTTeam();
 		}
 
 		return false;
@@ -4379,6 +4430,67 @@ ConVar cl_autohelp(
 		return UTIL_IsSpaceEmpty( pPlayer, vTestMins, vTestMaxs );
 	}
 
+
+	// UTIL_IsVisibleToTeam() lives in game_shared/cstrike/bot/bot_util.cpp
+extern bool UTIL_IsVisibleToTeam( const Vector &spot, int team );
+
+	// Return false only if every living member of the given team is closer to the spot than
+	// mp_randomspawn_dist. The whole test is skipped when either convar is off.
+	// CS:GO shared/cstrike15/bot/bot_util.cpp:414
+	bool UTIL_IsRandomSpawnFarEnoughAwayFromTeam( const Vector &spot, int team )
+	{
+		if ( mp_randomspawn_dist.GetInt() <= 0 )
+			return true;
+
+		if ( mp_randomspawn_los.GetInt() == 0 )
+			return true;
+
+		for ( int i = 1; i <= gpGlobals->maxClients; ++i )
+		{
+			CBasePlayer *player = UTIL_PlayerByIndex( i );
+
+			if ( player == NULL )
+				continue;
+
+			if ( !player->IsAlive() )
+				continue;
+
+			if ( player->GetTeamNumber() != team )
+				continue;
+
+			if ( mp_randomspawn_dist.GetInt() > 0 && ( player->GetAbsOrigin() ).DistTo( spot ) < mp_randomspawn_dist.GetInt() )
+			{
+				// this one is too close, keep looking
+				continue;
+			}
+			else
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	// Returns true if no living member of nHideFromTeam (or of either team when 0) can see the spot.
+	// CS:GO cs_gamerules.cpp:15978
+	bool CCSGameRules::IsSpawnPointHiddenFromOtherPlayers( CBaseEntity *pSpot, CBasePlayer *pPlayer, int nHideFromTeam )
+	{
+		Vector vecSpot = pSpot->GetAbsOrigin() + Vector( 0, 0, 32 );
+
+		if ( nHideFromTeam > 0 )
+		{
+			if ( nHideFromTeam == TEAM_CT && UTIL_IsVisibleToTeam( vecSpot, TEAM_CT ) )
+				return false;
+			else if ( nHideFromTeam == TEAM_TERRORIST && UTIL_IsVisibleToTeam( vecSpot, TEAM_TERRORIST ) )
+				return false;
+		}
+		else if ( nHideFromTeam == 0 && ( UTIL_IsVisibleToTeam( vecSpot, TEAM_CT ) ) ||
+			( UTIL_IsVisibleToTeam( vecSpot, TEAM_TERRORIST ) ) )
+			return false;
+
+		return true;
+	}
 
 	bool CCSGameRules::IsThereABomb()
 	{

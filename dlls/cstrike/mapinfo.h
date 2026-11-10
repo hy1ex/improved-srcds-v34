@@ -26,6 +26,10 @@ public:
 public:
 	int m_iBuyingStatus;
 	float m_flBombRadius;
+
+	// Deathmatch spawn control (CS:GO server/cstrike15/mapinfo.cpp:17). Maps that were designed for
+	// deathmatch can force the use of their own spawn points instead of the random ones.
+	bool m_bUseNormalSpawnsForDM;
 };
 
 

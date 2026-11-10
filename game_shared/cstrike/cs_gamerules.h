@@ -109,6 +109,9 @@ public:
 	bool IsIntermission() const;
 	bool IsLogoMap() const;
 	bool IsSpawnPointValid( CBaseEntity *pSpot, CBasePlayer *pPlayer );
+	bool IsSpawnPointHiddenFromOtherPlayers( CBaseEntity *pSpot, CBasePlayer *pPlayer, int nHideFromTeam = 0 );
+	int  MaxNumPlayersOnTerrTeam( void );
+	int  MaxNumPlayersOnCTTeam( void );
 
 	bool IsBuyTimeElapsed();
 	

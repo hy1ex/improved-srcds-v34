@@ -8,6 +8,8 @@
 #include "cbase.h"
 #include "cs_player.h"
 #include "cs_gamerules.h"
+#include "mapinfo.h"
+#include "bot_util.h"
 #include "trains.h"
 #include "vcollide_parse.h"
 #include "in_buttons.h"
@@ -56,6 +58,10 @@ extern ConVar mp_damage_headshot_only;
 extern ConVar mp_buy_allow_guns;
 extern ConVar mp_buy_allow_grenades;
 extern ConVar mp_max_armor;
+// Random deathmatch spawning (see FEATURES.md). Defined in game_shared/cstrike/cs_gamerules.cpp.
+extern ConVar mp_randomspawn;
+extern ConVar mp_randomspawn_los;
+extern ConVar mp_randomspawn_dist;
 
 #include "weapon_hegrenade.h"
 #include "weapon_flashbang.h"
@@ -5010,6 +5016,56 @@ int CCSPlayer::PlayerClass() const
 
 bool CCSPlayer::SelectSpawnSpot( const char *pEntClassName, CBaseEntity* &pSpot )
 {
+	// info_deathmatch_spawn points get an extra line of sight and distance test, and fall back to a
+	// team spawn point when every deathmatch spawn point is rejected.
+	// CS:GO cs_player.cpp:11622
+	if ( FStrEq( pEntClassName, "info_deathmatch_spawn" ) )
+	{
+		CBaseEntity *pStartSpot = pSpot;
+		CBaseEntity *pValidButVisible = NULL;
+
+		while ( true )
+		{
+			pSpot = gEntList.FindEntityByClassname( pSpot, pEntClassName );
+
+			if ( pSpot &&
+				 g_pGameRules->IsSpawnPointValid( pSpot, this ) &&
+				 pSpot->GetAbsOrigin() != Vector( 0, 0, 0 ) )
+			{
+				// mp_randomspawn_los off means any valid spot will do.
+				if ( !mp_randomspawn_los.GetBool() ||
+					 ( CSGameRules()->IsSpawnPointHiddenFromOtherPlayers( pSpot, this ) &&
+					   UTIL_IsRandomSpawnFarEnoughAwayFromTeam( pSpot->GetAbsOrigin(), TEAM_CT ) ) )
+				{
+					return true;
+				}
+
+				// hidden from the enemy, but every tested spot so far was in plain sight
+				pValidButVisible = pSpot;
+			}
+
+			// if we are back at the start of the list
+			if ( pSpot == pStartSpot )
+			{
+				if ( pValidButVisible )
+				{
+					// use the valid but unfortunately visible spot
+					pSpot = pValidButVisible;
+				}
+				else if ( GetTeamNumber() == TEAM_CT )
+				{
+					SelectSpawnSpot( "info_player_counterterrorist", pSpot );
+				}
+				else if ( GetTeamNumber() == TEAM_TERRORIST )
+				{
+					SelectSpawnSpot( "info_player_terrorist", pSpot );
+				}
+
+				return true;
+			}
+		}
+	}
+
 	// Find the next spawn spot.
 	pSpot = gEntList.FindEntityByClassname( pSpot, pEntClassName );
 
@@ -5077,7 +5133,30 @@ CBaseEntity* CCSPlayer::EntSelectSpawnPoint()
 	}
 	else
 	{	
-		if ( GetTeamNumber() == TEAM_CT )
+		// The map maker can force the use of the map placed spawn points in deathmatch.
+		bool bUseNormalSpawnsForDM = ( g_pMapInfo ? g_pMapInfo->m_bUseNormalSpawnsForDM : false );
+
+		if ( !bUseNormalSpawnsForDM &&
+			 ( mp_randomspawn.GetInt() == GetTeamNumber() || mp_randomspawn.GetInt() == 1 ) )
+		{
+			pSpot = g_pLastCTSpawn;	// reusing g_pLastCTSpawn for the deathmatch spawn points
+
+			// Randomize the start spot
+			for ( int i = random->RandomInt( 1, 10 ); i > 0; i-- )
+			{
+				pSpot = gEntList.FindEntityByClassname( pSpot, "info_deathmatch_spawn" );
+			}
+
+			if ( !pSpot )	// skip over the null point
+				pSpot = gEntList.FindEntityByClassname( pSpot, "info_deathmatch_spawn" );
+
+			if ( SelectSpawnSpot( "info_deathmatch_spawn", pSpot ) )
+			{
+				g_pLastCTSpawn = pSpot;
+				goto ReturnSpot;
+			}
+		}
+		else if ( GetTeamNumber() == TEAM_CT )
 		{
 			pSpot = g_pLastCTSpawn;
 			if ( SelectSpawnSpot( "info_player_counterterrorist", pSpot ))

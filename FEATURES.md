@@ -62,6 +62,9 @@ Source game. For each feature it records:
 | `mp_buy_allow_grenades` | `1` | [8. Purchase restrictions](#8-purchase-restrictions) | 0/1 |
 | `mp_max_armor` | `2` | [8. Purchase restrictions](#8-purchase-restrictions) | 0=none, 1=kevlar, 2=kevlar and helmet |
 | `mp_halftime` | `0` | [9. Halftime](#9-halftime) | 0 = never swap, 1 = swap at half of mp_maxrounds |
+| `mp_randomspawn` | `0` | [10. Random deathmatch spawns](#10-random-deathmatch-spawns) | 0=default, 1=both teams, 2=Terrorists, 3=CTs |
+| `mp_randomspawn_los` | `1` | [10. Random deathmatch spawns](#10-random-deathmatch-spawns) | 0/1, require the spot to be out of the enemy team's sight |
+| `mp_randomspawn_dist` | `0` | [10. Random deathmatch spawns](#10-random-deathmatch-spawns) | minimum distance from a living enemy, 0 = off |
 
 ---
 
@@ -750,3 +753,85 @@ is added, so a v34 client needs no knowledge of halftime.
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar, `SwapTeamsForHalftime`, the trigger in
 `RestartRound`), `game_shared/cstrike/cs_gamerules.h` (declaration).
+
+
+# 10. Random deathmatch spawns
+
+**Origin:** CS:GO, `game/shared/cstrike15/cs_gamerules.cpp` (convar definitions, line 18693;
+`MaxNumPlayersOnTerrTeam`/`MaxNumPlayersOnCTTeam`, line 13701;
+`IsSpawnPointHiddenFromOtherPlayers`, line 15978), `game/server/cstrike15/cs_player.cpp`
+(`CCSPlayer::SelectSpawnSpot`, line 11622, and the deathmatch branch of
+`CCSPlayer::EntSelectSpawnPoint`, line 11852), `game/shared/cstrike15/bot/bot_util.cpp`
+(`UTIL_IsVisibleToTeam`, line 385, and `UTIL_IsRandomSpawnFarEnoughAwayFromTeam`, line 414).
+
+**Why:** stock Counter-Strike: Source always spawns a player at the next
+`info_player_terrorist`/`info_player_counterterrorist` point in entity order, which is the classic
+"spawn at the same corner every round" behaviour and the reason deathmatch and arena servers cannot
+use the stock spawn logic. CS:GO instead spawns at `info_deathmatch_spawn` points, avoiding spots the
+enemy team is looking at and spots an enemy is standing next to. This port brings that selection
+logic over as three opt-in convars.
+
+**What it does.** With `mp_randomspawn` set to `1` (both teams), `2` (Terrorists only) or `3`
+(Counter-Terrorists only), `CCSPlayer::EntSelectSpawnPoint()` (`dlls/cstrike/cs_player.cpp`) takes the
+CS:GO branch instead of the per-team branch:
+
+* A start point is picked by walking `info_deathmatch_spawn` entities a random number of times
+  (1-10), so spawns are spread over the map instead of always starting at the same point.
+* `CCSPlayer::SelectSpawnSpot()` then scans the DM spawn points and accepts the first one that is
+  `IsSpawnPointValid()` (clear of players), not at the world origin, and out of the enemy team's
+  sight. "Out of sight" is `CCSGameRules::IsSpawnPointHiddenFromOtherPlayers()`: a
+  `UTIL_TraceLine` from every living Counter-Terrorist's eye position to the spawn point 32 units
+  above the floor must be blocked.
+* `UTIL_IsRandomSpawnFarEnoughAwayFromTeam()` adds the distance test: with `mp_randomspawn_dist`
+  above `0`, a spot is rejected while every living enemy is closer than that distance to it.
+* If every DM spawn point failed the sight test but some were otherwise valid, the last valid one is
+  used anyway (CS:GO's "valid but unfortunately visible" fallback) rather than failing the spawn.
+* With `mp_randomspawn_los 0` the sight and distance tests are skipped entirely, so any valid DM
+  spawn point is taken - the same shortcut CS:GO takes.
+* If a map has no `info_deathmatch_spawn` points at all, the player falls back to the stock team
+  spawn point, so enabling `mp_randomspawn` on a stock map is harmless.
+* A map can opt out of random spawns with `usenormalspawnsfordm` `1` on its `info_map_parameters`
+  entity, which CS:GO also supports.
+
+`0` (default) is stock Counter-Strike: Source: the stock team spawn points in entity order.
+
+**Team size cap.** Because the team size limit is normally derived from the number of spawn points
+(`CCSGameRules::TeamFull()`), a map that only has DM spawn points would report both teams as full at
+zero players and nobody could join. `TeamFull()` now asks `MaxNumPlayersOnTerrTeam()` /
+`MaxNumPlayersOnCTTeam()`, which use `MAX_PLAYERS` for any team that spawns at random DM spawn
+points and the spawn point count for the others, exactly like CS:GO.
+
+**Details and limits.**
+
+* CS:GO marks these convars `FCVAR_REPLICATED` because its client can draw deathmatch spawn debug
+  overlays. Here they are server-only (`FCVAR_NOTIFY` on `mp_randomspawn`), so nothing is sent to a
+  stock client.
+* The sight test always checks visibility from the Counter-Terrorist team, for both teams, because
+  that is what CS:GO's `info_deathmatch_spawn` path does.
+* `mp_randomspawn_dist` only has an effect while `mp_randomspawn_los` is `1`, as in CS:GO; the
+  distance test is skipped with `0`.
+* `CCSGameRules::MaxNumPlayersOnTerrTeam()`/`MaxNumPlayersOnCTTeam()` do not apply CS:GO's
+  `m_iMaxNumTerrorists`/`m_iMaxNumCTs` caps, because those members do not exist in this tree; the
+  team size is capped by `MAX_PLAYERS` (or the spawn point count) only.
+* `info_deathmatch_spawn` is registered as a server-only point entity, so a map can place as many as
+  it likes. A map without any of them has no random spawns and falls back to its team spawn points.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_randomspawn` | `0` | `0`-`3` | 0 = stock spawns, 1 = both teams, 2 = Terrorists, 3 = Counter-Terrorists |
+| `mp_randomspawn_los` | `1` | `0`/`1` | Only accept DM spawn points the enemy team cannot see |
+| `mp_randomspawn_dist` | `0` | `>= 0` | Minimum distance a living enemy must be from the spot, `0` disables the test |
+
+**Client compatibility.** Spawn selection never leaves the server. `info_deathmatch_spawn` is a
+server-only `CPointEntity` (like the stock `info_player_terrorist`), it sends no netprops and is never
+created by a stock map, and none of the three convars is replicated. The client only sees the
+`player_spawn` event it already handles, at whatever origin the server chose.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars, `IsSpawnPointHiddenFromOtherPlayers`,
+`UTIL_IsRandomSpawnFarEnoughAwayFromTeam`, `MaxNumPlayersOn*Team`, `TeamFull`),
+`game_shared/cstrike/cs_gamerules.h` (declarations), `game_shared/cstrike/bot/bot_util.h`
+(`UTIL_IsRandomSpawnFarEnoughAwayFromTeam` declaration, next to the existing `UTIL_IsVisibleToTeam`),
+`dlls/cstrike/cs_player.cpp` (`EntSelectSpawnPoint`, `SelectSpawnSpot`), `dlls/cstrike/mapinfo.cpp`
+and `mapinfo.h` (`usenormalspawnsfordm` key on `info_map_parameters`).
