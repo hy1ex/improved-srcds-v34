@@ -35,12 +35,13 @@ Source game. For each feature it records:
 | `mp_defuser_allocation` | `0` | [2. Defuse kit allocation](#2-defuse-kit-allocation) | 0=none, 1=one random CT, 2=every CT |
 | `mp_respawn_on_death_ct` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0/1 |
 | `mp_respawn_on_death_t` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0/1 |
+| `mp_use_respawn_waves` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=instantly, 1=team waves, 2=when the whole team is dead |
 | `mp_respawnwavetime_ct` | `10` | [3. Respawn on death](#3-respawn-on-death) | seconds |
 | `mp_respawnwavetime_t` | `10` | [3. Respawn on death](#3-respawn-on-death) | seconds |
 | `mp_respawn_immunitytime` | `4` | [3. Respawn on death](#3-respawn-on-death) | seconds of damage immunity + model fade |
 | `mp_respawn_immunity_fade` | `1` | [3. Respawn on death](#3-respawn-on-death) | 0=none, 1=fade in, 2=half transparent |
 | `mp_respawn_weapons` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=default pistol, 1=random, 2=keep |
-| `mp_respawn_buytime` | `-1` | [3. Respawn on death](#3-respawn-on-death) | -1 = stock round window, 0 = no cutoff, else hard cutoff after respawn |
+| `mp_buy_during_immunity` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=never, 1=both, 2=T, 3=CT: buy past `mp_buytime` while spawn-immune |
 | `mp_buy_anywhere` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=stock, 1=both, 2=T, 3=CT (also opens the menu) |
 | `mp_solid_player` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through every player, no push |
 | `mp_solid_hostages` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through hostages |
@@ -171,10 +172,17 @@ changes. Server-side ABI is internal to this DLL only.
 
 # 3. Respawn on death
 
-**Origin:** CS:GO — `mp_respawn_on_death_ct` / `mp_respawn_on_death_t`,
-`mp_respawnwavetime_ct` / `mp_respawnwavetime_t`, `mp_respawn_immunitytime` and
-`mp_respawn_weapons` (`game/shared/cstrike15/cs_gamerules.cpp`), plus `mp_buy_anywhere`
-(`game/shared/gamevars_shared.cpp`) for the buy rules.
+**Origin:** CS:GO — `mp_respawn_on_death_ct` / `mp_respawn_on_death_t`, `mp_use_respawn_waves`,
+`mp_respawnwavetime_ct` / `mp_respawnwavetime_t` and `mp_respawn_immunitytime`
+(`game/shared/cstrike15/cs_gamerules.cpp`), the wave loop `CCSGameRules::CheckRespawnWaves()` and
+`CCSGameRules::TeamExterminationCheck()`'s respawn guards, the spawn immunity in
+`CCSPlayer::Spawn()` / `State_PreThink_ACTIVE()`, plus `mp_buy_anywhere` and
+`mp_buy_during_immunity` (`game/shared/gamevars_shared.cpp`) for the buy rules.
+
+`mp_respawn_weapons` and `mp_respawn_immunity_fade` are **not** CS:GO convars: they are this port's
+own settings, kept because they cover what CS:GO does with its own loadout and render code. CS:GO's
+`mp_buy_during_immunity` replaces this port's earlier `mp_respawn_buytime`, which had no CS:GO
+counterpart.
 
 **Why:** stock Counter-Strike: Source only ever brings players back at round restart. Deathmatch,
 arena, gungame and warmup-style servers therefore have to fake respawns with round restarts, which
@@ -183,12 +191,23 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
 
 **What it does.**
 
-* When a player dies, `CCSPlayer::Event_Killed` calls `CCSPlayer::ScheduleRespawn()`. If
-  `mp_respawn_on_death_<team>` is `1`, the player gets `mp_respawnwavetime_<team>` seconds of death
-  cam and is then put back into the round by `CCSPlayer::DoRespawn()`, which reuses the same
-  `StopObserverMode` / `State_Transition( STATE_ACTIVE )` / `respawn()` path a round restart uses.
-* The timer is serviced from `CCSPlayer::PreThink()`, so it needs no think function, survives
-  save/restore and stops firing as soon as the round goes to intermission.
+* When a player dies, `CCSPlayer::Event_Killed` drops his weapons and remembers the loadout; the
+  timing is owned by the game rules, exactly like CS:GO. `CCSGameRules::CheckRespawnWaves()` runs
+  from `CCSGameRules::Think()` and keeps one respawn clock per team
+  (`m_flNextRespawnWave[2]`):
+  * `mp_use_respawn_waves 0` (**default**) — no waves at all, so a dead player comes back on the
+    next frame, which is CS:GO's instant respawn (`GetRespawnWaveMaxLength()` returns `0` and the
+    wave length is what the clock advances by).
+  * `1` — the team respawns together once every `mp_respawnwavetime_<team>` seconds; players who
+    die in between wait for the next wave.
+  * `2` — nothing happens while a teammate is still alive; as soon as the whole team is dead the
+    wave clock starts and the team comes back `mp_respawnwavetime_<team>` seconds later.
+  The player is put back by `CCSPlayer::DoRespawn()`, which reuses the same `StopObserverMode` /
+  `State_Transition( STATE_ACTIVE )` / `respawn()` path a round restart uses. The clocks are reset
+  in `RestartRound()` and the loop is skipped during the freeze period and intermission.
+* `CCSGameRules::TeamExterminationCheck()` carries CS:GO's `!bTsRespawn` / `!bCTsRespawn` guards,
+  so eliminating a team that respawns no longer ends the round: the round keeps running and the
+  dead team comes back. Without those guards a respawn server ended the round on the first wipe.
 * The respawned player's loadout is chosen by `mp_respawn_weapons`:
   * `0` — the team's default pistol and knife, exactly what a normal spawn gives. **Default.**
   * `1` — a random primary and a random pistol for the player's team (the lists only contain
@@ -201,9 +220,13 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
     `respawn()`, because a spawn clears the remembered loadout: without the copy the restore loop
     had nothing left to give and the player respawned with only the knife. Ammunition is refilled
     by `GiveNamedItem`; armour, helmet and defuse kit are not preserved.
-* `mp_respawn_immunitytime` grants damage immunity after a respawn. Damage is dropped at the top of
-  `CCSPlayer::OnTakeDamage`, so nothing (bullets, grenades, falls) can hurt the player during the
-  window. `0` disables it.
+* `mp_respawn_immunitytime` grants damage immunity, armed in `CCSPlayer::Spawn()` the way CS:GO arms
+  it, so it applies to **every** spawn of a player whose team respawns on death, not only to the
+  respawns this feature brings back. Damage is dropped at the top of `CCSPlayer::OnTakeDamage`, so
+  nothing (bullets, grenades, falls) can hurt the player during the window. As in CS:GO's
+  `State_PreThink_ACTIVE()`, `PreThink()` notes when the player first moves
+  (`m_bHasMovedSinceSpawn`) and then cuts the remaining immunity down to one second, so spawn
+  protection cannot be carried into the fight. `0` disables it.
   The same window can show on the player's **world model**, selected by
   `mp_respawn_immunity_fade`: `0` draws nothing at all (immunity is then invisible), `1` (default)
   fades the model in, and `2` holds it at half transparency for the whole window. The fade mode is
@@ -221,24 +244,19 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
   an ordinary spawn and when the mode is switched to `0` mid-window, so a player can never be left
   translucent. `m_nRenderMode` and `m_clrRender` are stock networked entity fields, so this needs no
   new netprop and no client support.
-* `mp_respawn_buytime` gives a respawned player his own buy window:
-  * `-1` - no separate window, the respawned player follows the round's `mp_buytime` exactly like
-    stock (**default**, so the feature is off unless a server asks for it),
-  * `0` - no cutoff at all, buying stays available for the rest of the round,
-  * `N > 0` - `N` seconds after the respawn.
-  When it is set, the window replaces the round's in both directions: inside it the player may buy
-  even when the round's `mp_buytime` has already elapsed, and once it runs out he may not buy even
-  while the round's `mp_buytime` is still running. It only applies to players actually respawned by
-  this feature (`m_flRespawnTime` is cleared by a normal spawn).
-  The server refuses every buy command in that state - `buy`, `autobuy`, `rebuy` and the ammo and
-  equipment aliases alike - with "Your respawn buy time has expired" rather than the stock
-  `#Cant_buy` line, which counts whole minutes. The VGUI buy menu closes with it: the networked
-  `m_bInBuyZone` bit is only set while the window is open (`CBuyZone::BuyZoneTouch`, and the
-  `mp_buy_anywhere` pin in `CCSPlayerMove::StartCommand`), so a stock client, which reads that bit
-  before it opens the menu, refuses to open it. The reverse direction is not possible from the
-  server: a respawned player inside his window while `mp_buytime` has already elapsed can buy with
-  the commands but still cannot open the menu, because the client's own `IsBuyTimeElapsed()` check
-  knows nothing about the respawn window.
+* `mp_buy_during_immunity` lets a spawn-immune player keep buying after `mp_buytime` has run out:
+  * `0` — never, stock behaviour (**default**),
+  * `1` — both teams,
+  * `2` — Terrorists only,
+  * `3` — Counter-Terrorists only.
+  It is checked in `CCSPlayer::IsBuyTimeAvailable()`, the one place that decides whether the buy
+  window is open, so the `buy` / `autobuy` / `rebuy` commands and the networked `m_bInBuyZone` bit
+  (and with it the stock client's VGUI buy menu) all follow it. CS:GO ties the switch to the buy
+  menu being open and extends the immunity by 10 seconds while it is; a stock v34 client never tells
+  the server that its menu is open, so here the switch follows the immunity window itself, which is
+  the same rule its own description states ("players can buy when immune, ignoring buytime"). This
+  only matters on a server that also sets `mp_respawn_immunitytime`, because that is what creates
+  the window.
 * `mp_buy_anywhere` lets players buy outside `func_buyzone` volumes:
   * `0` — stock behaviour, buy zones only (**default**),
   * `1` — both teams may buy anywhere,
@@ -265,12 +283,13 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
 | --- | --- | --- | --- |
 | `mp_respawn_on_death_ct` | `0` | `0`/`1` | Respawn dead CTs |
 | `mp_respawn_on_death_t` | `0` | `0`/`1` | Respawn dead Terrorists |
-| `mp_respawnwavetime_ct` | `10` | seconds | CT respawn delay |
+| `mp_use_respawn_waves` | `0` | `0`-`2` | `0` instant respawn (CS:GO default), `1` team waves, `2` when the whole team is dead |
+| `mp_respawnwavetime_ct` | `10` | seconds | CT respawn wave length |
 | `mp_respawnwavetime_t` | `10` | seconds | Terrorist respawn delay |
-| `mp_respawn_immunitytime` | `4` | seconds, `0` = off | Damage immunity and model fade after a respawn (CS:GO default `4.0`) |
+| `mp_respawn_immunitytime` | `4` | seconds, `0` = off | Damage immunity and model fade at every spawn while the team respawns; cut to 1 s once the player moves |
 | `mp_respawn_immunity_fade` | `1` | `0`-`2` | Immunity visual: `0` none, `1` fade in, `2` fixed half transparency |
 | `mp_respawn_weapons` | `0` | `0`-`2` | Loadout policy after a respawn |
-| `mp_respawn_buytime` | `-1` | `-1` = stock, `0` = no cutoff, else seconds | Buy window after a respawn; when set it replaces the round's `mp_buytime` for that player |
+| `mp_buy_during_immunity` | `0` | `0`-`3` | Buy past `mp_buytime` while spawn-immune: `0` never, `1` both teams, `2` T, `3` CT |
 | `mp_buy_anywhere` | `0` | `0`-`3` | Buy outside buy zones, optionally per team |
 
 The respawn feature itself is **off by default** (`mp_respawn_on_death_ct/t 0`), so a stock server
@@ -284,9 +303,9 @@ death cam ends, HUD health/armour/money reset, ordinary weapon pickup events. Th
 only writes `m_nRenderMode`/`m_clrRender`, which the client already receives for every entity and
 already renders (it is the same pair SourceMod render natives use for translucent players). The buy
 menu uses the existing `m_bInBuyZone` sendprop. No new netprop, usermessage, entity class or client
-command. `m_flNextRespawnTime`, `m_flRespawnTime`, `m_flSpawnImmuneUntil`, `m_szRespawnWeapons`,
-`m_nRespawnWeaponCount` and `m_nImmunityRenderAlpha` are plain server-side members on `CCSPlayer`:
-not in `BEGIN_DATADESC`, not in the sendtable. The convars are not replicated.
+command. `m_flSpawnImmuneUntil`, `m_bHasMovedSinceSpawn`, `m_szRespawnWeapons`, `m_nRespawnWeaponCount` and
+`m_nImmunityRenderAlpha` are plain server-side members on `CCSPlayer`, and `m_flNextRespawnWave[2]`
+on `CCSGameRules`: not in `BEGIN_DATADESC`, not in the sendtable. The convars are not replicated.
 
 **Risks / limitations.**
 
@@ -296,8 +315,9 @@ not in `BEGIN_DATADESC`, not in the sendtable. The convars are not replicated.
 * Objective maps keep their normal rules: if respawns are enabled on a bomb map, a dead bomb
   carrier still drops the bomb (subject to feature 1) and the round can still be won or lost on
   objectives while players respawn.
-* Round win conditions are unchanged: respawning does not disable `mp_roundtime`, `mp_maxrounds`,
-  `mp_winlimit` or the objective checks. Servers that want pure deathmatch should set a long round
+* `mp_roundtime`, `mp_maxrounds`, `mp_winlimit` and the objective checks are unchanged. The one
+  round-win rule that does change is elimination: while a wiped team respawns, "the other team is
+  eliminated" no longer terminates the round (CS:GO's `TeamExterminationCheck` guards). Servers that want pure deathmatch should set a long round
   time and `ignore_round_win_conditions`-style rules themselves.
 * `mp_buy_anywhere` lifts the buy *zone* only. The buy *window* still applies, and the round's
   other blockers (dead, VIP, `m_bCTCantBuy`/`m_bTCantBuy`) are unaffected.
@@ -305,8 +325,10 @@ not in `BEGIN_DATADESC`, not in the sendtable. The convars are not replicated.
   gates the menu on something else, `mp_buy_anywhere` keeps working for the console commands but the
   VGUI menu cannot be opened without a client DLL change, which the stock-client rule forbids.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars), `dlls/cstrike/cs_player.cpp`
-(`ScheduleRespawn`, `DoRespawn`, `RememberLoadoutForRespawn`, `RestoreLoadoutForRespawn`,
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars, `CheckRespawnWaves`,
+`GetRespawnWaveMaxLength`, `TeamExterminationCheck`), `game_shared/cstrike/cs_gamerules.h`
+(`m_flNextRespawnWave`), `dlls/cstrike/cs_player.cpp`
+(`DoRespawn`, `RememberLoadoutForRespawn`, `RestoreLoadoutForRespawn`,
 `UpdateSpawnImmunityRender`, `ResetSpawnImmunityRender`, `PreThink`, `OnTakeDamage`, `IsInBuyZone`,
 `CanPlayerBuy`, `Event_Killed`, `Spawn`), `dlls/cstrike/cs_playermove.cpp` (`StartCommand`),
 `dlls/cstrike/cs_player.h` (members and declarations).

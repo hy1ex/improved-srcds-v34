@@ -282,6 +282,10 @@ public:
 	// BOMB MAP FUNCTIONS
 	void GiveC4();
 	void AllocateDefuserForRound();
+
+	// Respawn on death (mp_respawn_on_death_* and mp_use_respawn_waves). See FEATURES.md.
+	void CheckRespawnWaves();
+	float GetRespawnWaveMaxLength( int iTeam ) const;
 	void SwapTeamsForHalftime();
 	bool IsThereABomber();
 	bool IsThereABomb();
@@ -325,6 +329,10 @@ public:
 	// Defuse kit allocation (mp_defuser_allocation == 1). Entindex of the CT who receives the
 	// round's single free defuse kit, 0 when nobody does. Not networked - see FEATURES.md.
 	int m_iDefuserCarrier;
+
+	// Next respawn wave per team, [0] = Counter-Terrorist, [1] = Terrorist. Not networked, and
+	// only advanced by CheckRespawnWaves(); 0 means the team's next wave is due immediately.
+	float m_flNextRespawnWave[2];
 
 	int m_iNumTerrorist;		// The number of terrorists on the team (this is generated at the end of a round)
 	int m_iNumCT;				// The number of CTs on the team (this is generated at the end of a round)

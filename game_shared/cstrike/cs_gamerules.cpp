@@ -231,9 +231,10 @@ ConVar mp_defuser_allocation(
 	true, 2 );
 
 // ---------------------------------------------------------------------------------------------------
-// Respawn on death. Ported from CS:GO (mp_respawn_on_death_ct/t, mp_respawnwavetime_ct/t,
-// mp_respawn_immunitytime). Server side only, never replicated. Defaults keep the feature off, so
-// stock Counter-Strike: Source behaviour is unchanged until an operator opts in.
+// Respawn on death. Ported from CS:GO (mp_respawn_on_death_ct/t, mp_use_respawn_waves,
+// mp_respawnwavetime_ct/t, mp_respawn_immunitytime). Server side only, never replicated. Defaults
+// keep the feature off, so stock Counter-Strike: Source behaviour is unchanged until an operator
+// opts in.
 // ---------------------------------------------------------------------------------------------------
 ConVar mp_respawn_on_death_ct(
 	"mp_respawn_on_death_ct",
@@ -246,6 +247,12 @@ ConVar mp_respawn_on_death_t(
 	"0",
 	FCVAR_NOTIFY,
 	"Respawn dead Terrorists automatically (0 = stock CS:S behaviour)" );
+
+ConVar mp_use_respawn_waves(
+	"mp_use_respawn_waves",
+	"0",
+	FCVAR_NOTIFY,
+	"When a team respawns on death: 0=immediately, 1=in waves of mp_respawnwavetime_ct/t, 2=all at once when the whole team is dead" );
 
 ConVar mp_respawnwavetime_ct(
 	"mp_respawnwavetime_ct",
@@ -263,19 +270,13 @@ ConVar mp_respawn_immunitytime(
 	"mp_respawn_immunitytime",
 	"4.0",
 	FCVAR_NOTIFY,
-	"Seconds of damage immunity after respawning (0 = none)" );
+	"Seconds of damage immunity after a spawn while the team respawns on death (0 = none); ends early once the player moves" );
 
 ConVar mp_respawn_weapons(
 	"mp_respawn_weapons",
 	"0",
 	FCVAR_NOTIFY,
 	"Loadout after a respawn: 0=team default pistol, 1=random weapons, 2=weapons the player had" );
-
-ConVar mp_respawn_buytime(
-	"mp_respawn_buytime",
-	"-1",
-	FCVAR_NOTIFY,
-	"Buy window after a respawn: -1 = the round's mp_buytime like stock, 0 = until the round ends, otherwise seconds after respawning" );
 
 ConVar mp_respawn_immunity_fade(
 	"mp_respawn_immunity_fade",
@@ -288,6 +289,12 @@ ConVar mp_buy_anywhere(
 	"0",
 	FCVAR_NOTIFY,
 	"Buying outside buy zones: 0=stock CS:S, 1=both teams, 2=Terrorists, 3=Counter-Terrorists" );
+
+ConVar mp_buy_during_immunity(
+	"mp_buy_during_immunity",
+	"0",
+	FCVAR_NOTIFY,
+	"When set, players can buy when immune, ignoring buytime: 0=default, 1=both teams, 2=Terrorists, 3=Counter-Terrorists" );
 
 // ---------------------------------------------------------------------------------------------------
 // Burn spread from an ignited player. See CCSGameRules::RadiusDamage() below.
@@ -875,6 +882,8 @@ ConVar cl_autohelp(
 		m_iNumTerrorist = m_iNumCT = 0;	// number of players per team
 		m_flRestartRoundTime = 0.1f; // restart first round as soon as possible
 		m_iDefuserCarrier = 0;
+		m_flNextRespawnWave[0] = 0.0f;
+		m_flNextRespawnWave[1] = 0.0f;
 		m_iNumSpawnableTerrorist = m_iNumSpawnableCT = 0;
 		m_bFirstConnected = false;
 		m_bCompleteReset = false;
@@ -1115,6 +1124,87 @@ ConVar cl_autohelp(
 				m_iDefuserCarrier = pPlayer->entindex();
 
 			++nCandidates;
+		}
+	}
+
+	//-----------------------------------------------------------------------------
+	// Purpose: Length of one respawn wave for a team. With mp_use_respawn_waves 0 there are no
+	//			waves at all and CS:GO returns 0 here, which is what makes a respawn instant.
+	//-----------------------------------------------------------------------------
+	float CCSGameRules::GetRespawnWaveMaxLength( int iTeam ) const
+	{
+		if ( mp_use_respawn_waves.GetInt() == 0 )
+			return 0.0f;
+
+		if ( iTeam == TEAM_CT )
+			return mp_respawnwavetime_ct.GetFloat();
+
+		if ( iTeam == TEAM_TERRORIST )
+			return mp_respawnwavetime_t.GetFloat();
+
+		return 0.0f;
+	}
+
+	//-----------------------------------------------------------------------------
+	// Purpose: mp_use_respawn_waves, the CS:GO respawn loop. A team has its own wave clock; every
+	//			time the clock has run out the whole team comes back together and the clock is pushed
+	//			forward by one wave. Mode 2 instead waits until the team is wiped before it starts the
+	//			next wave, so a player who dies next to a living teammate stays down.
+	//-----------------------------------------------------------------------------
+	void CCSGameRules::CheckRespawnWaves( void )
+	{
+		const bool bCTsRespawn = mp_respawn_on_death_ct.GetBool();
+		const bool bTsRespawn = mp_respawn_on_death_t.GetBool();
+
+		if ( !bCTsRespawn && !bTsRespawn )
+			return;
+
+		// The round restart respawns everybody anyway, and a freeze period must not have players
+		// coming back behind the freeze.
+		if ( IsIntermission() || IsFreezePeriod() )
+			return;
+
+		for ( int nTeam = TEAM_TERRORIST; nTeam <= TEAM_CT; nTeam++ )
+		{
+			if ( nTeam == TEAM_CT ? !bCTsRespawn : !bTsRespawn )
+				continue;
+
+			const int nWave = ( nTeam == TEAM_CT ) ? 0 : 1;
+
+			if ( mp_use_respawn_waves.GetInt() == 2 )
+			{
+				// Respawn when the whole team is dead, not on the clock.
+				bool bTeamAlive = false;
+
+				for ( int i = 1; i <= gpGlobals->maxClients; i++ )
+				{
+					CCSPlayer *pPlayer = ToCSPlayer( UTIL_PlayerByIndex( i ) );
+
+					if ( pPlayer && pPlayer->GetTeamNumber() == nTeam && pPlayer->IsAlive() )
+					{
+						bTeamAlive = true;
+						break;
+					}
+				}
+
+				if ( bTeamAlive )
+					continue;
+			}
+
+			if ( m_flNextRespawnWave[nWave] > gpGlobals->curtime )
+				continue;
+
+			m_flNextRespawnWave[nWave] = gpGlobals->curtime + GetRespawnWaveMaxLength( nTeam );
+
+			for ( int i = 1; i <= gpGlobals->maxClients; i++ )
+			{
+				CCSPlayer *pPlayer = ToCSPlayer( UTIL_PlayerByIndex( i ) );
+
+				if ( !pPlayer || pPlayer->GetTeamNumber() != nTeam || pPlayer->IsAlive() )
+					continue;
+
+				pPlayer->DoRespawn();
+			}
 		}
 	}
 
@@ -2163,9 +2253,12 @@ ConVar cl_autohelp(
 		bool bNeededPlayers
 	)
 	{
+		const bool bCTsRespawn = mp_respawn_on_death_ct.GetBool();
+		const bool bTsRespawn = mp_respawn_on_death_t.GetBool();
+
 		if ( ( m_iNumCT > 0 && m_iNumSpawnableCT > 0 ) && ( m_iNumTerrorist > 0 && m_iNumSpawnableTerrorist > 0 ) )
 		{
-			if ( NumAliveTerrorist == 0 && NumDeadTerrorist != 0 && m_iNumSpawnableCT > 0 )
+			if ( NumAliveTerrorist == 0 && NumDeadTerrorist != 0 && !bTsRespawn && m_iNumSpawnableCT > 0 )
 			{
 				bool nowin = false;
 					
@@ -2197,7 +2290,7 @@ ConVar cl_autohelp(
 			}
 		
 			// Terrorists WON
-			if ( NumAliveCT == 0 && NumDeadCT != 0 && m_iNumSpawnableTerrorist > 0 )
+			if ( NumAliveCT == 0 && NumDeadCT != 0 && !bCTsRespawn && m_iNumSpawnableTerrorist > 0 )
 			{
 				if ( m_bMapHasBombTarget )
 					m_iAccountTerrorist += 3250;
@@ -2215,7 +2308,7 @@ ConVar cl_autohelp(
 				return true;
 			}
 		}
-		else if ( NumAliveCT == 0 && NumAliveTerrorist == 0 )
+		else if ( NumAliveCT == 0 && !bCTsRespawn && NumAliveTerrorist == 0 && !bTsRespawn )
 		{
 			TerminateRound( mp_round_restart_delay.GetFloat(), Round_Draw );
 			return true;
@@ -2789,6 +2882,8 @@ ConVar cl_autohelp(
 		// Reset game variables
 		m_flIntermissionEndTime = 0;
 		m_flRestartRoundTime = 0.0;
+		m_flNextRespawnWave[0] = 0.0f;
+		m_flNextRespawnWave[1] = 0.0f;
 		m_iAccountTerrorist = m_iAccountCT = 0;
 		m_iHostagesRescued = 0;
 		m_iHostagesTouched = 0;
@@ -2912,6 +3007,9 @@ ConVar cl_autohelp(
 	void CCSGameRules::Think()
 	{
 		CGameRules::Think();
+
+		// mp_respawn_on_death_ct/t: bring a team's dead back at its respawn wave.
+		CheckRespawnWaves();
 
 		for ( int i = 0; i < GetNumberOfTeams(); i++ )
 		{

@@ -38,13 +38,12 @@ extern ConVar mp_death_drop_defuser;
 extern ConVar mp_death_drop_grenade;
 extern ConVar mp_respawn_on_death_ct;
 extern ConVar mp_respawn_on_death_t;
-extern ConVar mp_respawnwavetime_ct;
-extern ConVar mp_respawnwavetime_t;
 extern ConVar mp_respawn_immunitytime;
 extern ConVar mp_respawn_immunity_fade;
 extern ConVar mp_respawn_weapons;
-extern ConVar mp_respawn_buytime;
 extern ConVar mp_buy_anywhere;
+extern ConVar mp_buy_during_immunity;
+extern ConVar mp_free_armor;
 extern ConVar mp_solid_player;
 extern ConVar mp_teammates_are_enemies;
 extern ConVar mp_players_nonsolid_time;
@@ -368,9 +367,8 @@ ConCommand cc_CreatePredictionError( "CreatePredictionError", cc_CreatePredictio
 
 CCSPlayer::CCSPlayer()
 {
-	m_flNextRespawnTime = 0.0f;
-	m_flRespawnTime = 0.0f;
 	m_flSpawnImmuneUntil = 0.0f;
+	m_bHasMovedSinceSpawn = false;
 	m_nRespawnWeaponCount = 0;
 	m_szRespawnWeapons[0][0] = 0;
 	m_flLastSpawnTime = 0.0f;
@@ -781,10 +779,18 @@ void CCSPlayer::Spawn()
 	m_cycleLatch = 0;
 	m_cycleLatchTimer.Start( RandomFloat( 0.0f, CycleLatchInterval ) );
 
-	// A normal spawn cancels any pending respawn and clears the respawn buy window and immunity.
-	m_flNextRespawnTime = 0.0f;
-	m_flRespawnTime = 0.0f;
-	m_flSpawnImmuneUntil = 0.0f;
+	// mp_respawn_immunitytime: CS:GO arms the immunity in Spawn(), so every spawn of a player whose
+	// team respawns on death gets it, not only the ones mp_respawn_on_death_* brings back. PreThink
+	// cuts the window down to one second once he has moved, like State_PreThink_ACTIVE does.
+	const bool bTeamRespawns =
+		( GetTeamNumber() == TEAM_CT ) ? mp_respawn_on_death_ct.GetBool() :
+		( GetTeamNumber() == TEAM_TERRORIST ) ? mp_respawn_on_death_t.GetBool() : false;
+
+	const float flImmunityTime = bTeamRespawns ? mp_respawn_immunitytime.GetFloat() : 0.0f;
+
+	m_flSpawnImmuneUntil = ( flImmunityTime > 0.0f ) ? ( gpGlobals->curtime + flImmunityTime ) : 0.0f;
+
+	m_bHasMovedSinceSpawn = false;
 	m_nRespawnWeaponCount = 0;
 	m_flLastSpawnTime = gpGlobals->curtime;
 
@@ -973,9 +979,6 @@ void CCSPlayer::Event_Killed( const CTakeDamageInfo &info )
 		RememberLoadoutForRespawn();
 
 	DropWeapons();
-
-	// Respawn on death: arm the respawn timer, if it is enabled for this team.
-	ScheduleRespawn();
 
 	// Just in case the progress bar is on screen, kill it.
 	SetProgressBarTime( 0 );
@@ -2203,35 +2206,10 @@ void CCSPlayer::RoundRespawn()
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: Arm the respawn-on-death timer for this player, if the feature is on for their team.
-//-----------------------------------------------------------------------------
-void CCSPlayer::ScheduleRespawn( void )
-{
-	m_flNextRespawnTime = 0.0f;
-
-	if ( !CSGameRules() || CSGameRules()->IsIntermission() )
-		return;
-
-	if ( GetTeamNumber() != TEAM_CT && GetTeamNumber() != TEAM_TERRORIST )
-		return;
-
-	const bool bCT = ( GetTeamNumber() == TEAM_CT );
-
-	if ( !( bCT ? mp_respawn_on_death_ct.GetBool() : mp_respawn_on_death_t.GetBool() ) )
-		return;
-
-	const float flWaveTime = bCT ? mp_respawnwavetime_ct.GetFloat() : mp_respawnwavetime_t.GetFloat();
-
-	m_flNextRespawnTime = gpGlobals->curtime + ( flWaveTime > 0.0f ? flWaveTime : 0.0f );
-}
-
-//-----------------------------------------------------------------------------
 // Purpose: Put a dead player back into the round, reusing the round-restart respawn path.
 //-----------------------------------------------------------------------------
 void CCSPlayer::DoRespawn( void )
 {
-	m_flNextRespawnTime = 0.0f;
-
 	if ( !CSGameRules() || CSGameRules()->IsIntermission() )
 		return;
 
@@ -2253,11 +2231,6 @@ void CCSPlayer::DoRespawn( void )
 	respawn( this, false );
 	m_nButtons = 0;
 	SetNextThink( TICK_NEVER_THINK );
-
-	m_flRespawnTime = gpGlobals->curtime;
-
-	const float flImmunityTime = mp_respawn_immunitytime.GetFloat();
-	m_flSpawnImmuneUntil = ( flImmunityTime > 0.0f ) ? ( gpGlobals->curtime + flImmunityTime ) : 0.0f;
 
 	// respawn() runs GiveDefaultItems() through CCSGameRules::PlayerSpawn(), so the default
 	// pistol/knife loadout is already in place. Only the other two policies need extra work.
@@ -2689,9 +2662,20 @@ void CCSPlayer::PreThink()
 	if ( g_fGameOver )
 		return;
 
-	if ( m_flNextRespawnTime > 0.0f && gpGlobals->curtime >= m_flNextRespawnTime )
+	// mp_respawn_immunitytime: CS:GO notes whether the player has moved since his spawn and then
+	// cuts the remaining immunity down to one second, so spawn protection cannot be carried into
+	// the fight. Only while his team can respawn, which is CS:GO's IsAbleToInstantRespawn().
+	if ( !m_bHasMovedSinceSpawn && GetAbsVelocity().Length2D() > 0.0f )
+		m_bHasMovedSinceSpawn = true;
+
+	const bool bTeamRespawns =
+		( GetTeamNumber() == TEAM_CT ) ? mp_respawn_on_death_ct.GetBool() :
+		( GetTeamNumber() == TEAM_TERRORIST ) ? mp_respawn_on_death_t.GetBool() : false;
+
+	if ( bTeamRespawns && m_bHasMovedSinceSpawn && IsSpawnImmune() &&
+		 ( m_flSpawnImmuneUntil - gpGlobals->curtime > 1.0f ) )
 	{
-		DoRespawn();
+		m_flSpawnImmuneUntil = gpGlobals->curtime + 1.0f;
 	}
 
 	UpdateSpawnImmunityRender();
@@ -3095,26 +3079,22 @@ bool CCSPlayer::IsInBuyZone()
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: Is buying allowed by the clock? The round's mp_buytime window, or a respawned player's
-//			own window when mp_respawn_buytime asks for one. The networked buy-zone bit follows this
+// Purpose: Is buying allowed by the clock? The round's mp_buytime window, extended by
+//			mp_buy_during_immunity for a spawn-immune player. The networked buy-zone bit follows this
 //			answer (see CBuyZone::BuyZoneTouch and CCSPlayerMove, which is how the stock client is
 //			kept from opening the buy menu), so this is the one place that decides when the buy window
 //			is open.
 //-----------------------------------------------------------------------------
 bool CCSPlayer::IsBuyTimeAvailable()
 {
-	// mp_respawn_buytime < 0 is the default and means "no separate respawn window": a respawned
-	// player follows the round's timer exactly like a stock player, so the feature is off unless a
-	// server asks for it.
-	if ( m_flRespawnTime > 0.0f && mp_respawn_buytime.GetFloat() >= 0.0f )
+	// mp_buy_during_immunity: a spawn-immune player may keep buying past mp_buytime.
+	// 0 = never (stock), 1 = both teams, 2 = Terrorists, 3 = Counter-Terrorists.
+	if ( IsSpawnImmune() )
 	{
-		// A player brought back by mp_respawn_on_death_* buys inside his own window instead of the
-		// round's, in both directions: inside it he may buy even once the round's buy time has run
-		// out, and outside it he may not buy even while the round's buy time is still running.
-		// mp_respawn_buytime 0 = no cutoff.
-		const float flRespawnBuyTime = mp_respawn_buytime.GetFloat();
+		const int nBuyDuringImmunity = mp_buy_during_immunity.GetInt();
 
-		return ( flRespawnBuyTime == 0.0f || gpGlobals->curtime <= m_flRespawnTime + flRespawnBuyTime );
+		if ( nBuyDuringImmunity == 1 || nBuyDuringImmunity == GetTeamNumber() )
+			return true;
 	}
 
 	return ( (int)( mp_buytime.GetFloat() * 60 ) >= CSGameRules()->GetRoundElapsedTime() );
@@ -3134,20 +3114,9 @@ bool CCSPlayer::CanPlayerBuy( bool display )
 	{
 		if ( display == true )
 		{
-			// Only blame the respawn window when one is actually in use; with mp_respawn_buytime -1
-			// a respawned player is simply on the round's timer and gets the stock line.
-			if ( m_flRespawnTime > 0.0f && mp_respawn_buytime.GetFloat() >= 0.0f )
-			{
-				// #Cant_buy counts minutes, which would read as "for 0 minutes" for a respawn
-				// window of a few seconds, so this case gets its own line.
-				ClientPrint( this, HUD_PRINTCENTER, "Your respawn buy time has expired" );
-			}
-			else
-			{
-				char strBuyTime[16];
-				Q_snprintf( strBuyTime, sizeof( strBuyTime ), "%d", (int)( mp_buytime.GetFloat() * 60 ) );
-				ClientPrint( this, HUD_PRINTCENTER, "#Cant_buy", strBuyTime );
-			}
+			char strBuyTime[16];
+			Q_snprintf( strBuyTime, sizeof( strBuyTime ), "%d", (int)( mp_buytime.GetFloat() * 60 ) );
+			ClientPrint( this, HUD_PRINTCENTER, "#Cant_buy", strBuyTime );
 		}
 
 		return false;
