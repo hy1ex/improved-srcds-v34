@@ -3109,23 +3109,35 @@ bool CCSPlayer::IsInBuyZone()
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: Is buying allowed by the clock? The round's mp_buytime window, extended by
-//			mp_buy_during_immunity for a spawn-immune player. The networked buy-zone bit follows this
-//			answer (see CBuyZone::BuyZoneTouch and CCSPlayerMove, which is how the stock client is
-//			kept from opening the buy menu), so this is the one place that decides when the buy window
-//			is open.
+// Purpose: Does mp_buy_during_immunity replace the round's buy window for this player's team?
+//			Both callers of the rule need the answer - the window itself and the refusal message -
+//			so the team test lives in one place.
+//-----------------------------------------------------------------------------
+bool CCSPlayer::BuyLimitedToImmunity()
+{
+	// 0 = never (stock), 1 = both teams, 2 = Terrorists, 3 = Counter-Terrorists.
+	const int nBuyDuringImmunity = mp_buy_during_immunity.GetInt();
+
+	return ( nBuyDuringImmunity == 1 || nBuyDuringImmunity == GetTeamNumber() );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Is buying allowed by the clock? The round's mp_buytime window, unless
+//			mp_buy_during_immunity applies to this player, in which case his spawn immunity is the
+//			whole window. The networked buy-zone bit follows this answer (see CBuyZone::BuyZoneTouch
+//			and CCSPlayerMove, which is how the stock client is kept from opening the buy menu), so
+//			this is the one place that decides when the buy window is open.
 //-----------------------------------------------------------------------------
 bool CCSPlayer::IsBuyTimeAvailable()
 {
-	// mp_buy_during_immunity: a spawn-immune player may keep buying past mp_buytime.
-	// 0 = never (stock), 1 = both teams, 2 = Terrorists, 3 = Counter-Terrorists.
-	if ( IsSpawnImmune() )
-	{
-		const int nBuyDuringImmunity = mp_buy_during_immunity.GetInt();
-
-		if ( nBuyDuringImmunity == 1 || nBuyDuringImmunity == GetTeamNumber() )
-			return true;
-	}
+	// The immunity window replaces the round's window instead of being added to it, and it cuts in
+	// both directions: while it applies, the player may buy while spawn-immune even after
+	// mp_buytime has run out, and is refused the moment the immunity ends even while mp_buytime is
+	// still running. An exemption that only ever adds time can never take any away, which left the
+	// convar doing nothing whenever the immunity ended inside the round's window - the usual case
+	// on a respawn server, where immunity is measured in seconds against a buytime in minutes.
+	if ( BuyLimitedToImmunity() )
+		return IsSpawnImmune();
 
 	return ( (int)( mp_buytime.GetFloat() * 60 ) >= CSGameRules()->GetRoundElapsedTime() );
 }
@@ -3144,9 +3156,18 @@ bool CCSPlayer::CanPlayerBuy( bool display )
 	{
 		if ( display == true )
 		{
-			char strBuyTime[16];
-			Q_snprintf( strBuyTime, sizeof( strBuyTime ), "%d", (int)( mp_buytime.GetFloat() * 60 ) );
-			ClientPrint( this, HUD_PRINTCENTER, "#Cant_buy", strBuyTime );
+			if ( BuyLimitedToImmunity() )
+			{
+				// #Cant_buy counts whole minutes, which would read as "for 0 minutes" for a window
+				// of a few seconds, so the immunity cutoff gets its own line.
+				ClientPrint( this, HUD_PRINTCENTER, "You may only buy while spawn protected" );
+			}
+			else
+			{
+				char strBuyTime[16];
+				Q_snprintf( strBuyTime, sizeof( strBuyTime ), "%d", (int)( mp_buytime.GetFloat() * 60 ) );
+				ClientPrint( this, HUD_PRINTCENTER, "#Cant_buy", strBuyTime );
+			}
 		}
 
 		return false;

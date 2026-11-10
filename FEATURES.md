@@ -41,7 +41,7 @@ Source game. For each feature it records:
 | `mp_respawn_immunitytime` | `4` | [3. Respawn on death](#3-respawn-on-death) | seconds of damage immunity + model fade |
 | `mp_respawn_immunity_fade` | `1` | [3. Respawn on death](#3-respawn-on-death) | 0=none, 1=fade in, 2=half transparent |
 | `mp_respawn_weapons` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=default pistol, 1=random, 2=keep |
-| `mp_buy_during_immunity` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=never, 1=both, 2=T, 3=CT: buy past `mp_buytime` while spawn-immune |
+| `mp_buy_during_immunity` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=off, 1=both, 2=T, 3=CT: spawn immunity becomes the buy window, cut when it ends |
 | `mp_buy_anywhere` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=stock, 1=both, 2=T, 3=CT (also opens the menu) |
 | `mp_solid_player` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through every player, no push |
 | `mp_solid_hostages` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through hostages |
@@ -271,19 +271,27 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
   an ordinary spawn and when the mode is switched to `0` mid-window, so a player can never be left
   translucent. `m_nRenderMode` and `m_clrRender` are stock networked entity fields, so this needs no
   new netprop and no client support.
-* `mp_buy_during_immunity` lets a spawn-immune player keep buying after `mp_buytime` has run out:
-  * `0` — never, stock behaviour (**default**),
+* `mp_buy_during_immunity` makes the spawn immunity window the buy window for the teams it names:
+  * `0` — off, `mp_buytime` decides as stock (**default**),
   * `1` — both teams,
   * `2` — Terrorists only,
   * `3` — Counter-Terrorists only.
-  It is checked in `CCSPlayer::IsBuyTimeAvailable()`, the one place that decides whether the buy
-  window is open, so the `buy` / `autobuy` / `rebuy` commands and the networked `m_bInBuyZone` bit
-  (and with it the stock client's VGUI buy menu) all follow it. CS:GO ties the switch to the buy
-  menu being open and extends the immunity by 10 seconds while it is; a stock v34 client never tells
-  the server that its menu is open, so here the switch follows the immunity window itself, which is
-  the same rule its own description states ("players can buy when immune, ignoring buytime"). This
-  only matters on a server that also sets `mp_respawn_immunitytime`, because that is what creates
-  the window.
+  It **replaces** the round's window rather than extending it, and cuts in both directions: while
+  the immunity lasts the player may buy even after `mp_buytime` has run out, and the moment the
+  immunity ends he is refused even while `mp_buytime` is still running. An exemption that only ever
+  adds time can never take any away, which left the convar with no visible effect whenever the
+  immunity ended inside the round's window - the usual case on a respawn server, where
+  `mp_respawn_immunitytime 4` (cut to one second once the player moves) sits inside a
+  `mp_buytime 15`. A cutoff is the only behaviour a server can enforce on its own: the stock v34
+  client decides for itself whether to open the VGUI buy menu, and once `mp_buytime` has elapsed it
+  cannot be opened again without a client change, so buying after that has to come from the
+  `buy` / `autobuy` / `rebuy` commands and buy binds. The rule is checked in
+  `CCSPlayer::IsBuyTimeAvailable()`, the one place that decides whether the window is open, so
+  those commands, the ammo and equipment aliases and the networked `m_bInBuyZone` bit all obey the
+  same cut. The refusal prints "You may only buy while spawn protected" instead of `#Cant_buy`,
+  which counts whole minutes and would read "for 0 minutes" for a window of a few seconds. This only
+  matters on a server that also sets `mp_respawn_immunitytime`, because that is what creates the
+  window.
 * `mp_buy_anywhere` lets players buy outside `func_buyzone` volumes:
   * `0` — stock behaviour, buy zones only (**default**),
   * `1` — both teams may buy anywhere,
@@ -301,8 +309,11 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
 * Buying for the whole round is a `mp_buytime` setting, not a separate switch: `mp_buytime` is
   `FCVAR_REPLICATED`, so the server and the stock client agree on the window, and raising it (for
   example `mp_buytime 999`) keeps the VGUI buy menu open as well as the commands. A server-only
-  "ignore the buy time" convar cannot do that, because the client decides on its own whether to
-  open the menu at all; that is why there is no such convar here.
+  convar cannot do that: the stock client's `buymenu` / `buyequip` commands compare `mp_buytime`
+  with the networked round start on their own, so once the round's window has elapsed the menu
+  cannot be opened again without a client change, whatever the server would allow.
+  `mp_buy_during_immunity` is therefore a rule for the console commands and binds, not a way to
+  keep the menu open past `mp_buytime`.
 
 **Convars**
 
@@ -316,7 +327,7 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
 | `mp_respawn_immunitytime` | `4` | seconds, `0` = off | Damage immunity and model fade at every spawn while the team respawns; cut to 1 s once the player moves |
 | `mp_respawn_immunity_fade` | `1` | `0`-`2` | Immunity visual: `0` none, `1` fade in, `2` fixed half transparency |
 | `mp_respawn_weapons` | `0` | `0`-`2` | Loadout policy after a respawn |
-| `mp_buy_during_immunity` | `0` | `0`-`3` | Buy past `mp_buytime` while spawn-immune: `0` never, `1` both teams, `2` T, `3` CT |
+| `mp_buy_during_immunity` | `0` | `0`-`3` | Buy window is the spawn immunity window, cut when the immunity ends: `0` off (`mp_buytime`), `1` both teams, `2` T, `3` CT |
 | `mp_buy_anywhere` | `0` | `0`-`3` | Buy outside buy zones, optionally per team |
 
 The respawn feature itself is **off by default** (`mp_respawn_on_death_ct/t 0`), so a stock server

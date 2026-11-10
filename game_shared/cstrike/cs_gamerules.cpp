@@ -300,7 +300,7 @@ ConVar mp_buy_during_immunity(
 	"mp_buy_during_immunity",
 	"0",
 	FCVAR_NOTIFY,
-	"When set, players can buy when immune, ignoring buytime: 0=default, 1=both teams, 2=Terrorists, 3=Counter-Terrorists" );
+	"Buy window is the spawn immunity window instead of mp_buytime: 0=off, 1=both teams, 2=Terrorists, 3=Counter-Terrorists" );
 
 // ---------------------------------------------------------------------------------------------------
 // Burn spread from an ignited player. See CCSGameRules::RadiusDamage() below.

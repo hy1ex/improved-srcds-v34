@@ -587,6 +587,7 @@ public:
 
 	bool IsInBuyZone();
 	bool IsBuyAnywhere();
+	bool BuyLimitedToImmunity();
 	bool IsBuyTimeAvailable();
 	bool CanPlayerBuy( bool display );
 
