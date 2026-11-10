@@ -49,6 +49,11 @@ extern ConVar mp_solid_player;
 extern ConVar mp_teammates_are_enemies;
 extern ConVar mp_players_nonsolid_time;
 extern ConVar mp_maxmoney;
+extern ConVar mp_damage_scale_ct_head;
+extern ConVar mp_damage_scale_ct_body;
+extern ConVar mp_damage_scale_t_head;
+extern ConVar mp_damage_scale_t_body;
+extern ConVar mp_damage_headshot_only;
 
 #include "weapon_hegrenade.h"
 #include "weapon_flashbang.h"
@@ -1515,6 +1520,15 @@ int CCSPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 	if ( GetMoveType() == MOVETYPE_NOCLIP || GetMoveType() == MOVETYPE_OBSERVER )
 		return 0;
 
+	// mp_damage_headshot_only: nothing but a bullet that hit the head hurts a player. The bullet bit
+	// has to be required as well, because explosion, fire, fall and knife damage never own a head
+	// hitgroup - m_LastHitGroup would still hold whatever the victim was last shot in.
+	if ( mp_damage_headshot_only.GetBool() &&
+		 ( !( info.GetDamageType() & DMG_BULLET ) || m_LastHitGroup != HITGROUP_HEAD ) )
+	{
+		return 0;
+	}
+
 	float flArmorBonus = 0.5f;
 	float flArmorRatio = 0.5f;
 	float flDamage = info.GetDamage();
@@ -1878,6 +1892,24 @@ void CCSPlayer::TraceAttack( const CTakeDamageInfo &info, const Vector &vecDir, 
 		g_pEffects->Sparks( ptr->endpos, 1, 1, &ptr->plane.normal );
 	}
 	
+	// mp_damage_scale_*: scale the damage that the hit group switch above already adjusted. This is
+	// done here and not in OnTakeDamage because only this function knows the exact hitgroup of the
+	// bullet that hit; OnTakeDamage only sees the accumulated damage of the whole frame.
+	if ( !bHitShield )
+	{
+		const bool bHead = ( ptr->hitgroup == HITGROUP_HEAD );
+
+		float flScale;
+
+		if ( GetTeamNumber() == TEAM_CT )
+			flScale = bHead ? mp_damage_scale_ct_head.GetFloat() : mp_damage_scale_ct_body.GetFloat();
+		else
+			flScale = bHead ? mp_damage_scale_t_head.GetFloat() : mp_damage_scale_t_body.GetFloat();
+
+		if ( flScale != 1.0f )
+			flDamage *= flScale;
+	}
+
 	if ( !bHitShield )
 	{
 		CTakeDamageInfo subInfo = info;

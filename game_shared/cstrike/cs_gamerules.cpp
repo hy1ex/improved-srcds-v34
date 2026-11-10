@@ -299,6 +299,41 @@ ConVar mp_burn_radius_damage(
 	"Whether a burning player's flame damages entities around him: 0=no (fixes the ignite lag), 1=stock" );
 
 // ---------------------------------------------------------------------------------------------------
+// Damage scaling. Ported from CS:GO (mp_damage_scale_* and mp_damage_headshot_only). Server side
+// only, never replicated: the scale is applied to the damage before armour, so a stock client only
+// ever sees the resulting health. Defaults of 1.0 and 0 keep stock Counter-Strike: Source behaviour.
+// ---------------------------------------------------------------------------------------------------
+ConVar mp_damage_scale_ct_head(
+	"mp_damage_scale_ct_head",
+	"1.0",
+	FCVAR_NOTIFY,
+	"Scale of damage applied to the head of a Counter-Terrorist (1.0 = stock)" );
+
+ConVar mp_damage_scale_ct_body(
+	"mp_damage_scale_ct_body",
+	"1.0",
+	FCVAR_NOTIFY,
+	"Scale of damage applied to the rest of the body of a Counter-Terrorist (1.0 = stock)" );
+
+ConVar mp_damage_scale_t_head(
+	"mp_damage_scale_t_head",
+	"1.0",
+	FCVAR_NOTIFY,
+	"Scale of damage applied to the head of a Terrorist (1.0 = stock)" );
+
+ConVar mp_damage_scale_t_body(
+	"mp_damage_scale_t_body",
+	"1.0",
+	FCVAR_NOTIFY,
+	"Scale of damage applied to the rest of the body of a Terrorist (1.0 = stock)" );
+
+ConVar mp_damage_headshot_only(
+	"mp_damage_headshot_only",
+	"0",
+	FCVAR_NOTIFY,
+	"Only bullets that hit the head deal damage (0 = stock damage model)" );
+
+// ---------------------------------------------------------------------------------------------------
 // Collision control. Ported from CS:GO's mp_solid_teammates, generalised to one switch for every
 // player plus the equivalent switches for hostages and thrown grenades. Server side only, never
 // replicated. Every default is 1, which is stock Counter-Strike: Source behaviour (everything

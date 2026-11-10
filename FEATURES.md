@@ -51,6 +51,11 @@ Source game. For each feature it records:
 | `mp_afterroundmoney` | `0` | [5. Economy control](#5-economy-control) | flat cash per round |
 | `mp_playercashawards` | `1` | [5. Economy control](#5-economy-control) | individual cash rewards |
 | `mp_teamcashawards` | `1` | [5. Economy control](#5-economy-control) | team win/loss cash |
+| `mp_damage_scale_ct_head` | `1` | [6. Damage scaling](#6-damage-scaling) | multiplier for Counter-Terrorist headshots |
+| `mp_damage_scale_ct_body` | `1` | [6. Damage scaling](#6-damage-scaling) | multiplier for the rest of a Counter-Terrorist |
+| `mp_damage_scale_t_head` | `1` | [6. Damage scaling](#6-damage-scaling) | multiplier for Terrorist headshots |
+| `mp_damage_scale_t_body` | `1` | [6. Damage scaling](#6-damage-scaling) | multiplier for the rest of a Terrorist |
+| `mp_damage_headshot_only` | `0` | [6. Damage scaling](#6-damage-scaling) | 0/1, only headshot bullets deal damage |
 
 ---
 
@@ -478,3 +483,57 @@ replicated, no netprops, no protocol change.
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars, `mp_startmoney` bounds, kill awards,
 round-start cash), `dlls/cstrike/cs_player.cpp` (`AddAccount` cap).
+
+---
+
+# 6. Damage scaling
+
+**Origin:** CS:GO `mp_damage_scale_ct_head`, `mp_damage_scale_ct_body`, `mp_damage_scale_t_head`,
+`mp_damage_scale_t_body` and `mp_damage_headshot_only`
+(`game/shared/cstrike15/cs_gamerules.cpp`).
+
+**Why:** Counter-Strike: Source hardcodes its whole damage model: a headshot is exactly `4x` weapon
+damage, a stomach hit `1.25x`, a leg hit `0.75x`, and there is no way to make a round headshot-only.
+Servers running pistol-only, "no headshot" or asymmetric-team modes have no switch for any of it.
+These are exactly the CS:GO convars that cover it, all of them multipliers or flags, so all of them
+default to stock behaviour.
+
+**What it does.**
+
+* `mp_damage_scale_ct_head` / `mp_damage_scale_t_head` — multiplied into the damage of a bullet that
+  hit that team's head, after the stock `4x` headshot multiplier.
+* `mp_damage_scale_ct_body` / `mp_damage_scale_t_body` — the same for every other hitgroup of that
+  team (chest, stomach, arms, legs), after the stock per-hitgroup multipliers.
+* `mp_damage_headshot_only` — a player takes damage only from a bullet that hit his head. Everything
+  else is dropped before any armour, force or `Damage` usermessage work happens: body shots, knife
+  hits, explosions, fire and fall damage. `0` (default) keeps the stock damage model.
+
+Scaling happens in `CCSPlayer::TraceAttack`, in the per-bullet path where `ptr->hitgroup` is known,
+so shotgun pellets are scaled individually and a trace that hits the helmet is scaled as a head hit.
+It is applied after the stock hitgroup multipliers and before armour reduction in
+`CCSPlayer::OnTakeDamage`, which is the same order CS:GO uses (scale the shot, then let armour absorb
+part of it). Because it lives in the trace path, only bullet damage is scaled; explosion and fall
+damage are unaffected by the four multipliers, exactly like CS:GO, where the scale is a property of a
+hitgroup.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_damage_scale_ct_head` | `1.0` | `0`+ | Damage multiplier for a Counter-Terrorist headshot |
+| `mp_damage_scale_ct_body` | `1.0` | `0`+ | Damage multiplier for the rest of a Counter-Terrorist |
+| `mp_damage_scale_t_head` | `1.0` | `0`+ | Damage multiplier for a Terrorist headshot |
+| `mp_damage_scale_t_body` | `1.0` | `0`+ | Damage multiplier for the rest of a Terrorist |
+| `mp_damage_headshot_only` | `0` | `0`/`1` | Only headshot bullets deal damage |
+
+**Client compatibility.** Damage is not a client-side decision: the server applies the multipliers and
+the only thing the stock client receives is the resulting health change and the existing `Damage`
+usermessage. No convar is replicated, no netprop and no usermessage is added, so a v34 client needs no
+knowledge of any of this.
+
+One consequence worth knowing: with `mp_damage_headshot_only 1` a client still receives blood, spark
+and flinch feedback for a body hit, because that happens in the trace before the damage is dropped.
+Only the health loss is suppressed.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars), `dlls/cstrike/cs_player.cpp`
+(`TraceAttack` scaling, `OnTakeDamage` headshot gate).
