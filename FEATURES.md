@@ -81,6 +81,8 @@ Source game. For each feature it records:
 | `mp_randomspawn_dist` | `0` | [10. Random deathmatch spawns](#10-random-deathmatch-spawns) | minimum distance from a living enemy, 0 = off |
 | `mp_dm_scoring` | `0` | [11. Deathmatch kill scoring](#11-deathmatch-kill-scoring) | 0/1, award CS:GO deathmatch points per kill |
 | `mp_dm_kill_base_score` | `10` | [11. Deathmatch kill scoring](#11-deathmatch-kill-scoring) | base points per kill |
+| `mp_hostages_max` | `0` | [12. Hostage rescue rules](#12-hostage-rescue-rules) | keep only N of the map's hostages; 0 = all |
+| `mp_hostages_spawn_farthest` | `0` | [12. Hostage rescue rules](#12-hostage-rescue-rules) | 1 = keep the most spread-out set |
 | `mp_hostages_takedamage` | `1` | [12. Hostage rescue rules](#12-hostage-rescue-rules) | 0 = hostages cannot be hurt |
 | `mp_hostages_rescuetowin` | `0` | [12. Hostage rescue rules](#12-hostage-rescue-rules) | rescues needed to win; 0 = every surviving hostage |
 | `mp_hostages_run_speed_modifier` | `1.0` | [12. Hostage rescue rules](#12-hostage-rescue-rules) | movement force scale for a following hostage |
@@ -1090,10 +1092,26 @@ here.
   hostage is still only *rescued* in a rescue zone, and the CT use bonus and the touch push-away are
   unchanged.
 
+* `mp_hostages_max` — `0` (default) keeps every hostage the map placed, which is stock. A positive
+  number keeps only that many. CS:S has no hostage spawn points, so unlike CS:GO the pool is the
+  map's own `hostage_entity` list: `CCSGameRules::LevelInitPostEntity()` calls `PruneMapHostages()`,
+  which removes the unwanted entities from `g_Hostages` and the world once per level, before the
+  first round. Maps with two or four hostages are untouched by default, and `m_iHostagesRemaining`
+  is recomputed per round from what is left.
+* `mp_hostages_spawn_farthest` — `0` (default) keeps the first N hostages in map order, which is
+  CS:GO's own fallback. `1` keeps the subset that is spread out furthest: CS:GO's metric is the sum
+  of the pairwise 2D squared distances of the chosen hostages, maximised over every combination
+  (CS:GO `cs_gamerules.cpp:8957`). That is a combinatorial search, so it is only run when the map
+  has at most 16 hostage entities; above that a greedy farthest-first pass (start nearest the map's
+  average position, then repeatedly take the entity furthest from everything kept) produces the same
+  kind of spread without the cost. Both run once, during level load.
+
 **Convars**
 
 | Convar | Default | Values | Meaning |
 | --- | --- | --- | --- |
+| `mp_hostages_max` | `0` | `0` or N | Keep only N of the map's hostages (`0` = all, stock) |
+| `mp_hostages_spawn_farthest` | `0` | `0`/`1` | When limiting, keep the most spread-out set |
 | `mp_hostages_takedamage` | `1` | `0`/`1` | Hostages can be hurt (stock: yes) |
 | `mp_hostages_rescuetowin` | `0` | `0` or N | Rescues needed to win; `0` = every surviving hostage (stock) |
 | `mp_hostages_run_speed_modifier` | `1.0` | `0.1`-`1.5` | Movement force scale for a following hostage (stock: `1.0`) |
@@ -1104,6 +1122,6 @@ speed is already an engine-side force, the rescue check runs in the game rules, 
 `#Only_CT_Can_Move_Hostages` is an existing string in a v34 client's string tables, so the refusal
 still appears when the switch is on.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (all four convars,
-`HostageRescueRoundEndCheck`), `dlls/cstrike/hostage/cs_simple_hostage.cpp` (`OnTakeDamage_Alive`,
-`HostageUse`, `TrackPath`).
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (all six convars,
+`HostageRescueRoundEndCheck`, `PruneMapHostages`), `dlls/cstrike/hostage/cs_simple_hostage.cpp`
+(`OnTakeDamage_Alive`, `HostageUse`, `TrackPath`).

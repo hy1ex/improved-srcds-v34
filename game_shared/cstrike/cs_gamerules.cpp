@@ -592,6 +592,18 @@ ConVar mp_only_cts_rescue_hostages(
 	FCVAR_NOTIFY,
 	"Only Counter-Terrorists may take a hostage (1 = stock, 0 = Terrorists may too)" );
 
+ConVar mp_hostages_max(
+	"mp_hostages_max",
+	"0",
+	FCVAR_NOTIFY,
+	"Maximum number of the map's hostages to keep in play (0 = all of them, stock)" );
+
+ConVar mp_hostages_spawn_farthest(
+	"mp_hostages_spawn_farthest",
+	"0",
+	FCVAR_NOTIFY,
+	"When limiting hostages, keep the set that is spread out furthest across the map instead of the first ones" );
+
 // ---------------------------------------------------------------------------------------------------
 // Economy control. Ported from CS:GO's mp_maxmoney / mp_afterroundmoney / mp_playercashawards /
 // mp_teamcashawards. Server side only, never replicated. Defaults are the stock CS:S numbers, so a
@@ -2024,6 +2036,170 @@ ConVar cl_autohelp(
 	}
 
 
+	// ---------------------------------------------------------------------------------------------------
+	// mp_hostages_max / mp_hostages_spawn_farthest. CS:GO cs_gamerules.cpp:8905 reduces the hostages the
+	// map placed down to the number the server wants, and can keep the subset that is spread out
+	// furthest instead of an arbitrary one. CS:S has no hostage spawn points, only map-placed
+	// hostage_entity entities, so the map's own list is the pool and the limit is applied once per
+	// level, before the first round.
+	// ---------------------------------------------------------------------------------------------------
+	static void PruneMapHostages( void )
+	{
+		const int nWanted = mp_hostages_max.GetInt();
+		const int nHostages = g_Hostages.Count();
+
+		if ( nWanted <= 0 || nHostages <= nWanted )
+			return;	// stock: every hostage the map placed stays
+
+		CUtlVector< int > arrKeep;
+
+		if ( mp_hostages_spawn_farthest.GetBool() )
+		{
+			if ( nHostages <= 16 )
+			{
+				// CS:GO's metric: the sum of the pairwise 2D squared distances, maximised over every
+				// combination of the desired count. Bounded to 16 hostages because the combinatorial
+				// search runs during level load and a map with dozens of hostage entities would stall.
+				CUtlVector< int > arrTry;
+
+				for ( int i = 0; i < nWanted; ++i )
+					arrTry.AddToTail( i );
+
+				float flBestMetric = -1.0f;
+
+				while ( true )
+				{
+					float flMetric = 0.0f;
+
+					for ( int a = 0; a < arrTry.Count(); ++a )
+					{
+						for ( int b = a + 1; b < arrTry.Count(); ++b )
+						{
+							Vector vecBetween = g_Hostages[ arrTry[a] ]->GetAbsOrigin() -
+								g_Hostages[ arrTry[b] ]->GetAbsOrigin();
+							flMetric += vecBetween.Length2DSqr();
+						}
+					}
+
+					if ( flMetric > flBestMetric )
+					{
+						flBestMetric = flMetric;
+						arrKeep.RemoveAll();
+						arrKeep.AddMultipleToTail( arrTry.Count(), arrTry.Base() );
+					}
+
+					// advance to the next combination
+					int nAdvance = 0;
+
+					while ( nAdvance < arrTry.Count() &&
+							arrTry[ arrTry.Count() - 1 - nAdvance ] >= nHostages - 1 - nAdvance )
+					{
+						++nAdvance;
+					}
+
+					if ( nAdvance >= arrTry.Count() )
+						break;
+
+					arrTry[ arrTry.Count() - 1 - nAdvance ]++;
+
+					for ( int i = arrTry.Count() - nAdvance; i < arrTry.Count(); ++i )
+					{
+						arrTry[i] = arrTry[ arrTry.Count() - 1 - nAdvance ] +
+							( i - ( arrTry.Count() - nAdvance ) + 1 );
+					}
+				}
+			}
+			else
+			{
+				// Greedy farthest-first fallback: start from the hostage nearest the map's average
+				// position, then repeatedly take the one furthest from everything kept so far. Same
+				// intent as the search above without its cost.
+				Vector vecCentre( 0, 0, 0 );
+
+				for ( int i = 0; i < nHostages; ++i )
+					vecCentre += g_Hostages[i]->GetAbsOrigin();
+
+				vecCentre /= (float)nHostages;
+
+				int nFirst = 0;
+				float flClosest = 0.0f;
+				bool bFirst = true;
+
+				for ( int i = 0; i < nHostages; ++i )
+				{
+					float flDistance = ( g_Hostages[i]->GetAbsOrigin() - vecCentre ).Length2DSqr();
+
+					if ( bFirst || flDistance < flClosest )
+					{
+						bFirst = false;
+						flClosest = flDistance;
+						nFirst = i;
+					}
+				}
+
+				arrKeep.AddToTail( nFirst );
+
+				while ( arrKeep.Count() < nWanted )
+				{
+					int nBest = -1;
+					float flBest = -1.0f;
+
+					for ( int i = 0; i < nHostages; ++i )
+					{
+						if ( arrKeep.Find( i ) != arrKeep.InvalidIndex() )
+							continue;
+
+						float flNearest = 0.0f;
+						bool bNearest = true;
+
+						for ( int k = 0; k < arrKeep.Count(); ++k )
+						{
+							float flDistance = ( g_Hostages[i]->GetAbsOrigin() -
+								g_Hostages[ arrKeep[k] ]->GetAbsOrigin() ).Length2DSqr();
+
+							if ( bNearest || flDistance < flNearest )
+							{
+								bNearest = false;
+								flNearest = flDistance;
+							}
+						}
+
+						if ( flNearest > flBest )
+						{
+							flBest = flNearest;
+							nBest = i;
+						}
+					}
+
+					if ( nBest < 0 )
+						break;
+
+					arrKeep.AddToTail( nBest );
+				}
+			}
+		}
+		else
+		{
+			// keep the first N in map order, which is CS:GO's fallback when the spatial pick is off
+			for ( int i = 0; i < nWanted; ++i )
+				arrKeep.AddToTail( i );
+		}
+
+		// remove the rest, back to front so the indices stay valid
+		for ( int i = nHostages - 1; i >= 0; --i )
+		{
+			if ( arrKeep.Find( i ) != arrKeep.InvalidIndex() )
+				continue;
+
+			CHostage *pHostage = g_Hostages[i];
+
+			g_Hostages.Remove( i );
+
+			if ( pHostage )
+				UTIL_Remove( pHostage );
+		}
+	}
+
 	void CCSGameRules::LevelInitPostEntity()
 	{
 		BaseClass::LevelInitPostEntity();
@@ -2031,6 +2207,9 @@ ConVar cl_autohelp(
 		m_bLevelInitialized = false; // re-count CT and T start spots now that they exist
 
 		ResetDMSpawnState();
+
+		// mp_hostages_max / mp_hostages_spawn_farthest: drop the hostages the server does not want.
+		PruneMapHostages();
 
 		// Figure out from the entities in the map what kind of map this is (bomb run, prison escape, etc).
 		CheckMapConditions();
