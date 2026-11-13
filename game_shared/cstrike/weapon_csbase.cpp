@@ -37,6 +37,31 @@
 
 
 // ----------------------------------------------------------------------------- //
+// Weapon pickup timing.
+// ----------------------------------------------------------------------------- //
+
+// CS:GO exposes the delay a player has to wait before taking back his own dropped weapon
+// (mp_weapon_prev_owner_touch_time, weapon_csbase.cpp:1753) and a base delay before anybody may pick
+// a weapon up (mp_weapon_next_owner_touch_time). Here the first was hardcoded to 0.8 seconds in
+// CWeaponCSBase::Drop() and the second did not exist. The defaults keep that stock behaviour.
+ConVar mp_weapon_prev_owner_touch_time(
+	"mp_weapon_prev_owner_touch_time",
+	"0.8",
+	FCVAR_NOTIFY,
+	"Seconds before a player can pick up the weapon he just dropped",
+	true, 0.0f,
+	false, 0 );
+
+ConVar mp_weapon_next_owner_touch_time(
+	"mp_weapon_next_owner_touch_time",
+	"0",
+	FCVAR_NOTIFY,
+	"Seconds before anybody can pick up a weapon that was just dropped",
+	true, 0.0f,
+	false, 0 );
+
+
+// ----------------------------------------------------------------------------- //
 // Global functions.
 // ----------------------------------------------------------------------------- //
 
@@ -324,6 +349,7 @@ CWeaponCSBase::CWeaponCSBase()
 	SetPredictionEligible( true );
 	m_bDelayFire = true;
 	m_nextPrevOwnerTouchTime = 0.0;
+	m_nextOwnerTouchTime = 0.0;
 	m_prevOwner = NULL;
 	AddSolidFlags( FSOLID_TRIGGER ); // Nothing collides with these but it gets touches.
 
@@ -834,7 +860,8 @@ void CWeaponCSBase::Drop(const Vector &vecVelocity)
 	m_bInReload = false; // stop reloading 
 
 	SetThink( NULL );
-	m_nextPrevOwnerTouchTime = gpGlobals->curtime + 0.8f;
+	m_nextPrevOwnerTouchTime = gpGlobals->curtime + mp_weapon_prev_owner_touch_time.GetFloat();
+	m_nextOwnerTouchTime = gpGlobals->curtime + mp_weapon_next_owner_touch_time.GetFloat();
 	m_prevOwner = GetPlayerOwner();
 
 	SetTouch(&CWeaponCSBase::DefaultTouch);
@@ -861,6 +888,14 @@ void CWeaponCSBase::Drop(const Vector &vecVelocity)
 // for a little while.  But if they throw it at someone else, the other player should get it immediately.
 void CWeaponCSBase::DefaultTouch(CBaseEntity *pOther)
 {
+	// mp_weapon_next_owner_touch_time: a short window after the drop during which nobody can take the
+	// weapon. CS:GO sets the same kind of delay in CWeaponCSBase::Drop() to stop a weapon being
+	// picked up in the frame it was thrown.
+	if ( gpGlobals->curtime < m_nextOwnerTouchTime )
+	{
+		return;
+	}
+
 	if ((m_prevOwner != NULL) && (pOther == m_prevOwner) && (gpGlobals->curtime < m_nextPrevOwnerTouchTime))
 	{
 		return;

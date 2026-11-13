@@ -204,6 +204,7 @@ private:
 	int		m_iExtraPrimaryAmmo;
 
 	float	m_nextPrevOwnerTouchTime;
+	float	m_nextOwnerTouchTime;
 	CCSPlayer *m_prevOwner;
 
 	int m_iDefaultExtraAmmo;
