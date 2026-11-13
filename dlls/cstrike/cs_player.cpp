@@ -121,6 +121,11 @@ ConVar sv_max_usercmd_future_ticks( "sv_max_usercmd_future_ticks", "8", 0, "Prev
 // here turns the refusal in the "drop" command into a real drop.
 ConVar mp_drop_knife_enable( "mp_drop_knife_enable", "0", FCVAR_NOTIFY, "Allows players to drop knives.", true, 0, true, 1 );
 
+// mp_drop_grenade_enable (CS:GO cs_player.cpp:216, used at :14388). CS:GO builds a fresh grenade entity
+// and takes one round out of the player's stack; in CS:S a grenade is already one weapon carrying one
+// round, so the ordinary drop throws it whole.
+ConVar mp_drop_grenade_enable( "mp_drop_grenade_enable", "0", FCVAR_NOTIFY, "Allows players to drop grenades.", true, 0, true, 1 );
+
 static ConVar cs_enable_player_physics_box( "cs_enable_player_physics_box", "1", FCVAR_NONE );
 
 ConVar bot_mimic( "bot_mimic", "0", FCVAR_CHEAT );
@@ -4711,7 +4716,14 @@ bool CCSPlayer::ClientCommand( const char* command )
 				if ( mp_drop_knife_enable.GetBool() )
 					CSWeaponDrop( pWeapon, true, true );
 			}
-			else if( type != WEAPONTYPE_GRENADE )
+			else if ( type == WEAPONTYPE_GRENADE )
+			{
+				// The same call the death drop already uses for grenades, so a dropped grenade is an
+				// ordinary world weapon with its one round carried in the extra ammo count.
+				if ( mp_drop_grenade_enable.GetBool() )
+					CSWeaponDrop( pWeapon, true, true );
+			}
+			else
 			{
 				CSWeaponDrop( pWeapon, true, true );
 			}

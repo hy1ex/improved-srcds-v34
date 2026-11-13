@@ -97,6 +97,7 @@ Source game. For each feature it records:
 | `mp_disconnect_kills_players` | `0` | [14. Disconnect kills](#14-disconnect-kills) | 1 = kill a living player when he disconnects |
 | `mp_disconnect_kills_bots` | `0` | [14. Disconnect kills](#14-disconnect-kills) | 1 = do the same for bots; needs the switch above |
 | `mp_drop_knife_enable` | `0` | [15. Knife drop](#15-knife-drop) | 1 = the `drop` command may drop the knife |
+| `mp_drop_grenade_enable` | `0` | [17. Grenade drop](#17-grenade-drop) | 1 = the `drop` command may drop a grenade |
 | `mp_weapon_prev_owner_touch_time` | `0.8` | [16. Weapon pickup timing](#16-weapon-pickup-timing) | seconds before the dropper may take his weapon back |
 | `mp_weapon_next_owner_touch_time` | `0` | [16. Weapon pickup timing](#16-weapon-pickup-timing) | seconds before anybody may pick a dropped weapon up |
 ## Command index
@@ -1314,3 +1315,32 @@ and a dropped weapon is still an ordinary networked weapon.
 
 **Files:** `game_shared/cstrike/weapon_csbase.cpp` (both convars, `CWeaponCSBase::Drop`,
 `CWeaponCSBase::DefaultTouch`), `game_shared/cstrike/weapon_csbase.h` (`m_nextOwnerTouchTime`).
+
+
+# 17. Grenade drop
+
+**Origin:** CS:GO `game/server/cstrike15/cs_player.cpp` — convar at line 216, use in the `drop` command
+at lines 14388-14410.
+
+**Why:** in stock CS:S the drop key refuses a grenade in hand, so a player carrying a spare flashbang
+cannot hand it to a teammate. CS:GO has a switch for it, and its `drop` command builds a fresh grenade
+entity, takes one round out of the player's stack and throws that.
+
+**What it does.** `mp_drop_grenade_enable 0` (default) is stock: the `drop` command ignores grenades.
+`1` drops the grenade the player is holding with the same `CSWeaponDrop()` call the death drop already
+uses for `mp_death_drop_grenade`, so the grenade becomes an ordinary world weapon that anybody may
+pick up. CS:S keeps one grenade per weapon entity with one round in it, so there is no stack to
+decrement: the whole grenade is thrown, which is the honest CS:S equivalent of CS:GO's "throw one out
+of the stack". The player is left holding whatever else he owns.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_drop_grenade_enable` | `0` | `0`/`1` | Allow the `drop` command to drop a grenade (`0` = stock refusal) |
+
+**Client compatibility.** Server-side: a dropped grenade is a stock networked weapon with a world
+model, and the ordinary pickup path (which the death drop already feeds) handles it. Nothing new is
+sent.
+
+**Files:** `dlls/cstrike/cs_player.cpp` (convar and the `drop` branch of `ClientCommand`).
