@@ -610,7 +610,19 @@ ConVar mp_hostages_spawn_farthest(
 	"mp_hostages_spawn_farthest",
 	"0",
 	FCVAR_NOTIFY,
-	"When limiting hostages, keep the set that is spread out furthest across the map instead of the first ones" );
+	"When limiting hostages, keep the set that is spread out furthest across the map instead of a random one" );
+
+ConVar mp_hostages_spawn_same_every_round(
+	"mp_hostages_spawn_same_every_round",
+	"1",
+	FCVAR_NOTIFY,
+	"Keep the same set of hostages for the whole match (1, CS:GO default) or pick a new set every round (0)" );
+
+ConVar mp_hostages_spawn_force_positions(
+	"mp_hostages_spawn_force_positions",
+	"",
+	FCVAR_NOTIFY,
+	"Comma separated list of zero based hostage indices to force, e.g. '0,2' or '1,6'. Empty = no forcing." );
 
 // ---------------------------------------------------------------------------------------------------
 // C4 rules. Ported from CS:GO's mp_anyone_can_pickup_c4, mp_c4_cannot_be_defused and
@@ -2089,156 +2101,166 @@ ConVar cl_autohelp(
 
 
 	// ---------------------------------------------------------------------------------------------------
-	// mp_hostages_max / mp_hostages_spawn_farthest. CS:GO cs_gamerules.cpp:8905 reduces the hostages the
-	// map placed down to the number the server wants, and can keep the subset that is spread out
-	// furthest instead of an arbitrary one. CS:S has no hostage spawn points, only map-placed
-	// hostage_entity entities, so the map's own list is the pool and the limit is applied once per
-	// level, before the first round.
+	// Hostage spawn selection: mp_hostages_max, mp_hostages_spawn_farthest,
+	// mp_hostages_spawn_force_positions and mp_hostages_spawn_same_every_round. CS:GO
+	// (cs_gamerules.cpp:8905-9030) keeps a list of the chosen hostage spawn indices, clears that list only
+	// when mp_hostages_spawn_same_every_round is 0, and removes every hostage that is not in it. CS:S has no
+	// hostage spawn points, only the map-placed hostage_entity entities, so the map's own list is the pool.
+	// The choice is applied again at every round start because CCSGameRules::CleanUpMap() recreates every
+	// map entity, which puts the removed hostages back.
 	// ---------------------------------------------------------------------------------------------------
-	static void PruneMapHostages( void )
+	static CUtlVector< int > g_arrSelectedHostageSpawnIndices;
+
+	// CS:GO's spatial pick (cs_gamerules.cpp:8958-9010): the combination whose pairwise 2D squared
+	// distances sum to the largest value. The exhaustive search only runs up to 16 hostages because its
+	// cost is combinatorial; above that the greedy fallback keeps the same intent.
+	static void SelectFarthestHostages( int nWanted, CUtlVector< int > &arrKeep )
 	{
-		const int nWanted = mp_hostages_max.GetInt();
 		const int nHostages = g_Hostages.Count();
 
-		if ( nWanted <= 0 || nHostages <= nWanted )
-			return;	// stock: every hostage the map placed stays
-
-		CUtlVector< int > arrKeep;
-
-		if ( mp_hostages_spawn_farthest.GetBool() )
+		if ( nHostages <= 16 )
 		{
-			if ( nHostages <= 16 )
+			CUtlVector< int > arrTry;
+
+			for ( int i = 0; i < nWanted; ++i )
+				arrTry.AddToTail( i );
+
+			float flBestMetric = -1.0f;
+
+			while ( true )
 			{
-				// CS:GO's metric: the sum of the pairwise 2D squared distances, maximised over every
-				// combination of the desired count. Bounded to 16 hostages because the combinatorial
-				// search runs during level load and a map with dozens of hostage entities would stall.
-				CUtlVector< int > arrTry;
+				float flMetric = 0.0f;
 
-				for ( int i = 0; i < nWanted; ++i )
-					arrTry.AddToTail( i );
-
-				float flBestMetric = -1.0f;
-
-				while ( true )
+				for ( int a = 0; a < arrTry.Count(); ++a )
 				{
-					float flMetric = 0.0f;
-
-					for ( int a = 0; a < arrTry.Count(); ++a )
+					for ( int b = a + 1; b < arrTry.Count(); ++b )
 					{
-						for ( int b = a + 1; b < arrTry.Count(); ++b )
-						{
-							Vector vecBetween = g_Hostages[ arrTry[a] ]->GetAbsOrigin() -
-								g_Hostages[ arrTry[b] ]->GetAbsOrigin();
-							flMetric += vecBetween.Length2DSqr();
-						}
-					}
-
-					if ( flMetric > flBestMetric )
-					{
-						flBestMetric = flMetric;
-						arrKeep.RemoveAll();
-						arrKeep.AddMultipleToTail( arrTry.Count(), arrTry.Base() );
-					}
-
-					// advance to the next combination
-					int nAdvance = 0;
-
-					while ( nAdvance < arrTry.Count() &&
-							arrTry[ arrTry.Count() - 1 - nAdvance ] >= nHostages - 1 - nAdvance )
-					{
-						++nAdvance;
-					}
-
-					if ( nAdvance >= arrTry.Count() )
-						break;
-
-					arrTry[ arrTry.Count() - 1 - nAdvance ]++;
-
-					for ( int i = arrTry.Count() - nAdvance; i < arrTry.Count(); ++i )
-					{
-						arrTry[i] = arrTry[ arrTry.Count() - 1 - nAdvance ] +
-							( i - ( arrTry.Count() - nAdvance ) + 1 );
-					}
-				}
-			}
-			else
-			{
-				// Greedy farthest-first fallback: start from the hostage nearest the map's average
-				// position, then repeatedly take the one furthest from everything kept so far. Same
-				// intent as the search above without its cost.
-				Vector vecCentre( 0, 0, 0 );
-
-				for ( int i = 0; i < nHostages; ++i )
-					vecCentre += g_Hostages[i]->GetAbsOrigin();
-
-				vecCentre /= (float)nHostages;
-
-				int nFirst = 0;
-				float flClosest = 0.0f;
-				bool bFirst = true;
-
-				for ( int i = 0; i < nHostages; ++i )
-				{
-					float flDistance = ( g_Hostages[i]->GetAbsOrigin() - vecCentre ).Length2DSqr();
-
-					if ( bFirst || flDistance < flClosest )
-					{
-						bFirst = false;
-						flClosest = flDistance;
-						nFirst = i;
+						Vector vecBetween = g_Hostages[ arrTry[a] ]->GetAbsOrigin() -
+							g_Hostages[ arrTry[b] ]->GetAbsOrigin();
+						flMetric += vecBetween.Length2DSqr();
 					}
 				}
 
-				arrKeep.AddToTail( nFirst );
-
-				while ( arrKeep.Count() < nWanted )
+				if ( flMetric > flBestMetric )
 				{
-					int nBest = -1;
-					float flBest = -1.0f;
+					flBestMetric = flMetric;
+					arrKeep.RemoveAll();
+					arrKeep.AddMultipleToTail( arrTry.Count(), arrTry.Base() );
+				}
 
-					for ( int i = 0; i < nHostages; ++i )
-					{
-						if ( arrKeep.Find( i ) != arrKeep.InvalidIndex() )
-							continue;
+				// advance to the next combination
+				int nAdvance = 0;
 
-						float flNearest = 0.0f;
-						bool bNearest = true;
+				while ( nAdvance < arrTry.Count() &&
+						arrTry[ arrTry.Count() - 1 - nAdvance ] >= nHostages - 1 - nAdvance )
+				{
+					++nAdvance;
+				}
 
-						for ( int k = 0; k < arrKeep.Count(); ++k )
-						{
-							float flDistance = ( g_Hostages[i]->GetAbsOrigin() -
-								g_Hostages[ arrKeep[k] ]->GetAbsOrigin() ).Length2DSqr();
+				if ( nAdvance >= arrTry.Count() )
+					break;
 
-							if ( bNearest || flDistance < flNearest )
-							{
-								bNearest = false;
-								flNearest = flDistance;
-							}
-						}
+				arrTry[ arrTry.Count() - 1 - nAdvance ]++;
 
-						if ( flNearest > flBest )
-						{
-							flBest = flNearest;
-							nBest = i;
-						}
-					}
-
-					if ( nBest < 0 )
-						break;
-
-					arrKeep.AddToTail( nBest );
+				for ( int i = arrTry.Count() - nAdvance; i < arrTry.Count(); ++i )
+				{
+					arrTry[i] = arrTry[ arrTry.Count() - 1 - nAdvance ] +
+						( i - ( arrTry.Count() - nAdvance ) + 1 );
 				}
 			}
 		}
 		else
 		{
-			// keep the first N in map order, which is CS:GO's fallback when the spatial pick is off
-			for ( int i = 0; i < nWanted; ++i )
-				arrKeep.AddToTail( i );
-		}
+			// Greedy farthest-first fallback: start from the hostage nearest the map's average position,
+			// then repeatedly take the one furthest from everything kept so far.
+			Vector vecCentre( 0, 0, 0 );
 
-		// remove the rest, back to front so the indices stay valid
-		for ( int i = nHostages - 1; i >= 0; --i )
+			for ( int i = 0; i < nHostages; ++i )
+				vecCentre += g_Hostages[i]->GetAbsOrigin();
+
+			vecCentre /= (float)nHostages;
+
+			int nFirst = 0;
+			float flClosest = 0.0f;
+			bool bFirst = true;
+
+			for ( int i = 0; i < nHostages; ++i )
+			{
+				float flDistance = ( g_Hostages[i]->GetAbsOrigin() - vecCentre ).Length2DSqr();
+
+				if ( bFirst || flDistance < flClosest )
+				{
+					bFirst = false;
+					flClosest = flDistance;
+					nFirst = i;
+				}
+			}
+
+			arrKeep.AddToTail( nFirst );
+
+			while ( arrKeep.Count() < nWanted )
+			{
+				int nBest = -1;
+				float flBest = -1.0f;
+
+				for ( int i = 0; i < nHostages; ++i )
+				{
+					if ( arrKeep.Find( i ) != arrKeep.InvalidIndex() )
+						continue;
+
+					float flNearest = 0.0f;
+					bool bNearest = true;
+
+					for ( int k = 0; k < arrKeep.Count(); ++k )
+					{
+						float flDistance = ( g_Hostages[i]->GetAbsOrigin() -
+							g_Hostages[ arrKeep[k] ]->GetAbsOrigin() ).Length2DSqr();
+
+						if ( bNearest || flDistance < flNearest )
+						{
+							bNearest = false;
+							flNearest = flDistance;
+						}
+					}
+
+					if ( flNearest > flBest )
+					{
+						flBest = flNearest;
+						nBest = i;
+					}
+				}
+
+				if ( nBest < 0 )
+					break;
+
+				arrKeep.AddToTail( nBest );
+			}
+		}
+	}
+
+	// CS:GO's fallback when mp_hostages_spawn_farthest is off is a weighted random pick
+	// (cs_gamerules.cpp:9020-9030). CS:S has no per-hostage spawn weight, so every map hostage weighs the
+	// same and this is a plain random choice without replacement.
+	static void SelectRandomHostages( int nWanted, CUtlVector< int > &arrKeep )
+	{
+		CUtlVector< int > arrRemaining;
+
+		for ( int i = 0; i < g_Hostages.Count(); ++i )
+			arrRemaining.AddToTail( i );
+
+		while ( arrKeep.Count() < nWanted && arrRemaining.Count() > 0 )
+		{
+			int nPick = RandomInt( 0, arrRemaining.Count() - 1 );
+
+			arrKeep.AddToTail( arrRemaining[nPick] );
+			arrRemaining.FastRemove( nPick );
+		}
+	}
+
+	// Removes every hostage that is not in the selection, back to front so the indices stay valid.
+	static void ApplyHostageSpawnSelection( const CUtlVector< int > &arrKeep )
+	{
+		for ( int i = g_Hostages.Count() - 1; i >= 0; --i )
 		{
 			if ( arrKeep.Find( i ) != arrKeep.InvalidIndex() )
 				continue;
@@ -2252,6 +2274,97 @@ ConVar cl_autohelp(
 		}
 	}
 
+	static void SelectMapHostages( void )
+	{
+		const int nHostages = g_Hostages.Count();
+
+		if ( nHostages <= 0 )
+			return;
+
+		// mp_hostages_spawn_force_positions wins over everything else, as in CS:GO (cs_gamerules.cpp:8935).
+		const char *pszForced = mp_hostages_spawn_force_positions.GetString();
+
+		if ( pszForced && pszForced[0] )
+		{
+			CUtlVector< int > arrKeep;
+			const char *p = pszForced;
+
+			while ( *p )
+			{
+				while ( *p == ' ' || *p == ',' )
+					++p;
+
+				if ( !*p )
+					break;
+
+				const int nIndex = atoi( p );
+
+				while ( *p && *p != ',' )
+					++p;
+
+				if ( nIndex < 0 || nIndex >= nHostages )
+				{
+					Warning( "mp_hostages_spawn_force_positions: index %d is out of range, the map has %d hostages\n", nIndex, nHostages );
+					continue;
+				}
+
+				if ( arrKeep.Find( nIndex ) == arrKeep.InvalidIndex() )
+					arrKeep.AddToTail( nIndex );
+			}
+
+			ApplyHostageSpawnSelection( arrKeep );
+
+			return;
+		}
+
+		const int nWanted = mp_hostages_max.GetInt();
+
+		if ( nWanted <= 0 || nHostages <= nWanted )
+		{
+			// stock: every hostage the map placed stays, and no selection is remembered
+			g_arrSelectedHostageSpawnIndices.RemoveAll();
+			return;
+		}
+
+		const bool bSameEveryRound = mp_hostages_spawn_same_every_round.GetBool();
+
+		if ( !bSameEveryRound )
+			g_arrSelectedHostageSpawnIndices.RemoveAll();
+
+		CUtlVector< int > arrKeep;
+
+		if ( bSameEveryRound )
+		{
+			// Reuse the set chosen earlier in this match. The indices stay valid because CleanUpMap()
+			// recreates the map entities in map order.
+			for ( int i = 0; i < g_arrSelectedHostageSpawnIndices.Count(); ++i )
+			{
+				const int nIndex = g_arrSelectedHostageSpawnIndices[i];
+
+				if ( nIndex >= 0 && nIndex < nHostages )
+					arrKeep.AddToTail( nIndex );
+			}
+		}
+
+		if ( arrKeep.Count() != nWanted )
+		{
+			arrKeep.RemoveAll();
+
+			if ( mp_hostages_spawn_farthest.GetBool() )
+				SelectFarthestHostages( nWanted, arrKeep );
+			else
+				SelectRandomHostages( nWanted, arrKeep );
+
+			if ( bSameEveryRound )
+			{
+				g_arrSelectedHostageSpawnIndices.RemoveAll();
+				g_arrSelectedHostageSpawnIndices.AddMultipleToTail( arrKeep.Count(), arrKeep.Base() );
+			}
+		}
+
+		ApplyHostageSpawnSelection( arrKeep );
+	}
+
 	void CCSGameRules::LevelInitPostEntity()
 	{
 		BaseClass::LevelInitPostEntity();
@@ -2260,8 +2373,10 @@ ConVar cl_autohelp(
 
 		ResetDMSpawnState();
 
-		// mp_hostages_max / mp_hostages_spawn_farthest: drop the hostages the server does not want.
-		PruneMapHostages();
+		// mp_hostages_max and friends: drop the hostages the server does not want. Repeated at every
+		// round start (see RestartRound) because CleanUpMap() recreates the map's entities.
+		g_arrSelectedHostageSpawnIndices.RemoveAll();
+		SelectMapHostages();
 
 		// Figure out from the entities in the map what kind of map this is (bomb run, prison escape, etc).
 		CheckMapConditions();
@@ -3360,6 +3475,10 @@ ConVar cl_autohelp(
 
 		// Respawn entities (glass, doors, etc..)
 		CleanUpMap();
+
+		// CleanUpMap() recreated every map entity, so the hostages the server removed are back. Re-apply
+		// the selection before m_iHostagesRemaining is taken from g_Hostages.Count() below.
+		SelectMapHostages();
 
 		// now run a tkpunish check, after the map has been cleaned up
 		for ( i = 1; i <= gpGlobals->maxClients; i++ )
