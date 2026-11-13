@@ -814,8 +814,12 @@ void CC4::PrimaryAttack()
 	int onGround = FBitSet( pPlayer->GetFlags(), FL_ONGROUND );
 	CBaseEntity *groundEntity = (onGround) ? pPlayer->GetGroundEntity() : NULL;
 
-	// mp_plant_c4_anywhere: CS:GO cs_weapon_c4.cpp:1666 allows the plant outside a func_bomb_target.
-	const bool bCanPlantHere = pPlayer->m_bInBombZone || mp_plant_c4_anywhere.GetBool();
+	// mp_plant_c4_anywhere is deliberately not read here. This file is also compiled into the stock
+	// client's weapon prediction, and that client has no such convar, so testing it here made the client
+	// predict "cannot plant" while the server planted: the viewmodel and the third person plant
+	// animation never started. The server pins the networked m_bInBombZone bit instead (see
+	// CCSPlayerMove::StartCommand), which is the flag both this function and the client's C4 HUD read.
+	const bool bCanPlantHere = pPlayer->m_bInBombZone;
 
 	if ( groundEntity )
 	{

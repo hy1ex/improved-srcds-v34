@@ -8,6 +8,7 @@
 #include "cbase.h"
 
 extern ConVar mp_buy_anywhere;
+extern ConVar mp_plant_c4_anywhere;
 #include "player_command.h"
 #include "igamemovement.h"
 #include "in_buttons.h"
@@ -58,6 +59,14 @@ void CCSPlayerMove::StartCommand( CBasePlayer *player, CUserCmd *cmd )
 	pPlayer->m_bInBombZone = false;
 	pPlayer->m_bInBuyZone = false;
 	pPlayer->m_bInHostageRescueZone = false;
+
+	// mp_plant_c4_anywhere: pin the networked bomb-zone bit for the same reason as the buy zone below.
+	// CC4::PrimaryAttack() runs on the client during weapon prediction and both it and the stock C4 HUD
+	// read this sendprop, so a plant allowed only by a server-side convar would never animate. The bit
+	// still means "the C4 may be planted here"; m_iBombSiteIndex keeps coming from func_bomb_target and
+	// stays -1 outside a zone.
+	if ( mp_plant_c4_anywhere.GetBool() )
+		pPlayer->m_bInBombZone = true;
 
 	// mp_buy_anywhere: pin the networked buy-zone bit. The stock v34 client decides on its own
 	// whether to open the buy menu and can only learn about buy zones through this sendprop, so it

@@ -1188,11 +1188,17 @@ CS:GO switch, so each is one here, and all three default to stock.
   `CanDefuse()` (`weapon_c4.cpp:1015`). A CT pressing USE gets no message, exactly as in CS:GO: the
   bar simply never appears.
 * `mp_plant_c4_anywhere` — `0` (default) is stock, planting inside a `func_bomb_target` only. `1`
-  replaces every `m_bInBombZone` test in `CC4::PrimaryAttack()` with "in a bomb zone *or* the switch
-  is on" (CS:GO `weapon_c4.cpp:1666`), so the plant can start and complete anywhere the player is
-  standing on solid ground. The two stock refusals stay: standing on a player, a pushable prop or a
-  breakable still aborts the arm, and `#C4_Plant_Must_Be_On_Ground` is still printed. The plant event
-  carries whatever bomb site index the player last stood in, which is `-1` outside a zone.
+  makes every position a legal plant, so the arm can start and complete anywhere the player is
+  standing on solid ground (CS:GO `weapon_c4.cpp:1666`). The switch is applied by pinning the
+  networked `m_bInBombZone` bit in `CCSPlayerMove::StartCommand()`, not inside `CC4::PrimaryAttack()`:
+  that file is also compiled into the stock client's weapon prediction, the client has no such convar,
+  and testing it there made the client predict "cannot plant" while the server planted, so neither the
+  viewmodel nor the third person plant animation ever played. `m_bInBombZone` is a stock sendprop the
+  client already predicts from and its C4 HUD already reads, so the plant now animates exactly as it
+  does inside a zone (the same technique `mp_buy_anywhere` uses for `m_bInBuyZone`). The two stock
+  refusals stay: standing on a player, a pushable prop or a breakable still aborts the arm, and
+  `#C4_Plant_Must_Be_On_Ground` is still printed. The plant event carries whatever bomb site index the
+  player last stood in, which is `-1` outside a zone.
 
 **Convars**
 
@@ -1210,7 +1216,8 @@ from the same code that runs inside a zone.
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (all three convars),
 `game_shared/cstrike/weapon_c4.cpp` (`CC4::PrimaryAttack`, `CPlantedC4::Use`),
-`dlls/cstrike/cs_player.cpp` (`Weapon_CanUse`).
+`dlls/cstrike/cs_player.cpp` (`Weapon_CanUse`), `dlls/cstrike/cs_playermove.cpp`
+(`CCSPlayerMove::StartCommand`, where `m_bInBombZone` is pinned for `mp_plant_c4_anywhere`).
 
 
 # 14. Disconnect kills
