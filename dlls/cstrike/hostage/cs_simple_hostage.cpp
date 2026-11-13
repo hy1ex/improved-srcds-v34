@@ -31,6 +31,9 @@
 
 ConVar mp_hostagepenalty( "mp_hostagepenalty", "13", FCVAR_NOTIFY, "Terrorist are kicked for killing too much hostages" );
 extern ConVar mp_solid_hostages;
+extern ConVar mp_hostages_takedamage;
+extern ConVar mp_hostages_run_speed_modifier;
+extern ConVar mp_only_cts_rescue_hostages;
 ConVar hostage_debug( "hostage_debug", "0", FCVAR_CHEAT, "Show hostage AI debug information" );
 
 extern ConVar sv_pushaway_force;
@@ -227,6 +230,12 @@ void CHostage::Precache()
 //-----------------------------------------------------------------------------------------------------
 int CHostage::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 {
+	// mp_hostages_takedamage 0: the hostage cannot be hurt at all. Ported from CS:GO
+	// cs_simple_hostage.cpp:510, but before the pain sound, the hostage_hurt event and the money
+	// penalty, so shooting an invulnerable hostage costs the shooter nothing either.
+	if ( !mp_hostages_takedamage.GetBool() )
+		return 1;
+
 	float actualDamage = info.GetDamage();
 
 	// say something
@@ -912,8 +921,10 @@ void CHostage::HostageUse( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TY
 		return;
 	}
 
-	// only members of the CT team can use hostages (no T's or spectators)
-	if (!hostage_debug.GetBool() && user->GetTeamNumber() != TEAM_CT)
+	// only members of the CT team can use hostages (no T's or spectators), unless
+	// mp_only_cts_rescue_hostages is 0. CS:GO cs_simple_hostage.cpp:1721.
+	if (!hostage_debug.GetBool() && mp_only_cts_rescue_hostages.GetBool() &&
+		 user->GetTeamNumber() != TEAM_CT)
 	{
 		if ( user->GetTeamNumber() == TEAM_TERRORIST )
 		{
@@ -1194,7 +1205,9 @@ void CHostage::TrackPath( const Vector &pathGoal, float deltaT )
 		to.z = 0.0f;
 		to.NormalizeInPlace();
 
-		const float speed = 1000.0f;
+		// mp_hostages_run_speed_modifier, CS:GO cs_simple_hostage.cpp:2114: the stock force scaled by
+		// the convar, so 1.0 is exactly the old behaviour.
+		const float speed = 1000.0f * mp_hostages_run_speed_modifier.GetFloat();
 		ApplyForce( speed * to );
 	}
 	else

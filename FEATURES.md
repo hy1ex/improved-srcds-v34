@@ -81,6 +81,10 @@ Source game. For each feature it records:
 | `mp_randomspawn_dist` | `0` | [10. Random deathmatch spawns](#10-random-deathmatch-spawns) | minimum distance from a living enemy, 0 = off |
 | `mp_dm_scoring` | `0` | [11. Deathmatch kill scoring](#11-deathmatch-kill-scoring) | 0/1, award CS:GO deathmatch points per kill |
 | `mp_dm_kill_base_score` | `10` | [11. Deathmatch kill scoring](#11-deathmatch-kill-scoring) | base points per kill |
+| `mp_hostages_takedamage` | `1` | [12. Hostage rescue rules](#12-hostage-rescue-rules) | 0 = hostages cannot be hurt |
+| `mp_hostages_rescuetowin` | `0` | [12. Hostage rescue rules](#12-hostage-rescue-rules) | rescues needed to win; 0 = every surviving hostage |
+| `mp_hostages_run_speed_modifier` | `1.0` | [12. Hostage rescue rules](#12-hostage-rescue-rules) | movement force scale for a following hostage |
+| `mp_only_cts_rescue_hostages` | `1` | [12. Hostage rescue rules](#12-hostage-rescue-rules) | 0 = Terrorists may take a hostage too |
 
 ## Command index
 
@@ -1047,3 +1051,59 @@ convar.
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (both convars, `GetDeathmatchKillScore`, the award in
 `PlayerKilled`), `game_shared/cstrike/cs_gamerules.h` (declaration).
+
+# 12. Hostage rescue rules
+
+**Origin:** CS:GO `game/shared/cstrike15/cs_gamerules.cpp` (`mp_hostages_takedamage`, line 1891;
+`mp_hostages_rescuetowin`, line 1897) and `game/server/cstrike15/hostage/cs_simple_hostage.cpp`
+(`mp_hostages_run_speed_modifier`, line 2114; `mp_only_cts_rescue_hostages`, lines 1648 and 1721).
+
+**Why:** a stock CS:S hostage round assumes a full five-versus-five match on a map built for it. On a
+deathmatch or bot server it breaks in ways the map cannot fix: the CTs must escort every hostage home
+while being shot at, a single sprayed burst can kill a hostage and make the round unwinnable, and a
+hostage that is dragged around at full speed cannot be caught by the half of the server that is
+trying to stop the rescue. Each of these is a separate rule in CS:GO, so each is a separate switch
+here.
+
+**What it does.**
+
+* `mp_hostages_takedamage` — `1` (default) is stock: hostages take damage, the shooter hears the pain
+  sound, the `hostage_hurt` event fires and he loses money for it. `0` makes a hostage invulnerable:
+  `CHostage::OnTakeDamage_Alive()` returns before any of that, so a stray bullet cannot kill a
+  hostage, cannot make the round unwinnable and cannot cost the shooter anything. CS:GO does the same
+  in one line (`return 1;` in place of the base-class call), but it does it after the hostage has
+  already been removed from the round's win condition, which this tree does not, so the guard sits at
+  the top of the function.
+* `mp_hostages_rescuetowin` — `0` (default) keeps the stock CS:S rule: the CTs win only when no
+  surviving hostage is left unrescued (the stock 50% check stays inside it, so a hostage that was
+  killed does not make the round unwinnable). Any other value is CS:GO's meaning: N rescues win the
+  round and the remaining live hostages may be left where they are. CS:GO's arithmetic is used for
+  that case — `min(hostages, N)` rescues are needed once at most `hostages - N` are still alive — and
+  the round still ends with `All_Hostages_Rescued` and its `hostage_rescued_all` event, because the
+  client knows those names and nothing else.
+* `mp_hostages_run_speed_modifier` — scales the force a following hostage applies to itself, `1.0`
+  (default) being exactly the old behaviour; CS:GO clamps it to `0.1`-`1.5`. Below 1 the hostage
+  trails behind its leader and can be caught, which is what the CS:GO setting exists for.
+* `mp_only_cts_rescue_hostages` — `1` (default) is stock: only a Counter-Terrorist may take a hostage,
+  and a Terrorist using one gets `#Only_CT_Can_Move_Hostages`. `0` lets a Terrorist take one as well
+  (CS:GO's rule for the same switch), which is useful on hostage maps played as team deathmatch. The
+  hostage is still only *rescued* in a rescue zone, and the CT use bonus and the touch push-away are
+  unchanged.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_hostages_takedamage` | `1` | `0`/`1` | Hostages can be hurt (stock: yes) |
+| `mp_hostages_rescuetowin` | `0` | `0` or N | Rescues needed to win; `0` = every surviving hostage (stock) |
+| `mp_hostages_run_speed_modifier` | `1.0` | `0.1`-`1.5` | Movement force scale for a following hostage (stock: `1.0`) |
+| `mp_only_cts_rescue_hostages` | `1` | `0`/`1` | Only CTs may take a hostage (stock: yes) |
+
+**Client compatibility.** All four are server-side rules; nothing is networked. The hostage's own
+speed is already an engine-side force, the rescue check runs in the game rules, and
+`#Only_CT_Can_Move_Hostages` is an existing string in a v34 client's string tables, so the refusal
+still appears when the switch is on.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (all four convars,
+`HostageRescueRoundEndCheck`), `dlls/cstrike/hostage/cs_simple_hostage.cpp` (`OnTakeDamage_Alive`,
+`HostageUse`, `TrackPath`).

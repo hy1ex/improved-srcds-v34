@@ -561,6 +561,38 @@ ConVar mp_players_nonsolid_time(
 	"Seconds after a spawn/respawn during which a player does not block or get blocked by players" );
 
 // ---------------------------------------------------------------------------------------------------
+// Hostage rules. Ported from CS:GO's mp_hostages_takedamage, mp_hostages_rescuetowin,
+// mp_hostages_run_speed_modifier and mp_only_cts_rescue_hostages. Server side only, never replicated.
+// Every default reproduces stock Counter-Strike: Source: hostages can be shot, every surviving
+// hostage has to be rescued, they move at their stock speed and only Counter-Terrorists may take one.
+// ---------------------------------------------------------------------------------------------------
+ConVar mp_hostages_takedamage(
+	"mp_hostages_takedamage",
+	"1",
+	FCVAR_NOTIFY,
+	"Whether hostages can be hurt (1 = stock, 0 = invulnerable)" );
+
+ConVar mp_hostages_rescuetowin(
+	"mp_hostages_rescuetowin",
+	"0",
+	FCVAR_NOTIFY,
+	"Number of hostages the CTs must rescue to win the round (0 = every surviving hostage, stock)" );
+
+ConVar mp_hostages_run_speed_modifier(
+	"mp_hostages_run_speed_modifier",
+	"1.0",
+	FCVAR_NOTIFY,
+	"Scale on a following hostage's movement force (1.0 = stock, lower slows hostages down)",
+	true, 0.1f,
+	true, 1.5f );
+
+ConVar mp_only_cts_rescue_hostages(
+	"mp_only_cts_rescue_hostages",
+	"1",
+	FCVAR_NOTIFY,
+	"Only Counter-Terrorists may take a hostage (1 = stock, 0 = Terrorists may too)" );
+
+// ---------------------------------------------------------------------------------------------------
 // Economy control. Ported from CS:GO's mp_maxmoney / mp_afterroundmoney / mp_playercashawards /
 // mp_teamcashawards. Server side only, never replicated. Defaults are the stock CS:S numbers, so a
 // server that does not touch them behaves exactly like stock.
@@ -2247,28 +2279,48 @@ ConVar cl_autohelp(
 
 		m_iHostagesRemaining = iNumLeftToRescue;
 
-		if ( (iNumLeftToRescue == 0) && (iNumHostages > 0) )
+		// mp_hostages_rescuetowin: how many rescues win the round. 0 keeps the stock CS:S rule, where
+		// no surviving hostage may be left behind; any other number is CS:GO's, where that many
+		// rescues are enough and the remaining live hostages can be abandoned (CS:GO
+		// cs_gamerules.cpp:7235). The 50% test below is the stock one and only applies to the stock
+		// case, because a rescue goal of N already says how many rescues are needed.
+		const int nRescueGoal = mp_hostages_rescuetowin.GetInt();
+
+		bool bRescueCheckDone;
+
+		if ( nRescueGoal <= 0 )
 		{
-			if ( m_iHostagesRescued >= (iNumHostages * 0.5)	)
+			bRescueCheckDone = ( iNumLeftToRescue == 0 ) && ( iNumHostages > 0 ) &&
+				( m_iHostagesRescued >= ( iNumHostages * 0.5 ) );
+		}
+		else
+		{
+			const int nNeeded = ( nRescueGoal < iNumHostages ) ? nRescueGoal : iNumHostages;
+			const int nLeftCanWin = ( iNumHostages > nNeeded ) ? ( iNumHostages - nNeeded ) : 0;
+
+			bRescueCheckDone = ( iNumHostages > 0 ) && ( iNumLeftToRescue >= nLeftCanWin ) &&
+				( m_iHostagesRescued >= nNeeded );
+		}
+
+		if ( bRescueCheckDone )
+		{
+			m_iAccountCT += 2500;
+
+			if ( !bNeededPlayers )
 			{
-				m_iAccountCT += 2500;
-
-				if ( !bNeededPlayers )
-				{
-					m_iNumCTWins ++;
-					// Update the clients team score
-					UpdateTeamScores();
-				}
-				// tell the bots all the hostages have been rescued
-				IGameEvent * event = gameeventmanager->CreateEvent( "hostage_rescued_all" );
-				if ( event )
-				{
-					gameeventmanager->FireEvent( event );
-				}
-
-				TerminateRound( mp_round_restart_delay.GetFloat(), All_Hostages_Rescued );
-				return true;
+				m_iNumCTWins ++;
+				// Update the clients team score
+				UpdateTeamScores();
 			}
+			// tell the bots all the hostages have been rescued
+			IGameEvent * event = gameeventmanager->CreateEvent( "hostage_rescued_all" );
+			if ( event )
+			{
+				gameeventmanager->FireEvent( event );
+			}
+
+			TerminateRound( mp_round_restart_delay.GetFloat(), All_Hostages_Rescued );
+			return true;
 		}
 
 		return false;
