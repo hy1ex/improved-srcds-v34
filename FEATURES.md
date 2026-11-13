@@ -100,6 +100,48 @@ Source game. For each feature it records:
 | `mp_tagging_scale` | `1.0` | [18. Tagging scale](#18-tagging-scale-adapted) | scales how hard a hit slows the victim; 1.0 = stock |
 | `mp_weapon_prev_owner_touch_time` | `0.8` | [16. Weapon pickup timing](#16-weapon-pickup-timing) | seconds before the dropper may take his weapon back |
 | `mp_weapon_next_owner_touch_time` | `0` | [16. Weapon pickup timing](#16-weapon-pickup-timing) | seconds before anybody may pick a dropped weapon up |
+| `ff_damage_reduction_bullets` | `0.35` | [19. Friendly fire damage reduction](#19-friendly-fire-damage-reduction) | scale on a teammate's bullet damage; 0.35 = stock |
+| `ff_damage_reduction_grenade` | `1.0` | [19. Friendly fire damage reduction](#19-friendly-fire-damage-reduction) | scale on a teammate's blast damage; 1.0 = stock |
+| `ff_damage_reduction_grenade_self` | `1.0` | [19. Friendly fire damage reduction](#19-friendly-fire-damage-reduction) | scale on a player's own grenade damage; 1.0 = stock |
+| `ff_damage_reduction_other` | `0.35` | [19. Friendly fire damage reduction](#19-friendly-fire-damage-reduction) | scale on a teammate's knife/fire damage; 0.35 = stock |
+| `cash_player_killed_enemy_default` | `300` | [20. Cash awards](#20-cash-awards) | flat kill award |
+| `cash_player_killed_enemy_factor` | `0` | [20. Cash awards](#20-cash-awards) | 0 = flat award, >0 = weapon kill award times this |
+| `cash_player_killed_teammate` | `-3300` | [20. Cash awards](#20-cash-awards) | team kill penalty |
+| `cash_player_damage_hostage` | `-20` | [20. Cash awards](#20-cash-awards) | per damage point to a hostage |
+| `cash_player_killed_hostage` | `-500` | [20. Cash awards](#20-cash-awards) | hostage kill penalty, base of the stock formula |
+| `mp_cash_hostage_kill_flat` | `0` | [20. Cash awards](#20-cash-awards) | 0 = stock formula, 1 = the convar alone |
+| `cash_player_interact_with_hostage` | `150` | [20. Cash awards](#20-cash-awards) | taking a hostage |
+| `cash_player_rescued_hostage` | `1000` | [20. Cash awards](#20-cash-awards) | bringing a hostage to the rescue zone |
+| `cash_player_bomb_planted` | `0` | [20. Cash awards](#20-cash-awards) | no stock CS:S award |
+| `cash_player_bomb_defused` | `0` | [20. Cash awards](#20-cash-awards) | no stock CS:S award |
+| `cash_player_get_killed` | `0` | [20. Cash awards](#20-cash-awards) | no stock CS:S award |
+| `cash_player_respawn_amount` | `0` | [20. Cash awards](#20-cash-awards) | no stock CS:S award |
+| `cash_team_terrorist_win_bomb` | `3500` | [20. Cash awards](#20-cash-awards) | bomb explosion win |
+| `cash_team_win_by_defusing_bomb` | `3250` | [20. Cash awards](#20-cash-awards) | defuse win |
+| `cash_team_planted_bomb_but_defused` | `800` | [20. Cash awards](#20-cash-awards) | planted but defused |
+| `cash_team_win_by_hostage_rescue` | `2500` | [20. Cash awards](#20-cash-awards) | hostage rescue win |
+| `cash_team_win_by_time_running_out_bomb` | `3250` | [20. Cash awards](#20-cash-awards) | CT time-out win on a bomb map |
+| `cash_team_win_by_time_running_out_hostage` | `3250` | [20. Cash awards](#20-cash-awards) | T time-out win on a hostage map |
+| `cash_team_elimination_bomb_map` | `3250` | [20. Cash awards](#20-cash-awards) | elimination win on a bomb map |
+| `cash_team_elimination_hostage_map_ct` | `3000` | [20. Cash awards](#20-cash-awards) | CT elimination win on a hostage map |
+| `cash_team_elimination_hostage_map_t` | `3000` | [20. Cash awards](#20-cash-awards) | T elimination win on a hostage map |
+| `cash_team_loser_bonus` | `1400` | [20. Cash awards](#20-cash-awards) | base loser bonus |
+| `cash_team_loser_bonus_consecutive_rounds` | `500` | [20. Cash awards](#20-cash-awards) | per consecutive loss, cap 3000 as stock |
+| `cash_team_winner_bonus_consecutive_rounds` | `0` | [20. Cash awards](#20-cash-awards) | winner bonus while the loser is on a streak |
+| `cash_team_hostage_alive` | `150` | [20. Cash awards](#20-cash-awards) | per hostage alive, cap 2000 as stock |
+| `cash_team_rescued_hostage` | `750` | [20. Cash awards](#20-cash-awards) | per hostage rescued |
+| `cash_team_hostage_interaction` | `100` | [20. Cash awards](#20-cash-awards) | team bonus for taking a hostage |
+| `mp_give_player_c4` | `1` | [21. C4 handout](#21-c4-handout) | 1 = stock, 0 = no bomb at round start |
+| `weapon_recoil_scale` | `1.0` | [22. Recoil and accuracy](#22-recoil-and-accuracy) | scale on the view punch; 1.0 = stock |
+| `weapon_recoil_view_punch_extra` | `0.0` | [22. Recoil and accuracy](#22-recoil-and-accuracy) | extra random punch; CS:GO default 0.055 |
+| `weapon_accuracy_nospread` | `0` | [22. Recoil and accuracy](#22-recoil-and-accuracy) | 1 = no spread at all |
+| `weapon_accuracy_forcespread` | `-1.0` | [22. Recoil and accuracy](#22-recoil-and-accuracy) | -1 = weapon spread, >=0 = forced value |
+| `sv_turning_inaccuracy_enabled` | `0` | [22. Recoil and accuracy](#22-recoil-and-accuracy) | spread grows with turn rate |
+| `mp_require_gun_use_to_acquire` | `0` | [23. +USE weapon pickup](#23-use-weapon-pickup-adapted) | 1 = pick up ground weapons only while holding +USE |
+| `ammo_grenade_limit_default` | `1` | [24. Grenade carry limits](#24-grenade-carry-limits) | per grenade type, apart from the flashbang |
+| `ammo_grenade_limit_flashbang` | `2` | [24. Grenade carry limits](#24-grenade-carry-limits) | flashbang limit |
+| `ammo_grenade_limit_total` | `4` | [24. Grenade carry limits](#24-grenade-carry-limits) | total grenades carried |
+
 ## Command index
 
 | Command | Feature | Notes |
@@ -1393,3 +1435,224 @@ nothing new is sent.
 
 **Files:** `dlls/cstrike/cs_player.cpp` (convar and the two assignments in
 `CCSPlayer::OnTakeDamage_Alive`).
+
+
+
+# 19. Friendly fire damage reduction
+
+**Origin:** CS:GO `game/shared/cstrike15/cs_player_shared.cpp` (`ff_damage_reduction_bullets` /
+`_grenade` / `_grenade_self` / `_other`, lines 79-82), applied in `CCSPlayer::OnTakeDamage_Alive`
+around lines 6093-6117.
+
+**What stock CS:S does.** In `CCSPlayer::OnTakeDamage_Alive` every wound from a teammate that is not
+blast damage is multiplied by `0.35`; blast damage is left alone and self-damage is not treated
+specially.
+
+**What it does here.** The four convars keep that exact behaviour by default: bullets and other
+(teammate) damage scale by `0.35`, teammate blast by `1.0`, and a player's own grenade by `1.0`. Each
+convar accepts `0`-`1`, so a server can make friendly fire harmless (`0`) or fully lethal (`1`) per
+damage type, which is what CS:GO uses the same convars for (its own defaults are `0.1 / 0.25 / 1 /
+0.25`). Self-damage is now distinguished from teammate damage, which CS:S did not do; with the stock
+defaults the result is identical because both start at `1.0`.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `ff_damage_reduction_bullets` | `0.35` | `0`-`1` | Scale on bullet damage from a teammate (`0.35` = stock) |
+| `ff_damage_reduction_grenade` | `1.0` | `0`-`1` | Scale on blast damage from a teammate (`1.0` = stock) |
+| `ff_damage_reduction_grenade_self` | `1.0` | `0`-`1` | Scale on damage from the player's own grenade (`1.0` = stock) |
+| `ff_damage_reduction_other` | `0.35` | `0`-`1` | Scale on every other kind of teammate damage (`0.35` = stock) |
+
+**Client compatibility.** Damage is resolved on the server only, so nothing is sent to the client.
+
+**Files:** `dlls/cstrike/cs_player.cpp` (convars and the friendly fire block of
+`CCSPlayer::OnTakeDamage_Alive`).
+
+
+# 20. Cash awards
+
+**Origin:** CS:GO `game/shared/cstrike15/cs_gamerules.cpp` (`cash_player_*` and `cash_team_*`
+convar block around lines 16089-16220), read by `CCSGameRules::PlayerKilled`,
+`CCSGameRules::RestartRound` and the round end checks.
+
+**What stock CS:S does.** Every amount is a literal in the game rules: `-3300` for a team kill, `300`
+for a kill, the loser ladder of `1400 + 500` per consecutive loss (capped at `3000`, reset to `1500`),
+the round win amounts (`3500`, `3250`, `2500`, …), `150` per surviving hostage (capped at `2000`),
+`750` per hostage rescued, `100`/`150` for taking a hostage, and `-20` per point of hostage damage
+with a `-500 - 20 × damage` penalty for killing one.
+
+**What it does here.** All of those literals are now convars, with defaults that reproduce the stock
+economy exactly, so an untouched server behaves as before. Amounts that CS:S has no award for are
+added but default to `0`: the bomb plant/defuse player awards, `cash_player_get_killed`,
+`cash_player_respawn_amount` and `cash_team_winner_bonus_consecutive_rounds`.
+
+The loser ladder is stock CS:S, as approved: `cash_team_loser_bonus` is the base, each consecutive
+loss adds `cash_team_loser_bonus_consecutive_rounds`, the total is capped at `3000` and reset to
+`1500`, and the hostage bonus is still capped at `2000`. Only the amounts are convars; the shape of
+the ladder is untouched.
+
+`cash_player_killed_hostage` keeps the stock formula by default: the convar is the base of
+`value - 20 × damage`. Setting the new `mp_cash_hostage_kill_flat` to `1` applies the convar alone
+(CS:GO's flat penalty).
+
+`cash_player_killed_enemy_factor` follows CS:GO's rule: when it is above `0`, the award is the
+killing weapon's own kill award multiplied by the factor instead of the flat
+`cash_player_killed_enemy_default`. CS:S weapon data has no kill award field, so the CS:GO table is
+built into the server (knife `1500`, AWP `100`, everything else `300`); the factor defaults to `0`,
+which keeps the stock flat `300`.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `cash_player_killed_enemy_default` | `300` | any | Flat award for a kill (CS:GO: 300) |
+| `cash_player_killed_enemy_factor` | `0` | `>= 0` | 0 = flat award; >0 = weapon kill award times this |
+| `cash_player_killed_teammate` | `-3300` | any | Award for killing a teammate (CS:GO: -300) |
+| `cash_player_damage_hostage` | `-20` | any | Award per point of hostage damage (CS:GO: -30) |
+| `cash_player_killed_hostage` | `-500` | any | Hostage kill penalty (CS:GO: -1000) |
+| `mp_cash_hostage_kill_flat` | `0` | `0`/`1` | 0 = stock `value - 20 × damage`, 1 = the convar alone |
+| `cash_player_interact_with_hostage` | `150` | any | Taking a hostage (CS:GO: 150) |
+| `cash_player_rescued_hostage` | `1000` | any | Reaching the rescue zone with a hostage (CS:GO: 1000) |
+| `cash_player_bomb_planted` | `0` | any | Planting the bomb (CS:GO: 300, no stock CS:S award) |
+| `cash_player_bomb_defused` | `0` | any | Defusing the bomb (CS:GO: 300, no stock CS:S award) |
+| `cash_player_get_killed` | `0` | any | Paid to the victim (CS:GO: 0, no stock equivalent) |
+| `cash_player_respawn_amount` | `0` | any | Paid when a player respawns mid-round (CS:GO: 0) |
+| `cash_team_terrorist_win_bomb` | `3500` | any | Terrorists win by explosion (CS:GO: 3500) |
+| `cash_team_win_by_defusing_bomb` | `3250` | any | CTs win by defusing (CS:GO: 3250) |
+| `cash_team_planted_bomb_but_defused` | `800` | any | Terrorists planted but the bomb was defused (CS:GO: 800) |
+| `cash_team_win_by_hostage_rescue` | `2500` | any | CTs win by rescuing every hostage (CS:GO: 3500) |
+| `cash_team_win_by_time_running_out_bomb` | `3250` | any | CTs win on time, bomb map (CS:GO: 3250) |
+| `cash_team_win_by_time_running_out_hostage` | `3250` | any | Terrorists win on time, hostage map (CS:GO: 3250) |
+| `cash_team_elimination_bomb_map` | `3250` | any | Elimination win, bomb map (CS:GO: 3250) |
+| `cash_team_elimination_hostage_map_ct` | `3000` | any | CT elimination win, hostage map (CS:GO: 2000) |
+| `cash_team_elimination_hostage_map_t` | `3000` | any | T elimination win, hostage map (CS:GO: 1000) |
+| `cash_team_loser_bonus` | `1400` | any | Base loser bonus (CS:GO: 1400) |
+| `cash_team_loser_bonus_consecutive_rounds` | `500` | any | Per consecutive loss, still capped at 3000 (CS:GO: 500) |
+| `cash_team_winner_bonus_consecutive_rounds` | `0` | any | Winner bonus while the loser is on a streak (CS:GO: 0) |
+| `cash_team_hostage_alive` | `150` | any | Per hostage alive, still capped at 2000 (CS:GO: 0) |
+| `cash_team_rescued_hostage` | `750` | any | Per hostage rescued during the round (CS:GO: 0) |
+| `cash_team_hostage_interaction` | `100` | any | Team bonus for taking a hostage (CS:GO: 500) |
+
+**Client compatibility.** `mp_playercashawards` already existed; the new awards only change the
+server's account bookkeeping. Money is networked through the stock `m_iAccount`, so no client change
+is needed.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar block, `GetWeaponCashAward`,
+`CCSGameRules::PlayerKilled`, round end checks, `RestartRound`), `dlls/cstrike/cs_player.cpp`
+(`cash_player_respawn_amount` in `CCSPlayer::Spawn`), `dlls/cstrike/hostage/cs_simple_hostage.cpp`
+(hostage damage, kill, rescue and interaction awards), `game_shared/cstrike/weapon_c4.cpp` (plant and
+defuse player awards).
+
+
+# 21. C4 handout
+
+**Origin:** CS:GO `cs_gamerules.cpp` — `mp_give_player_c4` (convar at line 2442, used by
+`GiveC4ToRandomPlayer` at line 9652).
+
+**What it does here.** `1` (default) is stock: on a map with a bomb target the game rules give a
+Terrorist the bomb at round start. `0` makes `CCSGameRules::GiveC4` return without handing it out, so
+the map can be played without the objective.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_give_player_c4` | `1` | `0`/`1` | Whether the map gives a player the C4 at round start |
+
+**Client compatibility.** Only the server's handout is switched off; the C4 entity and its networked
+state are unchanged.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar and `CCSGameRules::GiveC4`).
+
+
+# 22. Recoil and accuracy
+
+**Origin:** CS:GO `weapon_recoil_scale` and `weapon_recoil_view_punch_extra` (recoil), and
+`weapon_accuracy_nospread` / `weapon_accuracy_forcespread` / `sv_turning_inaccuracy_enabled`
+(spread).
+
+**What stock CS:S does.** Each weapon passes its own recoil constants to `CCSPlayer::KickBack` and its
+own spread value to `CWeaponCSBaseGun::CSBaseGunFire`, which hands the bullet to `FX_FireBullets`.
+There is no global scale and no penalty for turning.
+
+**What it does here.** The two recoil convars are applied inside `KickBack`, which every weapon uses:
+`weapon_recoil_scale` multiplies the punch, and `weapon_recoil_view_punch_extra` adds a small random
+punch after the stock clamps. Both default to stock (`1.0` / `0`); CS:GO's own defaults are `1.0` /
+`0.055`.
+
+The accuracy convars are applied in `CSBaseGunFire`, the one function every gun uses to fire:
+`weapon_accuracy_nospread 1` sets the spread to zero, and `weapon_accuracy_forcespread` above `-1`
+overrides it with a fixed value. `sv_turning_inaccuracy_enabled 1` adds spread proportional to how
+fast the player turned since his previous shot (one unit per 2000 degrees per second). They default to
+`0` / `-1` / `0`, which is stock CS:S.
+
+**This is an adaptation.** CS:S has no turning-inaccuracy model and no per-weapon kill-award style
+data to hook; the two spread overrides and the turning penalty are the same switches CS:GO exposes but
+implemented as server-side values because CS:S resolves bullet spread on the server.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `weapon_recoil_scale` | `1.0` | `>= 0` | Scale on the view punch (`1.0` = stock, `0` = no recoil) |
+| `weapon_recoil_view_punch_extra` | `0.0` | `>= 0` | Extra random view punch (`0` = stock, CS:GO default `0.055`) |
+| `weapon_accuracy_nospread` | `0` | `0`/`1` | `1` removes all inaccuracy and spread |
+| `weapon_accuracy_forcespread` | `-1.0` | `>= -1` | `-1` = weapon spread, `0` = perfectly accurate, `> 0` = fixed spread |
+| `sv_turning_inaccuracy_enabled` | `0` | `0`/`1` | Add spread proportional to the turn rate |
+
+**Client compatibility.** All five act on values the server owns: `punchangle` is networked and the
+bullet trace is server-side. Clients keep predicting with their own stock values, which only affects
+visual prediction, never the authoritative hit.
+
+**Files:** `game_shared/cstrike/cs_player_shared.cpp` (recoil convars and `CCSPlayer::KickBack`),
+`game_shared/cstrike/weapon_csbasegun.cpp` (accuracy convars and `CWeaponCSBaseGun::CSBaseGunFire`),
+`dlls/cstrike/cs_player.h` and `dlls/cstrike/cs_player.cpp` (previous-shot state).
+
+
+# 23. +USE weapon pickup (adapted)
+
+**Origin:** CS:GO `mp_require_gun_use_to_acquire` (`cs_player.cpp`), which makes a ground weapon
+require the +USE key instead of being picked up on contact.
+
+**What it does here.** `0` (default) is stock: touching a ground weapon picks it up. `1` skips the
+walk-over pickup unless the player is holding +USE while touching it, which is the closest a
+server-side change can get to CS:GO's acquire prompt: the engine has no prompt to draw and no
+"look at the weapon" query to reuse.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_require_gun_use_to_acquire` | `0` | `0`/`1` | Only pick up ground weapons while holding +USE |
+
+**Client compatibility.** `m_nButtons` is the stock usercmd button state the client already sends, so
+the server sees +USE without any client change.
+
+**Files:** `game_shared/cstrike/weapon_csbase.cpp` (convar and `CWeaponCSBase::DefaultTouch`).
+
+
+# 24. Grenade carry limits
+
+**Origin:** CS:GO `ammo_grenade_limit_default` / `_flashbang` / `_total` (`cs_player.cpp`).
+
+**What stock CS:S does.** The buy code hardcodes the same rules: at most two flashbangs, one of every
+other grenade type, and therefore four grenades in total.
+
+**What it does here.** The three limits are convars, checked in `CCSPlayer::BuyWeapon` for every buy
+path (menu, aliases, autobuy, bots). The defaults are the stock values, so nothing changes until an
+operator edits them; the total limit is checked against the ammo of every grenade the player carries.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `ammo_grenade_limit_default` | `1` | `>= 0` | How many of each grenade, apart from the flashbang, a player may buy |
+| `ammo_grenade_limit_flashbang` | `2` | `>= 0` | How many flashbangs a player may buy |
+| `ammo_grenade_limit_total` | `4` | `>= 0` | Total grenades a player may buy |
+
+**Client compatibility.** Purchase decisions are server-side; the buy menu is a usercmd the server
+already validates, so the client needs no change and a rejected buy is answered exactly like the stock
+"cannot carry anymore" case.
+
+**Files:** `dlls/cstrike/cs_player.cpp` (convars and the grenade branch of `CCSPlayer::BuyWeapon`).
