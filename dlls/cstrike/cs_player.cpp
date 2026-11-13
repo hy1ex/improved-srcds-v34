@@ -768,6 +768,15 @@ void CCSPlayer::Spawn()
 
 	m_iRadioMessages = 60;
 	m_flRadioTime = gpGlobals->curtime;
+
+	// CS:GO cs_player.cpp:1752 - a respawning player takes his old ragdoll with him instead of
+	// leaving it in the world. The stock code only drops the handle, so on a respawn or deathmatch
+	// server every death left a cs_ragdoll behind until the round restarted.
+	if ( m_hRagdoll )
+	{
+		UTIL_Remove( m_hRagdoll );
+	}
+
 	m_hRagdoll = NULL;
 
 	// did we change our name while we were dead?

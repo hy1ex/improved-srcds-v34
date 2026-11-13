@@ -314,6 +314,14 @@ delay, an optional loadout policy, optional spawn immunity and a post-respawn bu
   cannot be opened again without a client change, whatever the server would allow.
   `mp_buy_during_immunity` is therefore a rule for the console commands and binds, not a way to
   keep the menu open past `mp_buytime`.
+* **A player's ragdoll is cleared when he spawns** — ported from CS:GO `cs_player.cpp:1752`, where
+  `CCSPlayer::Spawn()` removes the player's previous ragdoll with `UTIL_Remove( m_hRagdoll )`.
+  Stock CS:S only drops the handle, so every death left a `cs_ragdoll` entity in the world until the
+  round restarted or the edict limit forced a cleanup; on an auto-respawn or deathmatch server that
+  piles bodies up within minutes and costs both server edicts and client ragdoll physics. This
+  follows every spawn, including the respawns added by this feature, so a body disappears exactly
+  when its owner comes back rather than on a timer. It is a behaviour of the port, not a switch:
+  there is no convar, because CS:GO has none for it either.
 
 **Convars**
 
