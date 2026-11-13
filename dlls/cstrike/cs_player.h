@@ -268,6 +268,16 @@ public:
 		float x,
 		float y );
 
+	// sv_turning_inaccuracy_enabled: the view angles and time of the previous shot, kept on the server so
+	// the spread can grow with how fast the player turned since then (see weapon_csbasegun.cpp).
+	float GetLastShotTime() const { return m_flLastShotTime; }
+	const QAngle &GetLastShotAngles() const { return m_angLastShotAngles; }
+	void SetLastShotState( const QAngle &angView, float flTime )
+	{
+		m_angLastShotAngles = angView;
+		m_flLastShotTime = flTime;
+	}
+
 	void KickBack(
 		float up_base,
 		float lateral_base,
@@ -690,6 +700,11 @@ private:
 
 	// Copyed from EyeAngles() so we can send it to the client.
 	CNetworkQAngle( m_angEyeAngles );
+
+	// sv_turning_inaccuracy_enabled: the view angles and time of the previous shot, so the spread can be
+	// increased by how fast the player turned in between (server side, see weapon_csbasegun.cpp).
+	QAngle m_angLastShotAngles;
+	float m_flLastShotTime;
 
 	bool m_bVCollisionInitted;
 

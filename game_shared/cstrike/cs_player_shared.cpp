@@ -34,6 +34,13 @@
 ConVar sv_showimpacts("sv_showimpacts", "0", FCVAR_REPLICATED, "Shows client (red) and server (blue) bullet impact point (1=both, 2=client-only, 3=server-only)" );
 ConVar sv_showplayerhitboxes( "sv_showplayerhitboxes", "0", FCVAR_REPLICATED, "Show lag compensated hitboxes for the specified player index whenever a player fires." );
 
+// weapon_recoil_* (CS:GO cs_player_shared.cpp). CS:S bakes the recoil of every weapon into the arguments
+// each gun passes to KickBack(), so the two CS:GO convars are applied there: one scales the punch, the
+// other adds CS:GO's small random view punch on top of it. Both default to the stock CS:S behaviour
+// (a scale of 1 and no extra punch); CS:GO's own defaults are 1 and 0.055.
+ConVar weapon_recoil_scale( "weapon_recoil_scale", "1.0", FCVAR_NOTIFY, "Scale of the view punch applied when firing (1 = stock CS:S, 0 = no recoil)", true, 0.0f, false, 0 );
+ConVar weapon_recoil_view_punch_extra( "weapon_recoil_view_punch_extra", "0.0", FCVAR_NOTIFY, "Extra random view punch added on top of the recoil (CS:GO default 0.055, stock CS:S 0)", true, 0.0f, false, 0 );
+
 #define	CS_MASK_SHOOT (MASK_SOLID|CONTENTS_DEBRIS)
 
 void DispatchEffect( const char *pName, const CEffectData &data );
@@ -630,6 +637,13 @@ void CCSPlayer::KickBack( float up_base, float lateral_base, float up_modifier, 
 	}
 
 
+	// weapon_recoil_scale: scales the punch every weapon asks for, without touching the per-weapon
+	// tuning itself. 1 keeps the stock CS:S recoil exactly.
+	const float flRecoilScale = weapon_recoil_scale.GetFloat();
+
+	flKickUp *= flRecoilScale;
+	flKickLateral *= flRecoilScale;
+
 	QAngle angle = GetPunchAngle();
 
 	angle.x -= flKickUp;
@@ -651,6 +665,16 @@ void CCSPlayer::KickBack( float up_base, float lateral_base, float up_modifier, 
 
 	if ( !SharedRandomInt( "KickBack", 0, direction_change ) )
 		m_iDirection = 1 - m_iDirection;
+
+	// weapon_recoil_view_punch_extra: CS:GO adds a small random punch to every shot so a spray never
+	// follows the exact same path. Applied after the stock clamps so it cannot be cancelled by them.
+	const float flPunchExtra = weapon_recoil_view_punch_extra.GetFloat();
+
+	if ( flPunchExtra > 0.0f )
+	{
+		angle.x += SharedRandomFloat( "KickBackPunchX", -flPunchExtra, flPunchExtra );
+		angle.y += SharedRandomFloat( "KickBackPunchY", -flPunchExtra, flPunchExtra );
+	}
 
 	SetPunchAngle( angle );
 }

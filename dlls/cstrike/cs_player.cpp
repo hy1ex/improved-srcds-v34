@@ -837,6 +837,10 @@ void CCSPlayer::Spawn()
 	m_cycleLatch = 0;
 	m_cycleLatchTimer.Start( RandomFloat( 0.0f, CycleLatchInterval ) );
 
+	// sv_turning_inaccuracy_enabled starts a life with no previous shot to compare against.
+	m_angLastShotAngles = vec3_angle;
+	m_flLastShotTime = 0.0f;
+
 	// mp_respawn_immunitytime: CS:GO arms the immunity in Spawn(), so every spawn of a player whose
 	// team respawns on death gets it, not only the ones mp_respawn_on_death_* brings back. PreThink
 	// cuts the window down to one second once he has moved, like State_PreThink_ACTIVE does.

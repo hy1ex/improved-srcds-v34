@@ -14,6 +14,13 @@
 	#include "cs_player.h"
 #endif
 
+// weapon_accuracy_* and sv_turning_inaccuracy_enabled (CS:GO cs_weapon_parse.cpp / cs_player.cpp).
+// CS:S computes bullet spread on the server, so these are server-side switches applied where every gun
+// hands its spread to the bullet code. Both defaults leave the stock behaviour alone.
+ConVar weapon_accuracy_nospread( "weapon_accuracy_nospread", "0", FCVAR_NOTIFY, "Remove all weapon inaccuracy and spread (0 = stock)", true, 0, true, 1 );
+ConVar weapon_accuracy_forcespread( "weapon_accuracy_forcespread", "-1.0", FCVAR_NOTIFY, "Force every weapon to this spread value (-1 = use the weapon's own spread, 0 = perfectly accurate)", true, -1.0f, false, 0 );
+ConVar sv_turning_inaccuracy_enabled( "sv_turning_inaccuracy_enabled", "0", FCVAR_NOTIFY, "Increase spread while a player turns quickly (0 = off, stock CS:S has no turning penalty)", true, 0, true, 1 );
+
 
 IMPLEMENT_NETWORKCLASS_ALIASED( WeaponCSBaseGun, DT_WeaponCSBaseGun )
 
@@ -134,6 +141,40 @@ bool CWeaponCSBaseGun::CSBaseGunFire( float flSpread, float flCycleTime, bool bP
 
 	// player "shoot" animation
 	pPlayer->SetAnimation( PLAYER_ATTACK1 );
+
+#ifndef CLIENT_DLL
+	// weapon_accuracy_*: CS:GO's spread overrides. CS:S traces the bullet on the server, so they belong
+	// here rather than in the client's prediction.
+	if ( weapon_accuracy_nospread.GetBool() )
+	{
+		flSpread = 0.0f;
+	}
+	else if ( weapon_accuracy_forcespread.GetFloat() >= 0.0f )
+	{
+		flSpread = weapon_accuracy_forcespread.GetFloat();
+	}
+
+	// sv_turning_inaccuracy_enabled: CS:S has no penalty for turning while shooting at all, so this is
+	// off by default. When on, the spread grows with the turn rate since the player's previous shot; the
+	// factor gives one extra unit of spread per 2000 degrees per second, which is close to the weight
+	// CS:GO gives the same movement.
+	if ( sv_turning_inaccuracy_enabled.GetBool() && pPlayer->GetLastShotTime() > 0.0f )
+	{
+		const float flElapsed = gpGlobals->curtime - pPlayer->GetLastShotTime();
+
+		if ( flElapsed > 0.0f && flElapsed < 0.5f )
+		{
+			const QAngle angNow = pPlayer->EyeAngles();
+			const QAngle &angLast = pPlayer->GetLastShotAngles();
+			const float flTurned = fabs( AngleDiff( angNow.x, angLast.x ) ) +
+								   fabs( AngleDiff( angNow.y, angLast.y ) );
+
+			flSpread += ( flTurned / flElapsed ) * 0.0005f;
+		}
+	}
+
+	pPlayer->SetLastShotState( pPlayer->EyeAngles(), gpGlobals->curtime );
+#endif
 
 	FX_FireBullets(
 		pPlayer->entindex(),
