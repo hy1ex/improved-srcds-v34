@@ -132,12 +132,6 @@ public:
 
 	void					MakeTracer( const Vector &vecTracerSrc, const trace_t &tr, int iTracerType );
 
-	// Set while the game hands this weapon straight to a player (CBasePlayer::GiveNamedItem), so a
-	// pickup rule that asks for a key press does not throw a bought or respawned weapon on the floor.
-	bool m_bGivenByGame;
-	void SetGivenByGame( bool bGiven ) { m_bGivenByGame = bGiven; }
-	bool IsGivenByGame() const { return m_bGivenByGame; }
-
 	// Subtypes are used to manage multiple weapons of the same type on the player.
 	virtual int				GetSubType( void ) { return m_iSubType; }
 	virtual void			SetSubType( int iType ) { m_iSubType = iType; }
