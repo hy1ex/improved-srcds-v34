@@ -93,7 +93,6 @@ Source game. For each feature it records:
 | `mp_anyone_can_pickup_c4` | `0` | [13. C4 rules](#13-c4-rules) | 1 = any team may pick the bomb up |
 | `mp_c4_cannot_be_defused` | `0` | [13. C4 rules](#13-c4-rules) | 1 = a planted bomb cannot be defused |
 | `mp_plant_c4_anywhere` | `0` | [13. C4 rules](#13-c4-rules) | 1 = plant outside a bomb target |
-
 | `mp_disconnect_kills_players` | `0` | [14. Disconnect kills](#14-disconnect-kills) | 1 = kill a living player when he disconnects |
 | `mp_disconnect_kills_bots` | `0` | [14. Disconnect kills](#14-disconnect-kills) | 1 = do the same for bots; needs the switch above |
 | `mp_drop_knife_enable` | `0` | [15. Knife drop](#15-knife-drop) | 1 = the `drop` command may drop the knife |
