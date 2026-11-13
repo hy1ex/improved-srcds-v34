@@ -57,6 +57,7 @@ Source game. For each feature it records:
 | `mp_damage_scale_t_head` | `1` | [6. Damage scaling](#6-damage-scaling) | multiplier for Terrorist headshots |
 | `mp_damage_scale_t_body` | `1` | [6. Damage scaling](#6-damage-scaling) | multiplier for the rest of a Terrorist |
 | `mp_damage_headshot_only` | `0` | [6. Damage scaling](#6-damage-scaling) | 0/1, only headshot bullets deal damage |
+| `mp_damage_vampiric_amount` | `0` | [6. Damage scaling](#6-damage-scaling) | fraction of damage dealt healed back to the attacker |
 | `mp_free_armor` | `0` | [7. Free armour](#7-free-armour) | 0=none, 1=kevlar, 2=kevlar and helmet |
 | `mp_buy_allow_guns` | `1` | [8. Purchase restrictions](#8-purchase-restrictions) | 0=nobody, 1=both teams, 2=T, 3=CT: who may buy guns |
 | `mp_buy_allow_grenades_ct` | `7` | [8. Purchase restrictions](#8-purchase-restrictions) | bitfield: 1 HE, 2 flashbang, 4 smoke |
@@ -611,6 +612,13 @@ default to stock behaviour.
   and knife damage still hurt, and the blocked hit spawns a spark instead of blood. `0` (default)
   keeps the stock damage model.
 
+* `mp_damage_vampiric_amount` — the fraction of the health a victim actually loses that is healed
+  back onto whoever hurt him, `0` (default) being stock and no healing at all. CS:GO's version
+  (`cs_player.cpp:6540`) is ported as-is: the amount is the health removed after armour and clamping,
+  the attacker is never healed by his own self-damage, and the heal is capped at **twice** his
+  maximum health, so a full-health player can keep the extra. It applies to every source of damage a
+  player takes, not only bullets, because that is where CS:GO applies it.
+
 Scaling happens in `CCSPlayer::TraceAttack`, in the per-bullet path where `ptr->hitgroup` is known,
 so shotgun pellets are scaled individually and a trace that hits the helmet is scaled as a head hit.
 It is applied after the stock hitgroup multipliers and before armour reduction in
@@ -628,6 +636,7 @@ hitgroup.
 | `mp_damage_scale_t_head` | `1.0` | `0`+ | Damage multiplier for a Terrorist headshot |
 | `mp_damage_scale_t_body` | `1.0` | `0`+ | Damage multiplier for the rest of a Terrorist |
 | `mp_damage_headshot_only` | `0` | `0`/`1` | Only headshot bullets deal damage |
+| `mp_damage_vampiric_amount` | `0` | `0`-`1`+ | Fraction of the damage dealt healed back onto the attacker |
 
 **Client compatibility.** Damage is not a client-side decision: the server applies the multipliers and
 the only thing the stock client receives is the resulting health change and the existing `Damage`

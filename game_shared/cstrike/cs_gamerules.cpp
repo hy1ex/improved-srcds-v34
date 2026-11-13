@@ -334,6 +334,14 @@ ConVar mp_damage_scale_t_head(
 	FCVAR_NOTIFY,
 	"Scale of damage applied to the head of a Terrorist (1.0 = stock)" );
 
+// Ported from CS:GO cs_gamerules.cpp:3390. Fraction of the health a victim loses that is healed back
+// onto the attacker, capped at twice his own maximum health; 0 is stock, no healing at all.
+ConVar mp_damage_vampiric_amount(
+	"mp_damage_vampiric_amount",
+	"0",
+	FCVAR_NOTIFY,
+	"Fraction of the health damage dealt that is given back to the attacker (0 = off, stock)" );
+
 ConVar mp_damage_scale_t_body(
 	"mp_damage_scale_t_body",
 	"1.0",

@@ -48,6 +48,7 @@ extern ConVar mp_buy_during_immunity;
 extern ConVar mp_free_armor;
 extern ConVar mp_solid_player;
 extern ConVar mp_anyone_can_pickup_c4;
+extern ConVar mp_damage_vampiric_amount;
 extern ConVar mp_teammates_are_enemies;
 extern ConVar mp_players_nonsolid_time;
 extern ConVar mp_maxmoney;
@@ -915,8 +916,42 @@ int CCSPlayer::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 	// set damage type sustained
 	m_bitsDamageType |= info.GetDamageType();
 
+	const int nHealthBefore = GetHealth();
+
 	if ( !CBaseCombatCharacter::OnTakeDamage_Alive( info ) )
 		return 0;
+
+	// mp_damage_vampiric_amount: heal the attacker for a fraction of the health this victim actually
+	// lost, capped at twice the attacker's maximum health. CS:GO cs_player.cpp:6540 does the same in
+	// TakeDamage, but the health removed is only known here, after the base class has applied it.
+	CCSPlayer *pVampiricAttacker = ToCSPlayer( info.GetAttacker() );
+
+	const int nHealthRemoved = nHealthBefore - GetHealth();
+
+	if ( pVampiricAttacker && pVampiricAttacker != this && nHealthRemoved > 0 )
+	{
+		const float flVampiric = mp_damage_vampiric_amount.GetFloat();
+
+		if ( flVampiric > 0.0f )
+		{
+			const int nMaxVampiricHealth = pVampiricAttacker->GetMaxHealth() * 2;
+
+			if ( pVampiricAttacker->GetHealth() < nMaxVampiricHealth )
+			{
+				int nHealthRegained = (int)( nHealthRemoved * flVampiric );
+				int nNewHealth = pVampiricAttacker->GetHealth() + nHealthRegained;
+
+				// clamp the over-heal, and the amount actually regained with it
+				if ( nNewHealth > nMaxVampiricHealth )
+				{
+					nNewHealth = nMaxVampiricHealth;
+					nHealthRegained = nNewHealth - pVampiricAttacker->GetHealth();
+				}
+
+				pVampiricAttacker->SetHealth( nNewHealth );
+			}
+		}
+	}
 
 	// don't apply damage forces in CS
 
