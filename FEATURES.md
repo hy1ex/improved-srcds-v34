@@ -1651,9 +1651,10 @@ other grenade type, and therefore four grenades in total.
 path (menu, aliases, autobuy, bots). The defaults are the stock values, so nothing changes until an
 operator edits them; the total limit is checked against the ammo of every grenade the player carries.
 The same convars also replace the two fixed caps that would otherwise swallow a grenade the player
-already paid for: the inventory check in `CCSPlayer::AddPlayerItem` and the ammo-table clamp in
-`CBaseCombatCharacter::GiveAmmo` (overridden in `CCSPlayer::GiveAmmo`), so raising a limit really lets
-the player hold the extra grenades instead of dropping them or losing them. The client
+already paid for: the inventory check and the round count in `CCSPlayer::BumpWeapon`, which grants the
+extra round itself because `CBaseCombatCharacter::GiveAmmo` inside `Weapon_Equip` clamps to the fixed
+ammo table. Raising a limit therefore really lets the player hold the extra grenades instead of
+dropping them or losing them. The client
 HUD still draws its own stock maximum for a grenade slot, which a server cannot change.
 
 **Convars**

@@ -230,7 +230,6 @@ public:
 	virtual void		TraceAttack( const CTakeDamageInfo &inputInfo, const Vector &vecDir, trace_t *ptr );
 
 	virtual CBaseEntity	*GiveNamedItem( const char *pszName, int iSubType = 0 );
-	virtual int			GiveAmmo( int nCount, int nAmmoIndex, bool bSuppressSound = false );
 	virtual bool		IsBeingGivenItem() const { return m_bIsBeingGivenItem; }
 	
 	virtual CBaseEntity *FindUseEntity( void );

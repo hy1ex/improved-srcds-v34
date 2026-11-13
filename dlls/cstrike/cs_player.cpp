@@ -6073,7 +6073,23 @@ bool CCSPlayer::BumpWeapon( CBaseCombatWeapon *pBaseWeapon )
 		pWeapon->AddSolidFlags( FSOLID_NOT_SOLID );
 		pWeapon->AddEffects( EF_NODRAW );
 
+		// ammo_grenade_limit_*: Weapon_Equip hands a grenade its round through GiveAmmo, which clamps to
+		// the fixed ammo table (one of each grenade, two flashbangs), so a grenade bought under a higher
+		// limit could be paid for and then never enter the inventory. Remember the count here and grant
+		// the round the convar allows once the weapon is in the inventory.
+		const int nGrenadeAmmoIndex = bPickupGrenade ? pWeapon->GetPrimaryAmmoType() : -1;
+		const int nGrenadeAmmoBefore = ( nGrenadeAmmoIndex != -1 ) ? GetAmmoCount( nGrenadeAmmoIndex ) : 0;
+
 		Weapon_Equip( pWeapon );
+
+		if ( nGrenadeAmmoIndex != -1 )
+		{
+			const int nGrenadeLimit = Q_strstr( pWeapon->GetClassname(), "flashbang" ) ?
+				ammo_grenade_limit_flashbang.GetInt() : ammo_grenade_limit_default.GetInt();
+
+			if ( nGrenadeAmmoBefore + 1 <= nGrenadeLimit )
+				SetAmmoCount( nGrenadeAmmoBefore + 1, nGrenadeAmmoIndex );
+		}
 
 		int iExtraAmmo = pWeapon->GetExtraAmmoCount();
 		
@@ -7029,45 +7045,6 @@ void CCSPlayer::StockPlayerAmmo( CBaseCombatWeapon *pNewWeapon )
 			pWeapon->m_iClip1 = pWeapon->GetMaxClip1();
 		}
 	}
-}
-
-// ammo_grenade_limit_*: CBaseCombatCharacter::GiveAmmo clamps every ammo type to the fixed ammo-table
-// maximum (one of each grenade, two flashbangs). A server that raises a limit would then buy the grenade,
-// pay for it, and lose it, because the extra round could never enter the inventory. For a grenade the
-// player is picking up, the cap is the convar instead.
-int CCSPlayer::GiveAmmo( int nCount, int nAmmoIndex, bool bSuppressSound )
-{
-	if ( nCount > 0 && nAmmoIndex >= 0 && nAmmoIndex < MAX_AMMO_SLOTS )
-	{
-		for ( int i = 0; i < MAX_WEAPONS; i++ )
-		{
-			CWeaponCSBase *pWeapon = dynamic_cast< CWeaponCSBase * >( GetWeapon( i ) );
-
-			if ( !pWeapon || pWeapon->GetCSWpnData().m_WeaponType != WEAPONTYPE_GRENADE )
-				continue;
-
-			if ( pWeapon->GetPrimaryAmmoType() != nAmmoIndex )
-				continue;
-
-			const int nLimit = Q_strstr( pWeapon->GetClassname(), "flashbang" ) ?
-				ammo_grenade_limit_flashbang.GetInt() : ammo_grenade_limit_default.GetInt();
-			const int nHave = GetAmmoCount( nAmmoIndex );
-			const int nAdd = ( nLimit > nHave ) ? min( nCount, nLimit - nHave ) : 0;
-
-			if ( nAdd > 0 )
-			{
-				SetAmmoCount( nHave + nAdd, nAmmoIndex );
-				return nAdd;
-			}
-
-			if ( nHave >= nLimit )
-				return 0;
-
-			break;
-		}
-	}
-
-	return BaseClass::GiveAmmo( nCount, nAmmoIndex, bSuppressSound );
 }
 
 CBaseEntity	*CCSPlayer::GiveNamedItem( const char *pszName, int iSubType )
