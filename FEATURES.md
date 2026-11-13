@@ -1334,11 +1334,15 @@ cannot hand it to a teammate. CS:GO has a switch for it, and its `drop` command 
 entity, takes one round out of the player's stack and throws that.
 
 **What it does.** `mp_drop_grenade_enable 0` (default) is stock: the `drop` command ignores grenades.
-`1` drops the grenade the player is holding with the same `CSWeaponDrop()` call the death drop already
-uses for `mp_death_drop_grenade`, so the grenade becomes an ordinary world weapon that anybody may
-pick up. CS:S keeps one grenade per weapon entity with one round in it, so there is no stack to
-decrement: the whole grenade is thrown, which is the honest CS:S equivalent of CS:GO's "throw one out
-of the stack". The player is left holding whatever else he owns.
+`1` hands the command to `CCSPlayer::DropOneGrenade()`, which drops exactly one grenade and leaves the
+rest of the stack with the player, so a player carrying two flashbangs who drops one still holds the
+other and a single world grenade appears. CS:S has one grenade per weapon entity, so a stack is the
+player's ammo count, and `CSWeaponDrop()` alone would move that whole pool into the dropped weapon:
+the helper gives the dropped weapon one round and gives the player a fresh grenade entity holding the
+remainder. The throw itself is refused while the grenade is committed to being thrown (`m_bPinPulled`
+or `m_fThrowTime`), because dropping during that window used to leave a world grenade beside the
+projectile the same button press was about to create; a grenade that has already left the hand has no
+rounds left and is ignored.
 
 **Convars**
 

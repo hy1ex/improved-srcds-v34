@@ -26,6 +26,7 @@
 #include "shake.h"
 #include "team.h"
 #include "weapon_c4.h"
+#include "weapon_basecsgrenade.h"
 #include "weapon_parse.h"
 #include "weapon_knife.h"
 #include "movehelper_server.h"
@@ -2967,6 +2968,41 @@ void CCSPlayer::SetShieldDrawnState( bool bState )
 #endif
 }
 
+// Drops exactly one grenade, which is what CS:GO's drop command does: it builds a fresh grenade entity,
+// takes one round out of the player's stack and throws that (cs_player.cpp:14388-14410). CSWeaponDrop()
+// instead moves the player's whole ammo pool into the dropped weapon, so dropping one of two flashbangs
+// emptied the inventory and left a world grenade carrying two.
+void CCSPlayer::DropOneGrenade( CWeaponCSBase *pWeapon )
+{
+	CBaseCSGrenade *pGrenade = dynamic_cast< CBaseCSGrenade * >( pWeapon );
+
+	// Refuse while the grenade is committed to a throw: the pin is out, or the throw timer is running.
+	// Dropping there produced a world grenade next to the projectile the same button press created.
+	if ( pGrenade && ( pGrenade->IsPinPulled() || pGrenade->IsBeingThrown() ) )
+		return;
+
+	const int nAmmoIndex = pWeapon->GetPrimaryAmmoType();
+	const int nCount = ( nAmmoIndex >= 0 ) ? GetAmmoCount( nAmmoIndex ) : 1;
+
+	if ( nCount <= 0 )
+		return;	// already thrown, the weapon is on its way out
+
+	if ( nCount == 1 || nAmmoIndex < 0 )
+	{
+		CSWeaponDrop( pWeapon, true, true );
+		return;
+	}
+
+	// One round goes into the dropped weapon; the player gets a fresh grenade entity holding the rest.
+	const char *pszClassname = pWeapon->GetClassname();
+
+	SetAmmoCount( 1, nAmmoIndex );
+	CSWeaponDrop( pWeapon, true, true );
+
+	if ( GiveNamedItem( pszClassname ) )
+		SetAmmoCount( nCount - 1, nAmmoIndex );
+}
+
 bool CCSPlayer::CSWeaponDrop( CBaseCombatWeapon *pWeapon, bool bDropShield, bool bThrowForward )
 {
 	bool bSuccess = false;
@@ -4728,10 +4764,8 @@ bool CCSPlayer::ClientCommand( const char* command )
 			}
 			else if ( type == WEAPONTYPE_GRENADE )
 			{
-				// The same call the death drop already uses for grenades, so a dropped grenade is an
-				// ordinary world weapon with its one round carried in the extra ammo count.
 				if ( mp_drop_grenade_enable.GetBool() )
-					CSWeaponDrop( pWeapon, true, true );
+					DropOneGrenade( pWeapon );
 			}
 			else
 			{

@@ -652,6 +652,7 @@ protected:
 	CNetworkVar( int, m_iClass ); // One of the CS_CLASS_ enums.
 
 	bool CSWeaponDrop( CBaseCombatWeapon *pWeapon, bool bDropShield = true, bool bThrow = false );
+	void DropOneGrenade( CWeaponCSBase *pWeapon );
 	bool DropRifle();
 	bool DropPistol();
 	void DropWeapons();
