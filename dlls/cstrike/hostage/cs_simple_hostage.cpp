@@ -97,6 +97,14 @@ static CountdownTimer announceTimer;		// used to stop "hostage rescued" announce
 
 
 //-----------------------------------------------------------------------------------------------------
+// cash_* awards, defined in game_shared/cstrike/cs_gamerules.cpp.
+extern ConVar cash_player_damage_hostage;
+extern ConVar cash_player_killed_hostage;
+extern ConVar mp_cash_hostage_kill_flat;
+extern ConVar cash_player_rescued_hostage;
+extern ConVar cash_player_interact_with_hostage;
+extern ConVar cash_team_hostage_interaction;
+
 CHostage::CHostage()
 {
 	g_Hostages.AddToTail( this );
@@ -261,7 +269,7 @@ int CHostage::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 			gameeventmanager->FireEvent( event );
 		}
 
-		player->AddAccount( -((int)actualDamage * 20)  );
+		player->AddAccount( cash_player_damage_hostage.GetInt() * (int)actualDamage );
 	}
 
 	return BaseClass::OnTakeDamage_Alive( info );
@@ -342,7 +350,14 @@ void CHostage::Event_Killed( const CTakeDamageInfo &info )
 		}
 
 		// monetary penalty for killing the hostage
-		attacker->AddAccount( -( 500 + ((int)info.GetDamage() * 20) ) );
+		int nHostageKillPenalty = cash_player_killed_hostage.GetInt();
+
+		// mp_cash_hostage_kill_flat 0 (default) keeps the stock CS:S formula of the convar minus 20 per
+		// damage point; 1 makes it CS:GO's flat penalty.
+		if ( !mp_cash_hostage_kill_flat.GetBool() )
+			nHostageKillPenalty -= (int)( info.GetDamage() * 20 );
+
+		attacker->AddAccount( nHostageKillPenalty );
 
 		// check for hostage-killer abuse
 		if (attacker->GetTeamNumber() == TEAM_TERRORIST)
@@ -391,7 +406,7 @@ void CHostage::HostageRescueZoneTouch( inputdata_t &inputdata )
 		CCSPlayer *player = GetLeader();
 		if (player)
 		{
-			const int rescuerCashBonus = 1000;
+			const int rescuerCashBonus = cash_player_rescued_hostage.GetInt();
 			player->AddAccount( rescuerCashBonus );
 		}
 		
@@ -858,11 +873,11 @@ bool CHostage::IsVisible( const Vector &pos, bool testFOV ) const
 void CHostage::GiveCTUseBonus( CCSPlayer *rescuer )
 {
 	// money to team
-	const int teamBonus = 100;
+	const int teamBonus = cash_team_hostage_interaction.GetInt();
 	CSGameRules()->m_iAccountCT += teamBonus;
 
 	// money to rescuer
-	const int rescuerBonus = 150;
+	const int rescuerBonus = cash_player_interact_with_hostage.GetInt();
 	rescuer->AddAccount( rescuerBonus );
 }
 

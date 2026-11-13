@@ -17,6 +17,9 @@
 #ifndef CLIENT_DLL
 extern ConVar mp_plant_c4_anywhere;
 extern ConVar mp_c4_cannot_be_defused;
+extern ConVar mp_playercashawards;
+extern ConVar cash_player_bomb_planted;
+extern ConVar cash_player_bomb_defused;
 #endif
 
 #if defined( CLIENT_DLL )
@@ -403,6 +406,13 @@ END_PREDICTION_DATA()
 
 				// give the defuser credit for defusing the bomb
 				m_pBombDefuser->IncrementFragCount( 3 );
+
+#if !defined( CLIENT_DLL )
+				// cash_player_bomb_defused: no stock CS:S award, so the convar defaults to 0.
+
+				if ( mp_playercashawards.GetBool() && cash_player_bomb_defused.GetInt() != 0 )
+					m_pBombDefuser->AddAccount( cash_player_bomb_defused.GetInt() );
+#endif
 
 				CSGameRules()->m_bBombDropped = false;
 				CSGameRules()->m_bBombPlanted = false;
@@ -1002,6 +1012,13 @@ void CC4::PrimaryAttack()
 
 			CSGameRules()->m_bBombDropped = false;
 			CSGameRules()->m_bBombPlanted = true;
+
+#if !defined( CLIENT_DLL )
+			// cash_player_bomb_planted: no stock CS:S award, so the convar defaults to 0.
+
+			if ( mp_playercashawards.GetBool() && cash_player_bomb_planted.GetInt() != 0 )
+				pPlayer->AddAccount( cash_player_bomb_planted.GetInt() );
+#endif
 
 			// Play the plant sound.
 			Vector plantPosition = pPlayer->GetAbsOrigin() + Vector( 0, 0, 5 );

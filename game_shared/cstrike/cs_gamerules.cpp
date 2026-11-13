@@ -675,6 +675,178 @@ ConVar mp_playercashawards(
 	FCVAR_NOTIFY,
 	"Whether players earn individual cash rewards such as kill awards (default: yes, stock CS:S)" );
 
+// ---------------------------------------------------------------------------------------------------
+// cash_* awards. Ported from CS:GO's cash_player_* / cash_team_* family (cs_gamerules.cpp:16089-16220),
+// which in CS:GO replaces the amounts CS:S hardcodes in PlayerKilled(), the round end checks,
+// RestartRound() and the hostage code. Every default is the value this tree already paid, so nothing
+// changes until an operator edits a convar; the CS:GO defaults that differ are noted per convar.
+// ---------------------------------------------------------------------------------------------------
+ConVar cash_player_killed_enemy_default(
+	"cash_player_killed_enemy_default",
+	"300",
+	FCVAR_NOTIFY,
+	"Cash for a kill made without a weapon CS:GO tracks (CS:GO default 300, stock CS:S 300)" );
+
+ConVar cash_player_killed_enemy_factor(
+	"cash_player_killed_enemy_factor",
+	"0",
+	FCVAR_NOTIFY,
+	"Award the killed-with weapon's kill award scaled by this instead of the flat default. 0 = stock flat award.",
+	true, 0.0f,
+	false, 0 );
+
+ConVar cash_player_killed_teammate(
+	"cash_player_killed_teammate",
+	"-3300",
+	FCVAR_NOTIFY,
+	"Cash change for killing a teammate (CS:GO default -300, stock CS:S -3300)" );
+
+ConVar cash_player_damage_hostage(
+	"cash_player_damage_hostage",
+	"-20",
+	FCVAR_NOTIFY,
+	"Cash per point of damage done to a hostage (CS:GO default -30, stock CS:S -20 per point)" );
+
+ConVar cash_player_killed_hostage(
+	"cash_player_killed_hostage",
+	"-500",
+	FCVAR_NOTIFY,
+	"Cash for killing a hostage; the damage term is added unless mp_cash_hostage_kill_flat is 1 (CS:GO default -1000)" );
+
+ConVar mp_cash_hostage_kill_flat(
+	"mp_cash_hostage_kill_flat",
+	"0",
+	FCVAR_NOTIFY,
+	"0 = stock CS:S hostage kill penalty of cash_player_killed_hostage minus 20 per damage point, 1 = the convar alone (CS:GO style)",
+	true, 0,
+	true, 1 );
+
+ConVar cash_player_interact_with_hostage(
+	"cash_player_interact_with_hostage",
+	"150",
+	FCVAR_NOTIFY,
+	"Cash for the player who takes a hostage (CS:GO default 150, stock CS:S 150)" );
+
+ConVar cash_player_rescued_hostage(
+	"cash_player_rescued_hostage",
+	"1000",
+	FCVAR_NOTIFY,
+	"Cash for the player who brings a hostage to the rescue zone (CS:GO default 1000, stock CS:S 1000)" );
+
+ConVar cash_player_bomb_planted(
+	"cash_player_bomb_planted",
+	"0",
+	FCVAR_NOTIFY,
+	"Cash for the player who plants the bomb (CS:GO default 300, stock CS:S none)" );
+
+ConVar cash_player_bomb_defused(
+	"cash_player_bomb_defused",
+	"0",
+	FCVAR_NOTIFY,
+	"Cash for the player who defuses the bomb (CS:GO default 300, stock CS:S none)" );
+
+ConVar cash_player_get_killed(
+	"cash_player_get_killed",
+	"0",
+	FCVAR_NOTIFY,
+	"Cash a player receives when he is killed (CS:GO default 0, stock CS:S none)" );
+
+ConVar cash_player_respawn_amount(
+	"cash_player_respawn_amount",
+	"0",
+	FCVAR_NOTIFY,
+	"Cash a player receives when he respawns mid-round (CS:GO default 0, stock CS:S none)" );
+
+ConVar cash_team_terrorist_win_bomb(
+	"cash_team_terrorist_win_bomb",
+	"3500",
+	FCVAR_NOTIFY,
+	"Team cash for the Terrorists when the bomb explodes (CS:GO default 3500, stock CS:S 3500)" );
+
+ConVar cash_team_win_by_defusing_bomb(
+	"cash_team_win_by_defusing_bomb",
+	"3250",
+	FCVAR_NOTIFY,
+	"Team cash for the CTs when they defuse the bomb (CS:GO default 3250, stock CS:S 3250)" );
+
+ConVar cash_team_planted_bomb_but_defused(
+	"cash_team_planted_bomb_but_defused",
+	"800",
+	FCVAR_NOTIFY,
+	"Team cash for the Terrorists when their bomb is defused (CS:GO default 800, stock CS:S 800)" );
+
+ConVar cash_team_win_by_hostage_rescue(
+	"cash_team_win_by_hostage_rescue",
+	"2500",
+	FCVAR_NOTIFY,
+	"Team cash for the CTs when every hostage is rescued (CS:GO default 3500, stock CS:S 2500)" );
+
+ConVar cash_team_win_by_time_running_out_bomb(
+	"cash_team_win_by_time_running_out_bomb",
+	"3250",
+	FCVAR_NOTIFY,
+	"Team cash for the CTs when the round time runs out on a bomb map (CS:GO default 3250, stock CS:S 3250)" );
+
+ConVar cash_team_win_by_time_running_out_hostage(
+	"cash_team_win_by_time_running_out_hostage",
+	"3250",
+	FCVAR_NOTIFY,
+	"Team cash for the Terrorists when the round time runs out on a hostage map (CS:GO default 3250, stock CS:S 3250)" );
+
+ConVar cash_team_elimination_bomb_map(
+	"cash_team_elimination_bomb_map",
+	"3250",
+	FCVAR_NOTIFY,
+	"Team cash for winning by elimination on a bomb map (CS:GO default 3250, stock CS:S 3250)" );
+
+ConVar cash_team_elimination_hostage_map_ct(
+	"cash_team_elimination_hostage_map_ct",
+	"3000",
+	FCVAR_NOTIFY,
+	"Team cash for the CTs winning by elimination on a hostage map (CS:GO default 2000, stock CS:S 3000)" );
+
+ConVar cash_team_elimination_hostage_map_t(
+	"cash_team_elimination_hostage_map_t",
+	"3000",
+	FCVAR_NOTIFY,
+	"Team cash for the Terrorists winning by elimination on a hostage map (CS:GO default 1000, stock CS:S 3000)" );
+
+ConVar cash_team_loser_bonus(
+	"cash_team_loser_bonus",
+	"1400",
+	FCVAR_NOTIFY,
+	"Base cash for the losing team (CS:GO default 1400, stock CS:S 1400)" );
+
+ConVar cash_team_loser_bonus_consecutive_rounds(
+	"cash_team_loser_bonus_consecutive_rounds",
+	"500",
+	FCVAR_NOTIFY,
+	"Extra cash for the losing team per consecutive loss, capped at 3000 as in stock CS:S (CS:GO default 500)" );
+
+ConVar cash_team_winner_bonus_consecutive_rounds(
+	"cash_team_winner_bonus_consecutive_rounds",
+	"0",
+	FCVAR_NOTIFY,
+	"Extra cash for the winning team while the other team is on a losing streak (CS:GO default 0)" );
+
+ConVar cash_team_hostage_alive(
+	"cash_team_hostage_alive",
+	"150",
+	FCVAR_NOTIFY,
+	"Team cash the winner gets per hostage still alive, capped at 2000 as in stock CS:S (CS:GO default 0, stock CS:S 150)" );
+
+ConVar cash_team_rescued_hostage(
+	"cash_team_rescued_hostage",
+	"750",
+	FCVAR_NOTIFY,
+	"Team cash the CTs get per hostage rescued during the round (CS:GO default 0, stock CS:S 750)" );
+
+ConVar cash_team_hostage_interaction(
+	"cash_team_hostage_interaction",
+	"100",
+	FCVAR_NOTIFY,
+	"Team cash the CTs get when one of them takes a hostage (CS:GO default 500, stock CS:S 100)" );
+
 // mp_give_player_c4 (CS:GO cs_gamerules.cpp:2442, checked at :9652). CS:S always hands the bomb out on
 // a bomb map; this lets a server play those maps without the objective.
 ConVar mp_give_player_c4(
@@ -1909,6 +2081,26 @@ ConVar cl_autohelp(
 
 	//=========================================================
 	//=========================================================
+	// cash_player_killed_enemy_factor: CS:GO reads a per-weapon "kill award" from the weapon data
+	// (cs_weapon_parse.cpp:1075) and scales it by that factor (cs_player.cpp:7406). CS:S weapon data has
+	// no such value, so this is the known CS:GO table: the knife pays 1500, the AWP 100, everything else
+	// 300. It is only used when the factor is above 0, so the stock flat award is untouched by default.
+	static int GetWeaponCashAward( CWeaponCSBase *pWeapon )
+	{
+		if ( !pWeapon )
+			return 300;
+
+		switch ( pWeapon->GetWeaponID() )
+		{
+		case WEAPON_KNIFE:
+			return 1500;
+		case WEAPON_AWP:
+			return 100;
+		default:
+			return 300;
+		}
+	}
+
 	void CCSGameRules::PlayerKilled( CBasePlayer *pVictim, const CTakeDamageInfo &info )
 	{
 		CBaseEntity *pInflictor = info.GetInflictor();
@@ -1937,10 +2129,15 @@ ConVar cl_autohelp(
 		CCSPlayer *pCSVictim = (CCSPlayer *)pVictim;
 		CCSPlayer *pCSScorer = (CCSPlayer *)pScorer;
 
+		// cash_player_get_killed: CS:GO pays the victim a fixed amount for dying (default 0, no stock
+		// equivalent).
+		if ( mp_playercashawards.GetBool() && cash_player_get_killed.GetInt() != 0 )
+			pCSVictim->AddAccount( cash_player_get_killed.GetInt() );
+
 		if ( IPointsForKill( pScorer, pVictim ) < 0 )
 		{
 			// team-killer!
-			pCSScorer->AddAccount( -3300 );
+			pCSScorer->AddAccount( cash_player_killed_teammate.GetInt() );
 			++pCSScorer->m_iTeamKills;
 			pCSScorer->m_bJustKilledTeammate = true;
 
@@ -1980,7 +2177,15 @@ ConVar cl_autohelp(
 			}
 			else if ( mp_playercashawards.GetBool() )
 			{
-				pCSScorer->AddAccount( 300 );
+				// cash_player_killed_enemy_default is CS:S's flat award. A factor above 0 switches to
+				// CS:GO's rule, where the reward is the killing weapon's kill award times the factor.
+				const float flKillAwardFactor = cash_player_killed_enemy_factor.GetFloat();
+				CWeaponCSBase *pKillWeapon = dynamic_cast< CWeaponCSBase * >( info.GetInflictor() );
+
+				if ( flKillAwardFactor > 0.0f && pKillWeapon )
+					pCSScorer->AddAccount( (int)( GetWeaponCashAward( pKillWeapon ) * flKillAwardFactor ) );
+				else
+					pCSScorer->AddAccount( cash_player_killed_enemy_default.GetInt() );
 			}
 
 			if ( !(pCSScorer->m_iDisplayHistoryBits & DHF_ENEMY_KILLED) )
@@ -2678,7 +2883,7 @@ ConVar cl_autohelp(
 
 		if ( bRescueCheckDone )
 		{
-			m_iAccountCT += 2500;
+			m_iAccountCT += cash_team_win_by_hostage_rescue.GetInt();
 
 			if ( !bNeededPlayers )
 			{
@@ -2809,7 +3014,7 @@ ConVar cl_autohelp(
 		}
 		else if ( m_pVIP->m_lifeState == LIFE_DEAD )   // The VIP is dead
 		{
-			m_iAccountTerrorist += 3250;
+			m_iAccountTerrorist += cash_team_terrorist_win_bomb.GetInt();
 
 			if ( !bNeededPlayers )
 			{
@@ -2855,9 +3060,9 @@ ConVar cl_autohelp(
 		else
 		if ( ( m_bBombDefused == true ) && ( m_bMapHasBombTarget == true ) )
 		{
-			m_iAccountCT += 3250;
+			m_iAccountCT += cash_team_win_by_defusing_bomb.GetInt();
 
-			m_iAccountTerrorist += 800; // give the T's a little bonus for planting the bomb even though it was defused.
+			m_iAccountTerrorist += cash_team_planted_bomb_but_defused.GetInt(); // planted but defused
 
 			if ( !bNeededPlayers )
 			{
@@ -2902,9 +3107,9 @@ ConVar cl_autohelp(
 				if ( !nowin )
 				{
 					if ( m_bMapHasBombTarget )
-						m_iAccountCT += 3250;
+						m_iAccountCT += cash_team_elimination_bomb_map.GetInt();
 					else
-						m_iAccountCT += 3000;
+						m_iAccountCT += cash_team_elimination_hostage_map_ct.GetInt();
 
 					if ( !bNeededPlayers )
 					{
@@ -2922,9 +3127,9 @@ ConVar cl_autohelp(
 			if ( NumAliveCT == 0 && NumDeadCT != 0 && !bCTsRespawn && m_iNumSpawnableTerrorist > 0 )
 			{
 				if ( m_bMapHasBombTarget )
-					m_iAccountTerrorist += 3250;
+					m_iAccountTerrorist += cash_team_elimination_bomb_map.GetInt();
 				else
-					m_iAccountTerrorist += 3000;
+					m_iAccountTerrorist += cash_team_elimination_hostage_map_t.GetInt();
 
 				if ( !bNeededPlayers )
 				{
@@ -3069,7 +3274,7 @@ ConVar cl_autohelp(
 		// CS:GO's mp_starting_losses).
 		m_iNumConsecutiveCTLoses = 0;
 		m_iNumConsecutiveTerroristLoses = 0;
-		m_iLoserBonus = 1400;
+		m_iLoserBonus = cash_team_loser_bonus.GetInt();
 
 		UpdateTeamScores();
 
@@ -3332,7 +3537,7 @@ ConVar cl_autohelp(
 
 			if( pHostage->IsRescuable() )	//Alive and not rescued
 			{
-				iRescuedHostageBonus += 150;
+				iRescuedHostageBonus += cash_team_hostage_alive.GetInt();
 			}
 			
 			if ( iRescuedHostageBonus >= 2000 )
@@ -3361,10 +3566,10 @@ ConVar cl_autohelp(
 
 		//check if the losing team is in a losing streak & that the loser bonus hasen't maxed out.
 		if((m_iNumConsecutiveTerroristLoses > 1) && (m_iLoserBonus < 3000))
-			m_iLoserBonus += 500;//help out the team in the losing streak
+			m_iLoserBonus += cash_team_loser_bonus_consecutive_rounds.GetInt();//help out the team in the losing streak
 		else
 		if((m_iNumConsecutiveCTLoses > 1) && (m_iLoserBonus < 3000))
-			m_iLoserBonus += 500;//help out the team in the losing streak
+			m_iLoserBonus += cash_team_loser_bonus_consecutive_rounds.GetInt();//help out the team in the losing streak
 
 		// assign the wining and losing bonuses
 		if (m_iRoundWinStatus == WINNER_TER) // terrorists won
@@ -3380,8 +3585,20 @@ ConVar cl_autohelp(
 		}
 		
 
+		// cash_team_winner_bonus_consecutive_rounds: CS:GO pays the winner this extra amount once the
+		// loser is on a losing streak (cs_gamerules.cpp:8211). Default 0 keeps the stock economy.
+		const int nWinnerStreakBonus = cash_team_winner_bonus_consecutive_rounds.GetInt();
+
+		if ( nWinnerStreakBonus != 0 )
+		{
+			if ( m_iRoundWinStatus == WINNER_TER && m_iNumConsecutiveCTLoses > 1 )
+				m_iAccountTerrorist += nWinnerStreakBonus;
+			else if ( m_iRoundWinStatus == WINNER_CT && m_iNumConsecutiveTerroristLoses > 1 )
+				m_iAccountCT += nWinnerStreakBonus;
+		}
+
 		//Update CT account based on number of hostages rescued
-		m_iAccountCT += m_iHostagesRescued * 750;
+		m_iAccountCT += m_iHostagesRescued * cash_team_rescued_hostage.GetInt();
 
 
 		// Update individual players accounts and respawn players
@@ -3407,7 +3624,7 @@ ConVar cl_autohelp(
 			m_iNumCTWins					= 0;
 			m_iNumConsecutiveTerroristLoses	= 0;
 			m_iNumConsecutiveCTLoses		= 0;
-			m_iLoserBonus					= 1400;
+			m_iLoserBonus					= cash_team_loser_bonus.GetInt();
 		}
 
 		for ( i = 1; i <= gpGlobals->maxClients; i++ )
@@ -3958,7 +4175,7 @@ ConVar cl_autohelp(
 			//keep going until the bomb explodes or is defused
 			if( !m_bBombPlanted )
 			{
-				m_iAccountCT += 3250;
+				m_iAccountCT += cash_team_win_by_time_running_out_bomb.GetInt();
 				
 				m_iNumCTWins++;
 
@@ -3969,7 +4186,7 @@ ConVar cl_autohelp(
 		}
 		else if ( m_bMapHasRescueZone )
 		{
-			m_iAccountTerrorist += 3250; 
+			m_iAccountTerrorist += cash_team_win_by_time_running_out_hostage.GetInt(); 
 			
 			m_iNumTerroristWins++;
 			TerminateRound( mp_round_restart_delay.GetFloat(), Hostages_Not_Rescued );

@@ -51,6 +51,8 @@ extern ConVar mp_solid_player;
 extern ConVar mp_anyone_can_pickup_c4;
 extern ConVar mp_damage_vampiric_amount;
 extern ConVar mp_teammates_are_enemies;
+extern ConVar cash_player_respawn_amount;
+extern ConVar mp_playercashawards;
 extern ConVar mp_players_nonsolid_time;
 extern ConVar mp_maxmoney;
 extern ConVar mp_damage_scale_ct_head;
@@ -841,6 +843,14 @@ void CCSPlayer::Spawn()
 	const bool bTeamRespawns =
 		( GetTeamNumber() == TEAM_CT ) ? mp_respawn_on_death_ct.GetBool() :
 		( GetTeamNumber() == TEAM_TERRORIST ) ? mp_respawn_on_death_t.GetBool() : false;
+
+	// cash_player_respawn_amount: CS:GO pays this for an instant respawn, not for the round start, which
+	// is the spawn that happens during the freeze period. Default 0, no stock CS:S equivalent.
+	if ( bTeamRespawns && !CSGameRules()->IsFreezePeriod() && mp_playercashawards.GetBool() &&
+		 cash_player_respawn_amount.GetInt() != 0 )
+	{
+		AddAccount( cash_player_respawn_amount.GetInt() );
+	}
 
 	const float flImmunityTime = bTeamRespawns ? mp_respawn_immunitytime.GetFloat() : 0.0f;
 
