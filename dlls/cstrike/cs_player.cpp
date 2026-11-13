@@ -129,6 +129,12 @@ ConVar mp_drop_knife_enable( "mp_drop_knife_enable", "0", FCVAR_NOTIFY, "Allows 
 // round, so the ordinary drop throws it whole.
 ConVar mp_drop_grenade_enable( "mp_drop_grenade_enable", "0", FCVAR_NOTIFY, "Allows players to drop grenades.", true, 0, true, 1 );
 
+// ammo_grenade_limit_* (CS:GO cs_player.cpp:196-198). CS:S hardcodes the same limits in the buy code:
+// two flashbangs, one of every other grenade, four grenades in total.
+ConVar ammo_grenade_limit_default( "ammo_grenade_limit_default", "1", FCVAR_NOTIFY, "How many of each grenade a player can carry, apart from the flashbang (stock CS:S: 1)", true, 0, false, 0 );
+ConVar ammo_grenade_limit_flashbang( "ammo_grenade_limit_flashbang", "2", FCVAR_NOTIFY, "How many flashbangs a player can carry (stock CS:S: 2)", true, 0, false, 0 );
+ConVar ammo_grenade_limit_total( "ammo_grenade_limit_total", "4", FCVAR_NOTIFY, "How many grenades a player can carry in total (stock CS:S: 4)", true, 0, false, 0 );
+
 // mp_tagging_scale (CS:GO cs_player.cpp:5884, applied at :6305). CS:GO scales the stacked flinch
 // modifier that turns into the victim's speed factor; CS:S has no stack, only two fixed multipliers,
 // so this scales how far below 1.0 they push the player instead. 1.0 is the stock amount, 0 means a
@@ -3876,36 +3882,57 @@ BuyResult_e CCSPlayer::HandleCommand_Buy( const char *item )
 			{
 				bPurchase = true;
 
-				if( Q_strstr( pWeaponInfo->szClassName, "flashbang" ) )
+				// ammo_grenade_limit_*: per-type limit first, then the total. The defaults reproduce the
+				// stock CS:S rules exactly (two flashbangs, one of each other grenade, four in total).
+				CBaseCombatWeapon *pGrenade = Weapon_OwnsThisType( pWeaponInfo->szClassName );
+
+				int numGrens = 0;
+
+				if( pGrenade )
 				{
-					CBaseCombatWeapon *pGrenade = Weapon_OwnsThisType( "weapon_flashbang" );
+					int nAmmo = pGrenade->GetPrimaryAmmoType();
 
-					int numGrens = 0;
-
-					if( pGrenade )
+					if( nAmmo != -1 )
 					{
-						int nAmmo = pGrenade->GetPrimaryAmmoType();
-
-						if( nAmmo != -1 )
-						{
-							numGrens = GetAmmoCount( nAmmo );
-						}
+						numGrens = GetAmmoCount( nAmmo );
 					}
-					
-					if( numGrens >= 2 )
+				}
+
+				const int nGrenadeLimit = Q_strstr( pWeaponInfo->szClassName, "flashbang" ) ?
+					ammo_grenade_limit_flashbang.GetInt() : ammo_grenade_limit_default.GetInt();
+
+				if( numGrens >= nGrenadeLimit )
+				{
+					result = BUY_ALREADY_HAVE;
+					if( !m_bIsInAutoBuy && !m_bIsInRebuy )
+						ClientPrint( this, HUD_PRINTCENTER, "#Cannot_Carry_Anymore" );
+					bPurchase = false;
+				}
+				else
+				{
+					int nCarriedGrenades = 0;
+
+					for ( int i = 0; i < MAX_WEAPONS; i++ )
+					{
+						CBaseCombatWeapon *pOwned = GetWeapon( i );
+						if ( !pOwned )
+							continue;
+
+						CWeaponCSBase *pCSOwned = dynamic_cast< CWeaponCSBase * >( pOwned );
+						if ( !pCSOwned || pCSOwned->GetCSWpnData().m_WeaponType != WEAPONTYPE_GRENADE )
+							continue;
+
+						const int nAmmoType = pCSOwned->GetPrimaryAmmoType();
+						nCarriedGrenades += ( nAmmoType != -1 ) ? GetAmmoCount( nAmmoType ) : 1;
+					}
+
+					if ( nCarriedGrenades >= ammo_grenade_limit_total.GetInt() )
 					{
 						result = BUY_ALREADY_HAVE;
 						if( !m_bIsInAutoBuy && !m_bIsInRebuy )
 							ClientPrint( this, HUD_PRINTCENTER, "#Cannot_Carry_Anymore" );
 						bPurchase = false;
 					}
-				}
-				else if ( Weapon_OwnsThisType( pWeaponInfo->szClassName ) )
-				{
-					result = BUY_ALREADY_HAVE;
-					if( !m_bIsInAutoBuy && !m_bIsInRebuy )
-						ClientPrint( this, HUD_PRINTCENTER, "#Cannot_Carry_Anymore" );
-					bPurchase = false;
 				}
 			}
 		}
