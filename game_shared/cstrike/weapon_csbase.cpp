@@ -886,6 +886,11 @@ void CWeaponCSBase::Drop(const Vector &vecVelocity)
 
 // whats going on here is that if the player drops this weapon, they shouldn't take it back themselves
 // for a little while.  But if they throw it at someone else, the other player should get it immediately.
+// mp_require_gun_use_to_acquire (CS:GO cs_player.cpp:1210, checked where a weapon is acquired). CS:S
+// picks a ground weapon up as soon as a player touches it; CS:GO waits for the +USE key. Off by default
+// so a stock server keeps the touch pickup.
+ConVar mp_require_gun_use_to_acquire( "mp_require_gun_use_to_acquire", "0", FCVAR_NOTIFY, "Only pick up a weapon from the ground while holding +USE (0 = stock touch pickup)", true, 0, true, 1 );
+
 void CWeaponCSBase::DefaultTouch(CBaseEntity *pOther)
 {
 	// mp_weapon_next_owner_touch_time: a short window after the drop during which nobody can take the
@@ -894,6 +899,17 @@ void CWeaponCSBase::DefaultTouch(CBaseEntity *pOther)
 	if ( gpGlobals->curtime < m_nextOwnerTouchTime )
 	{
 		return;
+	}
+
+	// mp_require_gun_use_to_acquire: walk-over pickup is skipped unless the player is using +USE. This is
+	// a server-side approximation: the engine has no acquire prompt, so holding +USE while touching the
+	// weapon is the whole interaction.
+	if ( mp_require_gun_use_to_acquire.GetBool() )
+	{
+		CCSPlayer *pPlayer = dynamic_cast< CCSPlayer * >( pOther );
+
+		if ( pPlayer && !( pPlayer->m_nButtons & IN_USE ) )
+			return;
 	}
 
 	if ((m_prevOwner != NULL) && (pOther == m_prevOwner) && (gpGlobals->curtime < m_nextPrevOwnerTouchTime))
