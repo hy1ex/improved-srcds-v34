@@ -1108,6 +1108,81 @@ ConVar cl_autohelp(
 		true, 10	// max value
 		);
 
+	// CS:GO's economy and streak controls (ref cs_gamerules.cpp:2548-2558, 3404-3414). Every one of
+	// them is off at its default, which leaves the stock CS:S economy exactly as it was, except
+	// mp_weapons_allow_map_placed, which is documented in FEATURES.md.
+	ConVar mp_starting_losses(
+		"mp_starting_losses",
+		"0",
+		FCVAR_NOTIFY,
+		"Determines what the initial loss streak is.",
+		true, 0,	// min value
+		true, 10	// max value
+		);
+
+	ConVar mp_consecutive_loss_max(
+		"mp_consecutive_loss_max",
+		"0",
+		FCVAR_NOTIFY,
+		"Maximum consecutive losses that count towards the loser bonus (0 = no cap, stock)",
+		true, 0,	// min value
+		true, 10	// max value
+		);
+
+	ConVar mp_economy_reset_rounds(
+		"mp_economy_reset_rounds",
+		"0",
+		FCVAR_NOTIFY,
+		"Reset all player money every N rounds (0 for never)",
+		true, 0,	// min value
+		true, 60	// max value
+		);
+
+	ConVar mp_equipment_reset_rounds(
+		"mp_equipment_reset_rounds",
+		"0",
+		FCVAR_NOTIFY,
+		"Reset all player equipment every N rounds (0 for never)",
+		true, 0,	// min value
+		true, 60	// max value
+		);
+
+	// CS:GO deletes the weapons the map placed unless this is set (ref cs_gamerules.cpp:2647). CS:S
+	// keeps them, so 1 is the default here and 0 removes them.
+	ConVar mp_weapons_allow_map_placed(
+		"mp_weapons_allow_map_placed",
+		"1",
+		FCVAR_NOTIFY,
+		"If this convar is set, when a match starts, the game will not delete weapons placed in the map." );
+
+	ConVar mp_join_grace_time(
+		"mp_join_grace_time",
+		"0.0",
+		FCVAR_NOTIFY,
+		"Number of seconds after round start to allow a player to join a game",
+		true, 0.0f,	// min value
+		true, 30.0f	// max value
+		);
+
+	ConVar mp_force_assign_teams(
+		"mp_force_assign_teams",
+		"0",
+		FCVAR_NOTIFY,
+		"Players cannot choose their team; the server assigns one" );
+
+	// CS:GO picks this up at 3; 1 reproduces the stock CS:S aim punch exactly (ref cs_player.cpp:6824).
+	ConVar mp_flinch_punch_scale(
+		"mp_flinch_punch_scale",
+		"1",
+		FCVAR_NOTIFY,
+		"Scalar for first person view punch when getting hit." );
+
+	ConVar sv_showbullethits(
+		"sv_showbullethits",
+		"0",
+		FCVAR_NOTIFY,
+		"Log every bullet hit on a player to the server console" );
+
 	ConVar mp_freezetime( 
 		"mp_freezetime",
 		"6",
@@ -1582,6 +1657,21 @@ ConVar cl_autohelp(
 
 		if ( pPlayer->State_Get() != STATE_ACTIVE )
 			return;
+
+		// mp_equipment_reset_rounds / mp_economy_reset_rounds: CS:GO wipes the carried gear and the
+		// account at the start of every Nth round (ref cs_gamerules.cpp:5777-5786). 0 is off and
+		// leaves the round exactly as stock.
+		if ( mp_equipment_reset_rounds.GetInt() > 0 &&
+			( m_iTotalRoundsPlayed % mp_equipment_reset_rounds.GetInt() ) == 0 )
+		{
+			pPlayer->RemoveAllItems( true );
+		}
+
+		if ( mp_economy_reset_rounds.GetInt() > 0 &&
+			( m_iTotalRoundsPlayed % mp_economy_reset_rounds.GetInt() ) == 0 )
+		{
+			pPlayer->AddAccount( mp_startmoney.GetInt() - pPlayer->m_iAccount );
+		}
 
 		pPlayer->EquipSuit();
 
@@ -2656,6 +2746,24 @@ ConVar cl_autohelp(
 
 		// Figure out from the entities in the map what kind of map this is (bomb run, prison escape, etc).
 		CheckMapConditions();
+
+		// mp_weapons_allow_map_placed: 0 removes the weapons the map placed, 1 (the default here, and
+		// stock CS:S) keeps them. No player exists yet at this point, so every weapon in the world is
+		// a map placed one.
+		if ( !mp_weapons_allow_map_placed.GetBool() )
+		{
+			CBaseEntity *pWeaponEntity = gEntList.FirstEnt();
+
+			while ( pWeaponEntity )
+			{
+				CBaseEntity *pNext = gEntList.NextEnt( pWeaponEntity );
+
+				if ( Q_strnicmp( STRING( pWeaponEntity->m_iClassname ), "weapon_", 7 ) == 0 )
+					UTIL_Remove( pWeaponEntity );
+
+				pWeaponEntity = pNext;
+			}
+		}
 	}
 	
 	INetworkStringTable *g_StringTableBlackMarket = NULL;
@@ -3635,6 +3743,10 @@ ConVar cl_autohelp(
 
 			m_iNumConsecutiveTerroristLoses = 0;//starting fresh
 			m_iNumConsecutiveCTLoses++;//increment the number of wins the CTs have had
+
+			// mp_consecutive_loss_max caps how many of those losses count (0 = stock, no cap).
+			if ( mp_consecutive_loss_max.GetInt() > 0 && m_iNumConsecutiveCTLoses > mp_consecutive_loss_max.GetInt() )
+				m_iNumConsecutiveCTLoses = mp_consecutive_loss_max.GetInt();
 		}
 		else if (m_iRoundWinStatus == WINNER_CT) // CT Won
 		{
@@ -3644,6 +3756,10 @@ ConVar cl_autohelp(
 
 			m_iNumConsecutiveCTLoses = 0;//starting fresh
 			m_iNumConsecutiveTerroristLoses++;//increment the number of wins the Terrorists have had
+
+			// mp_consecutive_loss_max caps how many of those losses count (0 = stock, no cap).
+			if ( mp_consecutive_loss_max.GetInt() > 0 && m_iNumConsecutiveTerroristLoses > mp_consecutive_loss_max.GetInt() )
+				m_iNumConsecutiveTerroristLoses = mp_consecutive_loss_max.GetInt();
 		}
 
 		//check if the losing team is in a losing streak & that the loser bonus hasen't maxed out.
@@ -3704,8 +3820,15 @@ ConVar cl_autohelp(
 			//We are starting fresh. So it's like no one has ever won or lost.
 			m_iNumTerroristWins				= 0; 
 			m_iNumCTWins					= 0;
-			m_iNumConsecutiveTerroristLoses	= 0;
-			m_iNumConsecutiveCTLoses		= 0;
+			// mp_starting_losses: CS:GO can open a match with a loss streak already running
+			// (ref cs_gamerules.cpp:8595). 0, the default, is the stock fresh start.
+			int nStartLossStreak = mp_starting_losses.GetInt();
+
+			if ( mp_consecutive_loss_max.GetInt() > 0 && nStartLossStreak > mp_consecutive_loss_max.GetInt() )
+				nStartLossStreak = mp_consecutive_loss_max.GetInt();
+
+			m_iNumConsecutiveTerroristLoses	= nStartLossStreak;
+			m_iNumConsecutiveCTLoses		= nStartLossStreak;
 			m_iLoserBonus					= cash_team_loser_bonus.GetInt();
 		}
 

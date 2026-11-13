@@ -152,6 +152,16 @@ Source game. For each feature it records:
 | `sv_falldamage_to_below_player_multiplier` | `1` | [27. Fall damage](#27-fall-damage) | scale on the total when landing on a player |
 | `mp_weapons_max_gun_purchases_per_weapon_per_match` | `-1` | [28. Per-match gun purchase limit](#28-per-match-gun-purchase-limit) | max buys of one gun per match; -1 = unlimited |
 
+| `mp_starting_losses` | `0` | [29. Economy and streak controls](#29-economy-and-streak-controls) | loss streak a new match starts with; 0 = none |
+| `mp_consecutive_loss_max` | `0` | [29. Economy and streak controls](#29-economy-and-streak-controls) | cap on losses counted towards the loser bonus; 0 = no cap |
+| `mp_economy_reset_rounds` | `0` | [29. Economy and streak controls](#29-economy-and-streak-controls) | reset money every N rounds; 0 = never |
+| `mp_equipment_reset_rounds` | `0` | [29. Economy and streak controls](#29-economy-and-streak-controls) | strip equipment every N rounds; 0 = never |
+| `mp_weapons_allow_map_placed` | `1` | [30. Map-placed weapons](#30-map-placed-weapons) | 1 = keep the map's weapons (stock), 0 = delete them |
+| `mp_join_grace_time` | `0.0` | [31. Team assignment](#31-team-assignment) | seconds after round start to still allow joining a team; 0 = any time |
+| `mp_force_assign_teams` | `0` | [31. Team assignment](#31-team-assignment) | 1 = the server picks the team |
+| `mp_flinch_punch_scale` | `1` | [32. Aim punch scale](#32-aim-punch-scale) | scales aim punch when hit; 1 = stock, CS:GO uses 3 |
+| `sv_showbullethits` | `0` | [33. Bullet hit log](#33-bullet-hit-log-adapted) | 1 = log bullet hits to the server console |
+
 ## Command index
 
 | Command | Feature | Notes |
@@ -1811,3 +1821,160 @@ remaining count before it asks.
 
 **Files:** `dlls/cstrike/cs_player.cpp` (convar extern, the check and the counter),
 `dlls/cstrike/cs_player.h` (`m_iWeaponPurchasesThisMatch`).
+
+# 29. Economy and streak controls
+
+**Origin:** CS:GO `mp_starting_losses` and `mp_consecutive_loss_max` (`cs_gamerules.cpp:3404-3414`),
+`mp_economy_reset_rounds` and `mp_equipment_reset_rounds` (`cs_gamerules.cpp:2548-2558`).
+
+**What stock CS:S does.** A fresh match starts with no loss streak, the loser bonus ladder is
+unbounded (it stops at 3000 on its own), and money and equipment carry over for every round until the
+match ends.
+
+**What it does here.**
+`mp_starting_losses` seeds both `m_iNumConsecutiveCTLoses` and `m_iNumConsecutiveTerroristLoses` when a
+match starts, so the ladder is already part way up on the first round. `mp_consecutive_loss_max` caps
+those counters after each increment, which stops the ladder (and, with `mp_starting_losses`, caps the
+seed as CS:GO does at `:8595`).
+
+`mp_equipment_reset_rounds` and `mp_economy_reset_rounds` act in `CCSGameRules::PlayerSpawn`, the same
+place CS:GO does it: when the round number is a multiple of the convar, the player's items are removed
+or the account is set back to `mp_startmoney`.
+
+All four default to their off value (`0`), so an unmodified server behaves exactly like stock CS:S.
+`mp_consecutive_loss_max` is the one divergence from the CS:GO default: CS:GO ships it at `4`, but a
+cap at 4 would change the stock CS:S ladder, so here `0` means "no cap".
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_starting_losses` | `0` | `0`-`10` | Loss streak a new match starts with |
+| `mp_consecutive_loss_max` | `0` | `0`-`10` | Cap on losses counted towards the loser bonus; `0` = no cap |
+| `mp_economy_reset_rounds` | `0` | `0`-`60` | Set every account back to `mp_startmoney` every N rounds; `0` = never |
+| `mp_equipment_reset_rounds` | `0` | `0`-`60` | Remove every player's items every N rounds; `0` = never |
+
+**Client compatibility.** Money, equipment and the losing bonus are server state; the client only shows
+what it is told, so nothing changes on it.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars, the ladder caps, the match start seed and
+`PlayerSpawn`).
+
+
+# 30. Map-placed weapons
+
+**Origin:** CS:GO `mp_weapons_allow_map_placed` (`cs_gamerules.cpp:2647`).
+
+**What stock CS:S does.** Weapons placed in the map stay there for the whole map, and there is no way
+to remove them.
+
+**What it does here.** `CCSGameRules::LevelInitPostEntity` walks the entity list once, while no player
+exists yet, and removes every `weapon_*` entity when the convar is `0`. The default here is `1`, which
+keeps the map's weapons and is stock CS:S behaviour; CS:GO's own default is `0`.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_weapons_allow_map_placed` | `1` | `0`/`1` | `1` keeps the weapons the map placed, `0` deletes them |
+
+**Client compatibility.** The weapon entities exist on both sides but the server owns them; deleting
+them server side removes them from the stock client with no client change.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar and `LevelInitPostEntity`).
+
+
+# 31. Team assignment
+
+**Origin:** CS:GO `mp_join_grace_time` (`cs_gamerules.cpp:2260`) and `mp_force_assign_teams`
+(`cs_gamerules.cpp:1761`).
+
+**What stock CS:S does.** A player joins whichever team he likes at any time, as long as the team is
+not full and the team rules allow it.
+
+**What it does here.** Both are checked in `CCSPlayer::HandleCommand_JoinTeam`, the one place every
+team choice arrives (the team menu, `jointeam` and the auto-join path).
+
+`mp_force_assign_teams 1` ignores the requested side for a player who is not on a team yet and puts him
+on the team `CCSGameRules::SelectDefaultTeam` picks; a player already on a side keeps it, so the class
+menu and the normal team rules still work. `mp_join_grace_time` blocks a player who is not on a team
+yet from joining once `mp_join_grace_time` seconds have passed since the round started; he stays a
+spectator and can join at the next round start.
+
+Both default to off (`0`), which is the stock behaviour of joining any team at any time.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_join_grace_time` | `0.0` | `0`-`30` | Seconds after round start during which a team may still be joined; `0` = always |
+| `mp_force_assign_teams` | `0` | `0`/`1` | `1` = the server assigns the team, the player cannot pick |
+
+**Client compatibility.** Joining a team is a server command; a refused join is answered with a centre
+message and the team menu, exactly like the stock "#CTs_Full" case. The stock client's menu still
+offers both teams, it just gets assigned a side.
+
+**Files:** `dlls/cstrike/cs_player.cpp` (`HandleCommand_JoinTeam`), `game_shared/cstrike/cs_gamerules.cpp`
+(convars), `game_shared/cstrike/cs_gamerules.h` (`GetRoundStartTime`).
+
+
+# 32. Aim punch scale
+
+**Origin:** CS:GO `mp_flinch_punch_scale` (`cs_player.cpp:6824`).
+
+**What stock CS:S does.** `CCSPlayer::TraceAttack` already punches the view for a blast hit with no
+armour, an unhelmeted headshot and chest or stomach hits with no armour, with the same constants CS:GO
+uses at scale `1`.
+
+**What it does here.** The convar multiplies every one of those punches, including their caps, exactly
+like CS:GO's scalar: `punchAngle.x = scale * damage * -0.1`, clamped at `scale * -4`, the head hit at
+`-0.5` clamped at `scale * -12`, and the head hit's random roll clamped at `scale * +/-9`. The default
+`1` leaves the stock punch untouched; CS:GO's own value is `3`.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_flinch_punch_scale` | `1` | `>= 0` | Multiplier on the aim punch of a hit; `0` removes it |
+
+**Client compatibility.** `m_Local.m_vecPunchAngle` is networked player local data and the stock client
+already applies it to the view (that is how the stock punch works), so the convar needs no client
+change.
+
+**Files:** `dlls/cstrike/cs_player.cpp` (convar extern and `TraceAttack`),
+`game_shared/cstrike/cs_gamerules.cpp` (convar).
+
+
+# 33. Bullet hit log (adapted)
+
+**Origin:** CS:GO `sv_showbullethits` (`cs_player_shared.cpp:72`), which is **not** ported as-is.
+
+**What it does here.** CS:GO's version draws a hit marker through a client game event and a client
+convar, and the stock CS:S client cannot draw it. The convar is kept, but with a server-side meaning
+instead: when it is `1`, `CCSPlayer::TraceAttack` writes one line per bullet that hits a player to the
+server console, with the attacker, the victim, the hitgroup and the damage before multipliers. That
+makes it a testing aid for `sv_hegrenade_damage_multiplier`, the damage scale convars and the
+`mp_flinch_punch_scale` work rather than a player-facing feature.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `sv_showbullethits` | `0` | `0`/`1` | `1` = log every bullet hit on a player to the server console |
+
+**Client compatibility.** Server console only; nothing is sent to the client.
+
+**Files:** `dlls/cstrike/cs_player.cpp` (`TraceAttack`), `game_shared/cstrike/cs_gamerules.cpp` (convar).
+
+
+# 34. Considered and not ported: sv_timebetweenducks
+
+CS:GO's `sv_timebetweenducks` (`cs_gamemovement.cpp:36`, used in `CCSGameMovement::DuckingEnabled`) adds
+a minimum time between ducks. CS:S v34 has no equivalent: ducking there is the plain HL2 duck model
+with no re-duck timer, and the value is checked inside the shared game movement code, which the stock
+client also runs for prediction.
+
+A server-only port is possible in principle but not honest: the client predicts its own duck with the
+stock rules, so a server that refuses the duck would disagree with the prediction every time it fires,
+producing the camera and position snapping that prediction errors cause. Doing it properly needs the
+convar and the check in the client's movement code too, which this project cannot ship. It stays out.

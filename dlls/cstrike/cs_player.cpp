@@ -62,6 +62,10 @@ extern ConVar mp_damage_scale_t_body;
 extern ConVar mp_damage_headshot_only;
 extern ConVar mp_buy_allow_guns;
 extern ConVar mp_weapons_max_gun_purchases_per_weapon_per_match;
+extern ConVar mp_force_assign_teams;
+extern ConVar mp_join_grace_time;
+extern ConVar mp_flinch_punch_scale;
+extern ConVar sv_showbullethits;
 extern ConVar mp_max_armor_ct;
 extern ConVar mp_max_armor_t;
 extern ConVar mp_buy_allow_grenades_ct;
@@ -1877,6 +1881,19 @@ void CCSPlayer::TraceAttack( const CTakeDamageInfo &info, const Vector &vecDir, 
 
 	float flDamage = info.GetDamage();
 
+	// sv_showbullethits: CS:GO draws a hit marker on the client, which the stock CS:S client cannot
+	// do, so this port prints one line per bullet that hits a player to the server console instead.
+	if ( sv_showbullethits.GetBool() && ( info.GetDamageType() & DMG_BULLET ) != 0 )
+	{
+		Msg( "sv_showbullethits: %s hit %s (hitgroup %d) for %.1f damage\n",
+			pAttacker ? pAttacker->GetPlayerName() : "world", GetPlayerName(), ptr->hitgroup, flDamage );
+	}
+
+	// mp_flinch_punch_scale scales the aim punch CS:S already applies to blast, head, chest and
+	// stomach hits (CS:GO ref cs_player.cpp:6824-7006). 1 is the stock CS:S punch and 3 is what
+	// CS:GO ships with.
+	const float flPunchScale = mp_flinch_punch_scale.GetFloat();
+
 	bool bHeadShot = false;
 
 	if ( bHitShield )
@@ -1894,10 +1911,10 @@ void CCSPlayer::TraceAttack( const CTakeDamageInfo &info, const Vector &vecDir, 
 		{
 			// punch view if we have no armor
 			QAngle punchAngle = GetPunchAngle();
-			punchAngle.x = flDamage * -0.1;
+			punchAngle.x = flPunchScale * flDamage * -0.1;
 		
-			if ( punchAngle.x < -4 )
-				punchAngle.x = -4;
+			if ( punchAngle.x < flPunchScale * -4 )
+				punchAngle.x = flPunchScale * -4;
 
 			SetPunchAngle( punchAngle );
 		}
@@ -1922,18 +1939,18 @@ void CCSPlayer::TraceAttack( const CTakeDamageInfo &info, const Vector &vecDir, 
 			if ( !m_bHasHelmet )
 			{
 				QAngle punchAngle = GetPunchAngle();
-				punchAngle.x = flDamage * -0.5;
+				punchAngle.x = flPunchScale * flDamage * -0.5;
 			
-				if ( punchAngle.x < -12 )
-					punchAngle.x = -12;
+				if ( punchAngle.x < flPunchScale * -12 )
+					punchAngle.x = flPunchScale * -12;
 			
-				punchAngle.z = flDamage * random->RandomFloat(-1,1);
+				punchAngle.z = flPunchScale * flDamage * random->RandomFloat(-1,1);
 			
-				if ( punchAngle.z < -9 )
-					punchAngle.z = -9;
+				if ( punchAngle.z < flPunchScale * -9 )
+					punchAngle.z = flPunchScale * -9;
 			
-				else if ( punchAngle.z > 9 )
-					punchAngle.z = 9;
+				else if ( punchAngle.z > flPunchScale * 9 )
+					punchAngle.z = flPunchScale * 9;
 			
 				SetPunchAngle( punchAngle );
 			}
@@ -1949,10 +1966,10 @@ void CCSPlayer::TraceAttack( const CTakeDamageInfo &info, const Vector &vecDir, 
 			if ( ArmorValue() <= 0 )
 			{
 				QAngle punchAngle = GetPunchAngle();
-				punchAngle.x = flDamage * -0.1;
+				punchAngle.x = flPunchScale * flDamage * -0.1;
 			
-				if ( punchAngle.x < -4 )
-					punchAngle.x = -4;
+				if ( punchAngle.x < flPunchScale * -4 )
+					punchAngle.x = flPunchScale * -4;
 
 				SetPunchAngle( punchAngle );
 			}
@@ -1965,10 +1982,10 @@ void CCSPlayer::TraceAttack( const CTakeDamageInfo &info, const Vector &vecDir, 
 			if ( ArmorValue() <= 0 )
 			{
 				QAngle punchAngle = GetPunchAngle();
-				punchAngle.x = flDamage * -0.1;
+				punchAngle.x = flPunchScale * flDamage * -0.1;
 			
-				if ( punchAngle.x < -4 )
-					punchAngle.x = -4;
+				if ( punchAngle.x < flPunchScale * -4 )
+					punchAngle.x = flPunchScale * -4;
 
 				SetPunchAngle( punchAngle );
 			}
@@ -5037,6 +5054,44 @@ bool CCSPlayer::HandleCommand_JoinTeam( int team )
 	if ( !GetGlobalTeam( team ) )
 	{
 		Warning( "HandleCommand_JoinTeam( %d ) - invalid team index.\n", team );
+		return false;
+	}
+
+	// mp_force_assign_teams: CS:GO does not let a player pick a side; the server puts him where he
+	// is needed (ref cs_gamerules.cpp:1761). Only the first placement is forced, so a player who is
+	// already on a side keeps it and can still answer the class menu.
+	bool bTeamForced = false;
+
+	if ( mp_force_assign_teams.GetBool() && !IsBot() && team != TEAM_SPECTATOR )
+	{
+		if ( GetTeamNumber() == TEAM_UNASSIGNED || GetTeamNumber() == TEAM_SPECTATOR )
+		{
+			team = mp->SelectDefaultTeam( false );
+			bTeamForced = true;
+
+			if ( team == TEAM_UNASSIGNED || team == TEAM_SPECTATOR )
+			{
+				ClientPrint( this, HUD_PRINTCENTER, "#All_Teams_Full" );
+				ShowViewPortPanel( PANEL_TEAM );
+				return false;
+			}
+		}
+		else
+		{
+			team = GetTeamNumber();
+		}
+	}
+
+	// mp_join_grace_time: CS:GO only lets a player who is not on a team yet join in the first
+	// seconds of a round (ref cs_gamerules.cpp:13961). 0, the default, is the stock behaviour of
+	// joining whenever a slot is free.
+	if ( !bTeamForced && team != TEAM_SPECTATOR && mp_join_grace_time.GetFloat() > 0.0f &&
+		 ( GetTeamNumber() == TEAM_UNASSIGNED || GetTeamNumber() == TEAM_SPECTATOR ) &&
+		 mp->GetRoundStartTime() != 0.0f &&
+		 gpGlobals->curtime > mp->GetRoundStartTime() + mp_join_grace_time.GetFloat() )
+	{
+		ClientPrint( this, HUD_PRINTCENTER, "You can only join a team at the start of a round" );
+		ShowViewPortPanel( PANEL_TEAM );
 		return false;
 	}
 

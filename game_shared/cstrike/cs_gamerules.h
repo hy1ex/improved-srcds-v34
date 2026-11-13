@@ -100,6 +100,9 @@ public:
 	float GetRoundElapsedTime();	// How much time has elapsed since the round started.
 	float GetBuyTimeLength() const;
 	int GetRoundLength() const { return m_iRoundTime; }
+
+	// When the current round started (freeze time end), used by mp_join_grace_time.
+	float GetRoundStartTime() const { return m_fRoundStartTime; }
 	int   SelectDefaultTeam( bool ignoreBots = false );
 	int   GetHumanTeam();			// TEAM_UNASSIGNED if no restrictions
 
