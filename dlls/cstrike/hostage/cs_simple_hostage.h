@@ -154,6 +154,7 @@ private:
 	CountdownTimer m_inhibitObstacleAvoidanceTimer;			// when active, turn off path following feelers
 
 	CNavArea *m_lastKnownArea;								// last area we were in
+	int m_nSolidHostagesApplied;							// last mp_solid_hostages value this hostage applied, -2 = none yet
 
 	void Wiggle( void );									// attempt to wiggle-out of begin stuck
 	CountdownTimer m_wiggleTimer;							// for wiggling

@@ -114,11 +114,12 @@ extern ConVar mp_solid_grenades;
 
 //-----------------------------------------------------------------------------
 // Purpose: mp_solid_grenades. A thrown grenade is SOLID_BBOX so it collides with props;
-//			this switch lets players walk through it instead.
+//			this switch lets players walk through it instead. Only 0 refuses: -1 leaves the whole
+//			decision to the projectile's own collision group.
 //-----------------------------------------------------------------------------
 bool CBaseCSGrenadeProjectile::ShouldCollide( int collisionGroup, int contentsMask ) const
 {
-	if ( collisionGroup == COLLISION_GROUP_PLAYER_MOVEMENT && !mp_solid_grenades.GetBool() )
+	if ( collisionGroup == COLLISION_GROUP_PLAYER_MOVEMENT && mp_solid_grenades.GetInt() == 0 )
 		return false;
 
 	return BaseClass::ShouldCollide( collisionGroup, contentsMask );
@@ -135,8 +136,9 @@ bool CBaseCSGrenadeProjectile::ShouldCollide( int collisionGroup, int contentsMa
 
 		// mp_solid_grenades 0: the debris group is ignored by player movement and by the prop
 		// push-away, so players walk through the projectile instead of shoving it. 1 keeps the
-		// group the base class gave it, which is stock behaviour.
-		if ( !mp_solid_grenades.GetBool() )
+		// group the base class gave it, which is the engine default and stock behaviour, and -1
+		// (the default) does not touch the group at all, so a plugin owns it.
+		if ( mp_solid_grenades.GetInt() == 0 )
 		{
 			SetCollisionGroup( COLLISION_GROUP_DEBRIS_TRIGGER );
 		}

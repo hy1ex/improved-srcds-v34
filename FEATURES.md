@@ -44,8 +44,8 @@ Source game. For each feature it records:
 | `mp_buy_during_immunity` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=off, 1=both, 2=T, 3=CT: spawn immunity becomes the buy window, cut when it ends |
 | `mp_buy_anywhere` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=stock, 1=both, 2=T, 3=CT (also opens the menu) |
 | `mp_solid_player` | `-1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | -1 = never touch collision groups, 0 = walk through every player, no push |
-| `mp_solid_hostages` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through hostages |
-| `mp_solid_grenades` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through thrown grenades |
+| `mp_solid_hostages` | `-1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | -1 = never touch collision groups, 0 = walk through hostages |
+| `mp_solid_grenades` | `-1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | -1 = never touch collision groups, 0 = walk through thrown grenades |
 | `mp_players_nonsolid_time` | `0` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | seconds of spawn/respawn non-solidity |
 | `mp_teammates_are_enemies` | `0` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0/1, teammates are valid targets |
 | `mp_maxmoney` | `16000` | [5. Economy control](#5-economy-control) | money cap |
@@ -433,14 +433,20 @@ forbids.
   `CCSPlayer::Spawn()`, which covers players respawned by feature 3 as well. It only acts while
   `mp_solid_player` is `0` or `1`: with the default `-1` no group is written, so the window is
   inert and a plugin keeps control of the field.
-* `mp_solid_hostages` — `0` puts the hostage in `COLLISION_GROUP_DEBRIS_TRIGGER` at spawn, refreshed
-  in `CHostage::HostageThink()` so a runtime change takes effect; `1` restores
-  `COLLISION_GROUP_PLAYER` (stock). Players walk through the hostage, the player's push-away does
-  not fire, and the hostage's own `AvoidPhysicsProps()`/`PushawayThink` has nothing to shove.
+* `mp_solid_hostages` — `-1` (the default) never writes the hostage's collision group, so the group
+  the engine assigned stays, the hostage is as solid as in stock, and a plugin owns the field. `0`
+  puts the hostage in `COLLISION_GROUP_DEBRIS_TRIGGER` at spawn, refreshed in
+  `CHostage::HostageThink()` so a runtime change takes effect; `1` restores the engine's own group,
+  `COLLISION_GROUP_NONE` — the group a hostage has in stock, *not* `COLLISION_GROUP_PLAYER`. Players
+  walk through the hostage in the `0` case, the player's push-away does not fire, and the hostage's
+  own `AvoidPhysicsProps()`/`PushawayThink` has nothing to shove. Switching from `0` to `-1` hands
+  the hostage back on `COLLISION_GROUP_NONE` once, and only while it is still this build's non-solid
+  group, so a group written by a plugin is never overwritten.
 * `mp_solid_grenades` — `0` puts a thrown projectile in `COLLISION_GROUP_DEBRIS_TRIGGER` in
   `CBaseCSGrenadeProjectile::Spawn()`, which removes it from player movement and from the prop
-  push-away; `1` leaves the group the base class assigned (stock). The switch is read when the
-  grenade spawns, so it applies to grenades thrown after the change.
+  push-away; `1` leaves the group the base class assigned, which is the engine default and stock
+  behaviour, and `-1` (the default) does not touch the group at all, so a plugin owns it. The switch
+  is read when the grenade spawns, so it applies to grenades thrown after the change.
 * `mp_teammates_are_enemies` — `1` forces friendly fire on (`CCSGameRules::IsFriendlyFireOn`) and
   makes `CCSGameRules::PlayerRelationship()` report `GR_NOTTEAMMATE`, so every rule that asks treats
   a teammate as an enemy. It applies to damage and to the rules built on top of it (team-kill
@@ -473,8 +479,8 @@ forbids.
 | Convar | Default | Values | Meaning |
 | --- | --- | --- | --- |
 | `mp_solid_player` | `-1` | `-1`/`0`/`1` | `-1`: leave collision groups alone (default, stock behaviour), `0`: walk through every player, `1`: players block |
-| `mp_solid_hostages` | `1` | `0`/`1` | Hostages block movement (stock: yes) |
-| `mp_solid_grenades` | `1` | `0`/`1` | Thrown grenades block movement (stock: yes) |
+| `mp_solid_hostages` | `-1` | `-1`/`0`/`1` | `-1`: leave collision groups alone (default, stock behaviour), `0`: walk through hostages, `1`: engine default group |
+| `mp_solid_grenades` | `-1` | `-1`/`0`/`1` | `-1`: leave collision groups alone (default, stock behaviour), `0`: walk through thrown grenades, `1`: engine default group |
 | `mp_players_nonsolid_time` | `0` | seconds | Spawn/respawn non-solid window (`0` = off, stock) |
 | `mp_teammates_are_enemies` | `0` | `0`/`1` | Teammates are valid targets (stock: no) |
 

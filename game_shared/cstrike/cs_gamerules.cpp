@@ -516,11 +516,11 @@ ConVar mp_halftime(
 // ---------------------------------------------------------------------------------------------------
 // Collision control. Ported from CS:GO's mp_solid_teammates, generalised to one switch for every
 // player plus the equivalent switches for hostages and thrown grenades. Server side only, never
-// replicated. Hostages and grenades default to 1, which is stock Counter-Strike: Source behaviour
-// (everything blocks). mp_solid_player defaults to -1, which never writes a player's collision
-// group: the stock group the engine assigns at spawn stays, so the behaviour is still stock, and a
-// plugin is free to put an individual player in any group it likes. A collision group belongs to
-// the entity, so a player cannot be non-solid to teammates
+// replicated. Every switch defaults to -1, which never writes a collision group at all: the group
+// the engine assigns stays, so the behaviour is stock, and a plugin is free to put an individual
+// player, hostage or grenade in any group it likes. 0 makes the entity non-solid, 1 restores the
+// engine's own group. A collision group belongs to the entity, so a player cannot be non-solid to
+// teammates
 // only without the stock client pushing him out of the body it still predicts: there is one
 // player switch, not one per team.
 // ---------------------------------------------------------------------------------------------------
@@ -534,15 +534,19 @@ ConVar mp_solid_player(
 
 ConVar mp_solid_hostages(
 	"mp_solid_hostages",
-	"1",
+	"-1",
 	FCVAR_NOTIFY,
-	"Whether hostages block player movement (0 = walk through hostages)" );
+	"Whether hostages block player movement (-1 = never touch collision groups, 0 = walk through hostages, 1 = engine default)",
+	true, -1,
+	true, 1 );
 
 ConVar mp_solid_grenades(
 	"mp_solid_grenades",
-	"1",
+	"-1",
 	FCVAR_NOTIFY,
-	"Whether thrown grenade projectiles block player movement (0 = walk through them)" );
+	"Whether thrown grenade projectiles block player movement (-1 = never touch collision groups, 0 = walk through them, 1 = engine default)",
+	true, -1,
+	true, 1 );
 
 ConVar mp_teammates_are_enemies(
 	"mp_teammates_are_enemies",

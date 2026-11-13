@@ -100,6 +100,7 @@ CHostage::CHostage()
 	m_PlayerAnimState = CreateHostageAnimState( this, this, LEGANIM_8WAY, false );
 	UseClientSideAnimation();
 	SetBloodColor( BLOOD_COLOR_RED );
+	m_nSolidHostagesApplied = -2;
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -139,8 +140,15 @@ void CHostage::Spawn( void )
 	SetMoveType( MOVETYPE_STEP );
 
 	// mp_solid_hostages 0: put the hostage in the debris group, which neither player movement nor
-	// the prop push-away looks at, so players walk through it without shoving it around.
-	SetCollisionGroup( mp_solid_hostages.GetBool() ? COLLISION_GROUP_PLAYER : COLLISION_GROUP_DEBRIS_TRIGGER );
+	// the prop push-away looks at, so players walk through it without shoving it around. 1 puts the
+	// engine's own group back, which is COLLISION_GROUP_NONE and not COLLISION_GROUP_PLAYER, and -1
+	// (the default) leaves the group alone so a plugin owns it.
+	const int nSolidHostages = mp_solid_hostages.GetInt();
+
+	if ( nSolidHostages >= 0 )
+	{
+		SetCollisionGroup( ( nSolidHostages == 0 ) ? COLLISION_GROUP_DEBRIS_TRIGGER : COLLISION_GROUP_NONE );
+	}
 
 	SetGravity( 1.0 );
 
@@ -723,14 +731,30 @@ void CHostage::HostageThink( void )
 
 	AvoidPhysicsProps();
 
-	// mp_solid_hostages can be changed at runtime, and the group belongs to the entity.
+	// mp_solid_hostages can be changed at runtime, and the group belongs to the entity. -1 (the
+	// default) never writes it: the stock group stays and a plugin owns the field. 0 is the
+	// non-solid group, 1 puts the engine's own group (COLLISION_GROUP_NONE) back.
 	{
-		const int nGroup = mp_solid_hostages.GetBool() ? COLLISION_GROUP_PLAYER : COLLISION_GROUP_DEBRIS_TRIGGER;
+		const int nSolidHostages = mp_solid_hostages.GetInt();
 
-		if ( GetCollisionGroup() != nGroup )
+		if ( nSolidHostages >= 0 )
 		{
-			SetCollisionGroup( nGroup );
+			const int nGroup = ( nSolidHostages == 0 ) ? COLLISION_GROUP_DEBRIS_TRIGGER : COLLISION_GROUP_NONE;
+
+			if ( GetCollisionGroup() != nGroup )
+			{
+				SetCollisionGroup( nGroup );
+			}
 		}
+		else if ( m_nSolidHostagesApplied == 0 && GetCollisionGroup() == COLLISION_GROUP_DEBRIS_TRIGGER )
+		{
+			// Switching from 0 to -1: hand the hostage back on the engine's group once, and only
+			// while it is still this build's non-solid group, so a plugin's group is never
+			// overwritten.
+			SetCollisionGroup( COLLISION_GROUP_NONE );
+		}
+
+		m_nSolidHostagesApplied = nSolidHostages;
 	}
 
 	// update hostage velocity in the XY plane
@@ -1208,12 +1232,13 @@ unsigned int CHostage::PhysicsSolidMaskForEntity() const
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: mp_solid_hostages. Hostages are COLLISION_GROUP_PLAYER + SOLID_BBOX, so player
-//			movement traces reach this entity; refusing PLAYER_MOVEMENT lets players walk through.
+// Purpose: mp_solid_hostages. A hostage is SOLID_BBOX, so player movement traces reach this
+//			entity; refusing PLAYER_MOVEMENT lets players walk through. Only 0 refuses: -1 leaves
+//			the whole decision to the entity's own collision group.
 //-----------------------------------------------------------------------------
 bool CHostage::ShouldCollide( int collisionGroup, int contentsMask ) const
 {
-	if ( collisionGroup == COLLISION_GROUP_PLAYER_MOVEMENT && !mp_solid_hostages.GetBool() )
+	if ( collisionGroup == COLLISION_GROUP_PLAYER_MOVEMENT && mp_solid_hostages.GetInt() == 0 )
 		return false;
 
 	return BaseClass::ShouldCollide( collisionGroup, contentsMask );
