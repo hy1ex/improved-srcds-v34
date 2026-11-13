@@ -92,6 +92,8 @@ Source game. For each feature it records:
 | `mp_c4_cannot_be_defused` | `0` | [13. C4 rules](#13-c4-rules) | 1 = a planted bomb cannot be defused |
 | `mp_plant_c4_anywhere` | `0` | [13. C4 rules](#13-c4-rules) | 1 = plant outside a bomb target |
 
+| `mp_disconnect_kills_players` | `0` | [14. Disconnect kills](#14-disconnect-kills) | 1 = kill a living player when he disconnects |
+| `mp_disconnect_kills_bots` | `0` | [14. Disconnect kills](#14-disconnect-kills) | 1 = do the same for bots; needs the switch above |
 ## Command index
 
 | Command | Feature | Notes |
@@ -1185,3 +1187,44 @@ from the same code that runs inside a zone.
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (all three convars),
 `game_shared/cstrike/weapon_c4.cpp` (`CC4::PrimaryAttack`, `CPlantedC4::Use`),
 `dlls/cstrike/cs_player.cpp` (`Weapon_CanUse`).
+
+
+# 14. Disconnect kills
+
+**Origin:** CS:GO `game/shared/cstrike15/cs_gamerules.cpp` — convar definitions at lines 1957 and
+1963, use in `CCSGameRules::ClientDisconnected()` at lines 6937-6952.
+
+**Why:** a player who disconnects while alive is removed from the world without dying: nothing drops,
+the kill feed and the stats never see the death, and a round can be left with a player who simply
+evaporated. CS:GO kills the player first so every system sees an ordinary death, and two switches
+control whether that happens for players and for bots.
+
+**What it does.**
+
+* `mp_disconnect_kills_players` — `0` (default) is stock: `CCSGameRules::ClientDisconnected()` calls
+  the base class and the player is removed without a death. `1` kills a living player before the base
+  class runs, with the same self-inflicted, zero damage, `DMG_NEVERGIB` hit CS:GO builds
+  (`CTakeDamageInfo info( pPlayer, pPlayer, 0.0f, DMG_NEVERGIB )`), so `CCSPlayer::Event_Killed()`
+  runs the ordinary death path: weapons drop under the `mp_death_drop_*` rules, the ragdoll and the
+  kill feed record the death, and a pending `mp_respawn_on_death_*` respawn is discarded together with
+  the client.
+* `mp_disconnect_kills_bots` — `0` (default) is stock: bots are never killed for this. `1` applies the
+  same kill to bots and only has an effect while `mp_disconnect_kills_players` is on, exactly as
+  CS:GO documents it.
+
+CS:GO defaults to `1` and `0`; both default to `0` here because stock Counter-Strike: Source does not
+kill on disconnect (rule 3). A server that wants CS:GO's behaviour sets
+`mp_disconnect_kills_players 1`.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_disconnect_kills_players` | `0` | `0`/`1` | Kill a living player when he disconnects (`0` = stock removal) |
+| `mp_disconnect_kills_bots` | `0` | `0`/`1` | Kill a bot when it disconnects; needs `mp_disconnect_kills_players` |
+
+**Client compatibility.** Server-side only: the death is an ordinary one, so the client's existing
+death camera, ragdoll, kill feed and scoreboard need no new message.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (both convars,
+`CCSGameRules::ClientDisconnected`).

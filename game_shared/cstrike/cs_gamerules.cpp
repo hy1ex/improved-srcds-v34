@@ -954,6 +954,26 @@ ConVar cl_autohelp(
 		true, 0,
 		false, 0 );
 
+	// Disconnect handling (CS:GO cs_gamerules.cpp:1957 and :1963). CS:GO kills a living player
+	// before the disconnect completes so the death drops, the kill feed and the stats all happen as
+	// they would for any other death. Both default to 0, which is stock CS:S: a disconnect removes
+	// the player without a kill.
+	ConVar mp_disconnect_kills_players(
+		"mp_disconnect_kills_players",
+		"0",
+		FCVAR_NOTIFY,
+		"When a player disconnects, kill them first (triggering item drops, stats, etc.)",
+		true, 0,
+		true, 1 );
+
+	ConVar mp_disconnect_kills_bots(
+		"mp_disconnect_kills_bots",
+		"0",
+		FCVAR_NOTIFY,
+		"When a bot disconnects, kill them first. Requires mp_disconnect_kills_players.",
+		true, 0,
+		true, 1 );
+
 	// Deathmatch kill scoring (CS:GO cs_gamerules.cpp:2346 and :18728). CS:GO has no switch for it
 	// because its game mode decides; there is no game mode here, so mp_dm_scoring is that switch and
 	// defaults to off, which keeps stock Counter-Strike: Source scoring.
@@ -2295,6 +2315,24 @@ ConVar cl_autohelp(
 	
 	void CCSGameRules::ClientDisconnected( edict_t *pClient )
 	{
+		// mp_disconnect_kills_players / mp_disconnect_kills_bots: kill the player while the entity is
+		// still valid, exactly as CS:GO does before calling the base class (cs_gamerules.cpp:6937).
+		// The killing blow is a self-inflicted 0 damage hit, so the normal death path runs: weapons
+		// drop, the kill feed shows the death and mp_respawn_on_death schedules a respawn that the
+		// engine discards when the client is gone.
+		if ( mp_disconnect_kills_players.GetBool() )
+		{
+			CCSPlayer *pPlayer = ToCSPlayer( GetContainingEntity( pClient ) );
+
+			if ( pPlayer && pPlayer->IsAlive() && ( mp_disconnect_kills_bots.GetBool() || !pPlayer->IsBot() ) )
+			{
+				CTakeDamageInfo info( pPlayer, pPlayer, 0.0f, DMG_NEVERGIB );
+
+				pPlayer->SetHealth( 0 );
+				pPlayer->Event_Killed( info );
+			}
+		}
+
 		BaseClass::ClientDisconnected( pClient );
 
 		CheckWinConditions();
