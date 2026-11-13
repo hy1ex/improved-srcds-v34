@@ -675,6 +675,16 @@ ConVar mp_playercashawards(
 	FCVAR_NOTIFY,
 	"Whether players earn individual cash rewards such as kill awards (default: yes, stock CS:S)" );
 
+// mp_give_player_c4 (CS:GO cs_gamerules.cpp:2442, checked at :9652). CS:S always hands the bomb out on
+// a bomb map; this lets a server play those maps without the objective.
+ConVar mp_give_player_c4(
+	"mp_give_player_c4",
+	"1",
+	FCVAR_NOTIFY,
+	"Whether the map should give a player the C4 at round start (1 = stock, 0 = no bomb)",
+	true, 0,
+	true, 1 );
+
 ConVar mp_teamcashawards(
 	"mp_teamcashawards",
 	"1",
@@ -3558,6 +3568,10 @@ ConVar cl_autohelp(
 
 	void CCSGameRules::GiveC4()
 	{
+		// mp_give_player_c4: CS:GO's switch for maps that should not spawn the bomb for a player.
+		if ( !mp_give_player_c4.GetBool() )
+			return;
+
 		enum {
 			ALL_TERRORISTS = 0,
 			HUMAN_TERRORISTS,
