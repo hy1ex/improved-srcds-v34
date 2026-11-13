@@ -47,6 +47,7 @@ extern ConVar mp_buy_anywhere;
 extern ConVar mp_buy_during_immunity;
 extern ConVar mp_free_armor;
 extern ConVar mp_solid_player;
+extern ConVar mp_anyone_can_pickup_c4;
 extern ConVar mp_teammates_are_enemies;
 extern ConVar mp_players_nonsolid_time;
 extern ConVar mp_maxmoney;
@@ -5808,8 +5809,10 @@ bool CCSPlayer::Weapon_CanUse( CBaseCombatWeapon *pBaseWeapon )
 
 	if ( pWeapon )
 	{
-		// Don't give weapon_c4 to non-terrorists
-		if( pWeapon->GetCSWpnData().m_WeaponType == WEAPONTYPE_C4 && GetTeamNumber() != TEAM_TERRORIST )
+		// Don't give weapon_c4 to non-terrorists, unless mp_anyone_can_pickup_c4 turns that off.
+		// CS:GO cs_weapon_c4.cpp:175 is the same exception.
+		if( pWeapon->GetCSWpnData().m_WeaponType == WEAPONTYPE_C4 &&
+			GetTeamNumber() != TEAM_TERRORIST && !mp_anyone_can_pickup_c4.GetBool() )
 		{
 			return false;
 		}

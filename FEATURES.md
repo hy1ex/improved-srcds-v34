@@ -87,6 +87,9 @@ Source game. For each feature it records:
 | `mp_hostages_rescuetowin` | `0` | [12. Hostage rescue rules](#12-hostage-rescue-rules) | rescues needed to win; 0 = every surviving hostage |
 | `mp_hostages_run_speed_modifier` | `1.0` | [12. Hostage rescue rules](#12-hostage-rescue-rules) | movement force scale for a following hostage |
 | `mp_only_cts_rescue_hostages` | `1` | [12. Hostage rescue rules](#12-hostage-rescue-rules) | 0 = Terrorists may take a hostage too |
+| `mp_anyone_can_pickup_c4` | `0` | [13. C4 rules](#13-c4-rules) | 1 = any team may pick the bomb up |
+| `mp_c4_cannot_be_defused` | `0` | [13. C4 rules](#13-c4-rules) | 1 = a planted bomb cannot be defused |
+| `mp_plant_c4_anywhere` | `0` | [13. C4 rules](#13-c4-rules) | 1 = plant outside a bomb target |
 
 ## Command index
 
@@ -1125,3 +1128,51 @@ still appears when the switch is on.
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (all six convars,
 `HostageRescueRoundEndCheck`, `PruneMapHostages`), `dlls/cstrike/hostage/cs_simple_hostage.cpp`
 (`OnTakeDamage_Alive`, `HostageUse`, `TrackPath`).
+
+# 13. C4 rules
+
+**Origin:** CS:GO `game/shared/cstrike15/weapon_c4.cpp` (`mp_plant_c4_anywhere`, line 57;
+`mp_anyone_can_pickup_c4` and `mp_c4_cannot_be_defused` uses at lines 175, 495 and 1015) and
+`game/shared/cstrike15/cs_gamerules.cpp` (the two convar definitions, lines 1909 and 1915).
+
+**Why:** the bomb is the whole objective on a de_ map, and on a server that plays those maps as
+deathmatch or as a warm-up the stock rules get in the way: the bomb is dead weight to a CT, a single
+CT can undo a plant, and a plant is impossible outside the two painted zones. Each of those is a
+CS:GO switch, so each is one here, and all three default to stock.
+
+**What it does.**
+
+* `mp_anyone_can_pickup_c4` — `0` (default) is stock: `CCSPlayer::Weapon_CanUse()` refuses `weapon_c4`
+  for anybody but a Terrorist. `1` lets any player pick the dropped bomb up, which is CS:GO's
+  exception at `weapon_c4.cpp:175`. Nothing else changes: the bomb is still given to a Terrorist at
+  round start, and the CT who picks it up gets an ordinary weapon slot that he loses when the round
+  restarts.
+* `mp_c4_cannot_be_defused` — `0` (default) is stock. `1` refuses every defuse attempt in
+  `CPlantedC4::Use()` before the progress bar, the `bomb_begindefuse` event and the freeze in place,
+  so once the bomb is down the round can only end in the explosion. CS:GO checks the same switch in
+  `CanDefuse()` (`weapon_c4.cpp:1015`). A CT pressing USE gets no message, exactly as in CS:GO: the
+  bar simply never appears.
+* `mp_plant_c4_anywhere` — `0` (default) is stock, planting inside a `func_bomb_target` only. `1`
+  replaces every `m_bInBombZone` test in `CC4::PrimaryAttack()` with "in a bomb zone *or* the switch
+  is on" (CS:GO `weapon_c4.cpp:1666`), so the plant can start and complete anywhere the player is
+  standing on solid ground. The two stock refusals stay: standing on a player, a pushable prop or a
+  breakable still aborts the arm, and `#C4_Plant_Must_Be_On_Ground` is still printed. The plant event
+  carries whatever bomb site index the player last stood in, which is `-1` outside a zone.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_anyone_can_pickup_c4` | `0` | `0`/`1` | Any team may pick the C4 up (`0` = Terrorists only, stock) |
+| `mp_c4_cannot_be_defused` | `0` | `0`/`1` | A planted C4 cannot be defused by anyone (`0` = stock) |
+| `mp_plant_c4_anywhere` | `0` | `0`/`1` | The C4 may be planted outside a bomb target (`0` = stock) |
+
+**Client compatibility.** All three are server-side rules. The bomb's own networked state
+(`m_flC4Blow`, `m_flDefuseLength`, `m_flDefuseCountDown`) is untouched, so the planted-bomb HUD and
+the beeping stay correct; with `mp_c4_cannot_be_defused` the defuse countdown is simply never
+started, and with `mp_plant_c4_anywhere` the plant animation, beeps and `bomb_planted` event all run
+from the same code that runs inside a zone.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (all three convars),
+`game_shared/cstrike/weapon_c4.cpp` (`CC4::PrimaryAttack`, `CPlantedC4::Use`),
+`dlls/cstrike/cs_player.cpp` (`Weapon_CanUse`).

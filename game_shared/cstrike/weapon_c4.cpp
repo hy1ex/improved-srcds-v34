@@ -14,6 +14,11 @@
 #include "fx_cs_shared.h"
 #include "obstacle_pushaway.h"
 
+#ifndef CLIENT_DLL
+extern ConVar mp_plant_c4_anywhere;
+extern ConVar mp_c4_cannot_be_defused;
+#endif
+
 #if defined( CLIENT_DLL )
 	#include "c_cs_player.h"
 #else
@@ -559,6 +564,11 @@ END_PREDICTION_DATA()
 		if ( !player || player->GetTeamNumber() != TEAM_CT )
 		 	return;
 
+		// mp_c4_cannot_be_defused: CS:GO cs_weapon_c4.cpp:1015 refuses the defuse outright, so the
+		// progress bar never starts for anyone.
+		if ( mp_c4_cannot_be_defused.GetBool() )
+			return;
+
 		if ( m_bStartDefuse )
 		{
 			if ( player != m_pBombDefuser )
@@ -803,6 +813,10 @@ void CC4::PrimaryAttack()
 
 	int onGround = FBitSet( pPlayer->GetFlags(), FL_ONGROUND );
 	CBaseEntity *groundEntity = (onGround) ? pPlayer->GetGroundEntity() : NULL;
+
+	// mp_plant_c4_anywhere: CS:GO cs_weapon_c4.cpp:1666 allows the plant outside a func_bomb_target.
+	const bool bCanPlantHere = pPlayer->m_bInBombZone || mp_plant_c4_anywhere.GetBool();
+
 	if ( groundEntity )
 	{
 		// Don't let us stand on players, breakables, or pushaway physics objects to plant
@@ -819,7 +833,7 @@ void CC4::PrimaryAttack()
 
 	if( m_bStartedArming == false && m_bBombPlanted == false )
 	{
-		if( pPlayer->m_bInBombZone && onGround )
+		if( bCanPlantHere && onGround )
 		{
 			m_bStartedArming = true;
 			m_fArmedTime = gpGlobals->curtime + WEAPON_C4_ARM_TIME;
@@ -856,7 +870,7 @@ void CC4::PrimaryAttack()
 		}
 		else
 		{
-			if ( !pPlayer->m_bInBombZone )
+			if ( !bCanPlantHere )
 			{
 				ClientPrint( pPlayer, HUD_PRINTCENTER, "#C4_Plant_At_Bomb_Spot");
 			}
@@ -871,9 +885,9 @@ void CC4::PrimaryAttack()
 	}
 	else
 	{
-		if ( !onGround || !pPlayer->m_bInBombZone )
+		if ( !onGround || !bCanPlantHere )
 		{
-			if( !pPlayer->m_bInBombZone )
+			if( !bCanPlantHere )
 			{
 				ClientPrint( pPlayer, HUD_PRINTCENTER, "#C4_Arming_Cancelled" );
 			}
@@ -945,7 +959,7 @@ void CC4::PrimaryAttack()
 		m_bStartedArming = false;
 		m_fArmedTime = 0;
 		
-		if( pPlayer->m_bInBombZone )
+		if( bCanPlantHere )
 		{
 #if !defined( CLIENT_DLL )
 

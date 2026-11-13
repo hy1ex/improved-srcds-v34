@@ -605,6 +605,30 @@ ConVar mp_hostages_spawn_farthest(
 	"When limiting hostages, keep the set that is spread out furthest across the map instead of the first ones" );
 
 // ---------------------------------------------------------------------------------------------------
+// C4 rules. Ported from CS:GO's mp_anyone_can_pickup_c4, mp_c4_cannot_be_defused and
+// mp_plant_c4_anywhere. Server side only and every default is stock Counter-Strike: Source: only a
+// Terrorist may pick the bomb up, anyone can defuse it once planted, and it can only be planted
+// inside a func_bomb_target.
+// ---------------------------------------------------------------------------------------------------
+ConVar mp_anyone_can_pickup_c4(
+	"mp_anyone_can_pickup_c4",
+	"0",
+	FCVAR_NOTIFY,
+	"Any player may pick up the dropped C4, not only a Terrorist (0 = stock)" );
+
+ConVar mp_c4_cannot_be_defused(
+	"mp_c4_cannot_be_defused",
+	"0",
+	FCVAR_NOTIFY,
+	"Once planted, the C4 cannot be defused by anyone (0 = stock, CTs can defuse)" );
+
+ConVar mp_plant_c4_anywhere(
+	"mp_plant_c4_anywhere",
+	"0",
+	FCVAR_NOTIFY,
+	"The C4 may be planted outside a bomb target (0 = stock, bomb zones only)" );
+
+// ---------------------------------------------------------------------------------------------------
 // Economy control. Ported from CS:GO's mp_maxmoney / mp_afterroundmoney / mp_playercashawards /
 // mp_teamcashawards. Server side only, never replicated. Defaults are the stock CS:S numbers, so a
 // server that does not touch them behaves exactly like stock.
