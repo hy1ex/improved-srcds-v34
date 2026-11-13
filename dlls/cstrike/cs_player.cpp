@@ -126,6 +126,12 @@ ConVar mp_drop_knife_enable( "mp_drop_knife_enable", "0", FCVAR_NOTIFY, "Allows 
 // round, so the ordinary drop throws it whole.
 ConVar mp_drop_grenade_enable( "mp_drop_grenade_enable", "0", FCVAR_NOTIFY, "Allows players to drop grenades.", true, 0, true, 1 );
 
+// mp_tagging_scale (CS:GO cs_player.cpp:5884, applied at :6305). CS:GO scales the stacked flinch
+// modifier that turns into the victim's speed factor; CS:S has no stack, only two fixed multipliers,
+// so this scales how far below 1.0 they push the player instead. 1.0 is the stock amount, 0 means a
+// hit never slows the player down, values above 1 slow him down more.
+ConVar mp_tagging_scale( "mp_tagging_scale", "1.0", FCVAR_NOTIFY, "Scalar for the movement slow applied when a player is hit. 1.0 = stock, lower = less tagging.", true, 0.0f, true, 2.0f );
+
 static ConVar cs_enable_player_physics_box( "cs_enable_player_physics_box", "1", FCVAR_NONE );
 
 ConVar bot_mimic( "bot_mimic", "0", FCVAR_CHEAT );
@@ -1658,16 +1664,20 @@ int CCSPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 			}
 		}
 
+		// mp_tagging_scale: scale the depth of the slow around the stock factors above, so 1.0 is
+		// exactly the old 0.65 / 0.5 and 0 leaves the player at full speed.
+		const float flTaggingScale = mp_tagging_scale.GetFloat();
+
 		if ( ShouldDoLargeFlinch( m_LastHitGroup, info.GetAttacker() ) )
 		{
 			if ( GetAbsVelocity().Length() < 300 )
 			{
-				m_flVelocityModifier = 0.65;
+				m_flVelocityModifier = 1.0f - ( 1.0f - 0.65f ) * flTaggingScale;
 			}
 		}
 		else
 		{
-			m_flVelocityModifier = 0.5;
+			m_flVelocityModifier = 1.0f - ( 1.0f - 0.5f ) * flTaggingScale;
 		}
 
 		CCSPlayer *pPlayer = ToCSPlayer( info.GetAttacker() );

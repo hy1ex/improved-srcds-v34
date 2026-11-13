@@ -98,6 +98,7 @@ Source game. For each feature it records:
 | `mp_disconnect_kills_bots` | `0` | [14. Disconnect kills](#14-disconnect-kills) | 1 = do the same for bots; needs the switch above |
 | `mp_drop_knife_enable` | `0` | [15. Knife drop](#15-knife-drop) | 1 = the `drop` command may drop the knife |
 | `mp_drop_grenade_enable` | `0` | [17. Grenade drop](#17-grenade-drop) | 1 = the `drop` command may drop a grenade |
+| `mp_tagging_scale` | `1.0` | [18. Tagging scale](#18-tagging-scale-adapted) | scales how hard a hit slows the victim; 1.0 = stock |
 | `mp_weapon_prev_owner_touch_time` | `0.8` | [16. Weapon pickup timing](#16-weapon-pickup-timing) | seconds before the dropper may take his weapon back |
 | `mp_weapon_next_owner_touch_time` | `0` | [16. Weapon pickup timing](#16-weapon-pickup-timing) | seconds before anybody may pick a dropped weapon up |
 ## Command index
@@ -1344,3 +1345,41 @@ model, and the ordinary pickup path (which the death drop already feeds) handles
 sent.
 
 **Files:** `dlls/cstrike/cs_player.cpp` (convar and the `drop` branch of `ClientCommand`).
+
+
+# 18. Tagging scale (adapted)
+
+**Origin:** CS:GO `game/server/cstrike15/cs_player.cpp` — `mp_tagging_scale` at line 5884, applied to
+the flinch modifier at line 6305.
+
+**This one is an adaptation, not a faithful port.** CS:GO builds a *flinch stack*: every hit adds an
+amount derived from damage, the stack decays over time in `Think`, the result is scaled by a factor
+derived from the held weapon's max speed and then capped, and that final value scales the victim's
+max speed. `mp_tagging_scale` multiplies that modifier, which is why CS:GO documents it as "lower
+values for greater tagging". Counter-Strike: Source has none of that machinery: it has one networked
+0-1 float, `m_flVelocityModifier`, set to `0.65` or `0.5` when a hit lands, decaying back to `1.0` in
+`CCSGameMovement` and multiplying the player's max speed.
+
+**What it does here.** `1.0` (default) is exactly stock: both factors are used unchanged. The slow is
+scaled around those stock factors (`1.0 - ( 1.0 - stock ) * scale`), so `0` means a hit never slows
+the victim at all, `0.5` halves the slow, and values above `1.0` (up to the convar's maximum of `2.0`)
+slow him down more. The decay rate, the large-flinch hit groups and the 300 units/second velocity
+gate are untouched, and nothing about it is per-weapon: CS:S has no weapon-derived tagging scaler to
+hook.
+
+Because the underlying model differs, intermediate values do not reproduce CS:GO's feel — only `1.0`
+is exact, and `0` is a clean "no tagging". Treat it as a tuning knob for movement, not as a port of
+CS:GO's tagging.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_tagging_scale` | `1.0` | `0`-`2` | Scale on how much a hit reduces the victim's speed (`1.0` = stock) |
+
+**Client compatibility.** Server-side: `m_flVelocityModifier` is a stock networked prop that the
+client's movement prediction already reads, so a scaled value predicts exactly like the stock one and
+nothing new is sent.
+
+**Files:** `dlls/cstrike/cs_player.cpp` (convar and the two assignments in
+`CCSPlayer::OnTakeDamage_Alive`).
