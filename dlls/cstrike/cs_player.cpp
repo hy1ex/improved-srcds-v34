@@ -133,6 +133,14 @@ ConVar mp_drop_grenade_enable( "mp_drop_grenade_enable", "0", FCVAR_NOTIFY, "All
 // hit never slows the player down, values above 1 slow him down more.
 ConVar mp_tagging_scale( "mp_tagging_scale", "1.0", FCVAR_NOTIFY, "Scalar for the movement slow applied when a player is hit. 1.0 = stock, lower = less tagging.", true, 0.0f, true, 2.0f );
 
+// ff_damage_reduction_* (CS:GO cs_player_shared.cpp:79-82, applied at cs_player.cpp:6093-6117). CS:S
+// scales every non-blast wound from a teammate by 0.35 and leaves blast damage untouched, so the
+// defaults below reproduce exactly that; CS:GO's own defaults are 0.1 / 0.25 / 1 / 0.25.
+ConVar ff_damage_reduction_bullets( "ff_damage_reduction_bullets", "0.35", FCVAR_NOTIFY, "How much damage a bullet does to a teammate (1 = as much as to an enemy, stock: 0.35)", true, 0.0f, true, 1.0f );
+ConVar ff_damage_reduction_grenade( "ff_damage_reduction_grenade", "1.0", FCVAR_NOTIFY, "How much damage a thrown grenade does to a teammate (1 = as much as to an enemy, stock: 1.0)", true, 0.0f, true, 1.0f );
+ConVar ff_damage_reduction_grenade_self( "ff_damage_reduction_grenade_self", "1.0", FCVAR_NOTIFY, "How much damage a player does to himself with his own grenade (1 = full, stock: 1.0)", true, 0.0f, true, 1.0f );
+ConVar ff_damage_reduction_other( "ff_damage_reduction_other", "0.35", FCVAR_NOTIFY, "How much everything else (knife, fire, world) does to a teammate (1 = as much as to an enemy, stock: 0.35)", true, 0.0f, true, 1.0f );
+
 static ConVar cs_enable_player_physics_box( "cs_enable_player_physics_box", "1", FCVAR_NONE );
 
 ConVar bot_mimic( "bot_mimic", "0", FCVAR_CHEAT );
@@ -1657,12 +1665,25 @@ int CCSPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 	{
 		// mp_teammates_are_enemies: a teammate is a valid target, so no team-attack damage
 		// mitigation either. Bullets and knives do full damage to a teammate in that mode.
-		if ( bFriendlyFire && !mp_teammates_are_enemies.GetBool() && (info.GetDamageType() & DMG_BLAST) == 0 )
+		// ff_damage_reduction_*: CS:GO picks the reduction by damage type and by whether the wound was
+		// self-inflicted or from a teammate (cs_player.cpp:6093-6117). The defaults keep the stock CS:S
+		// behaviour, where a teammate's non-blast damage is scaled by 0.35 and blast damage is not scaled.
+		const bool bBlastDamage = ( info.GetDamageType() & DMG_BLAST ) != 0;
+		const bool bFromSelf = ( info.GetAttacker() == this ) || ( pInflictor == this );
+		const bool bFromTeammate = ( pInflictor->GetTeamNumber() == GetTeamNumber() ) && !bFromSelf;
+
+		if ( bFromSelf && bBlastDamage )
 		{
-			if ( pInflictor->GetTeamNumber() == GetTeamNumber() )
-			{
-				flDamage *= 0.35; // bullets hurt teammates less
-			}
+			flDamage *= ff_damage_reduction_grenade_self.GetFloat();
+		}
+		else if ( bFriendlyFire && !mp_teammates_are_enemies.GetBool() && bFromTeammate )
+		{
+			if ( ( info.GetDamageType() & DMG_BULLET ) != 0 )
+				flDamage *= ff_damage_reduction_bullets.GetFloat();
+			else if ( bBlastDamage )
+				flDamage *= ff_damage_reduction_grenade.GetFloat();
+			else
+				flDamage *= ff_damage_reduction_other.GetFloat();
 		}
 
 		// mp_tagging_scale: scale the depth of the slow around the stock factors above, so 1.0 is
