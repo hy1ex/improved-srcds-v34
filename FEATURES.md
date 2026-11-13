@@ -94,6 +94,9 @@ Source game. For each feature it records:
 
 | `mp_disconnect_kills_players` | `0` | [14. Disconnect kills](#14-disconnect-kills) | 1 = kill a living player when he disconnects |
 | `mp_disconnect_kills_bots` | `0` | [14. Disconnect kills](#14-disconnect-kills) | 1 = do the same for bots; needs the switch above |
+| `mp_drop_knife_enable` | `0` | [15. Knife drop](#15-knife-drop) | 1 = the `drop` command may drop the knife |
+| `mp_weapon_prev_owner_touch_time` | `0.8` | [16. Weapon pickup timing](#16-weapon-pickup-timing) | seconds before the dropper may take his weapon back |
+| `mp_weapon_next_owner_touch_time` | `0` | [16. Weapon pickup timing](#16-weapon-pickup-timing) | seconds before anybody may pick a dropped weapon up |
 ## Command index
 
 | Command | Feature | Notes |
@@ -1228,3 +1231,66 @@ death camera, ragdoll, kill feed and scoreboard need no new message.
 
 **Files:** `game_shared/cstrike/cs_gamerules.cpp` (both convars,
 `CCSGameRules::ClientDisconnected`).
+
+
+# 15. Knife drop
+
+**Origin:** CS:GO `game/server/cstrike15/cs_player.cpp` (convar at line 214, use in the `drop`
+command at line 14451) and `game/shared/cstrike15/weapon_knife.cpp` (`CKnife::CanDrop()` at line 640
+always returns false).
+
+**Why:** in stock CS:S pressing the drop key with the knife in hand does nothing, and there is no
+switch to change that. CS:GO keeps the same refusal in the weapon class but lets the `drop` command
+bypass it while a server switch is on.
+
+**What it does.** `mp_drop_knife_enable 0` (default) is stock: the `drop` command ignores a knife.
+`1` lets the command call `CSWeaponDrop()` on it, so the knife becomes an ordinary world weapon with
+the usual throw velocity and can be picked up again. `CKnife::CanDrop()` stays `false` in both cases,
+so no other path can drop a knife — the command is the one exception, as in CS:GO. The player is left
+with his pistol and primary until he picks the knife back up, which is also CS:GO's behaviour.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_drop_knife_enable` | `0` | `0`/`1` | Allow the `drop` command to drop a knife (`0` = stock refusal) |
+
+**Client compatibility.** Server-side: the knife already has a world model and the ordinary weapon
+pickup path handles a dropped one; nothing is networked.
+
+**Files:** `dlls/cstrike/cs_player.cpp` (convar and the `drop` branch of `ClientCommand`).
+
+
+# 16. Weapon pickup timing
+
+**Origin:** CS:GO `game/shared/cstrike15/weapon_csbase.cpp` — convar definitions at lines 1752-1753
+and the delays set in `CWeaponCSBase::Drop()` at lines 1799-1801.
+
+**Why:** CS:S hardcodes the 0.8 seconds during which a player cannot take back the weapon he just
+dropped, and has no window at all in which a freshly dropped weapon is untouchable for everybody.
+CS:GO exposes both, because a weapon picked up in the same frame it was thrown can leave the client
+with a stale world model.
+
+**What it does.**
+
+* `mp_weapon_prev_owner_touch_time` — default `0.8`, the exact constant the code used in
+  `CWeaponCSBase::Drop()`, so stock behaviour is unchanged. It is read when a weapon is dropped and
+  checked in `DefaultTouch()`; the same value still gates `IsRemoveable()`, so the world weapon
+  manager does not clean up a weapon inside the window. CS:GO's default is `1.5`.
+* `mp_weapon_next_owner_touch_time` — default `0`, stock: anybody may pick a just-dropped weapon up
+  immediately. Above zero, nobody may pick it up for that many seconds, which is the delay CS:GO
+  hardcodes as `0.1` in `CWeaponCSBase::Drop()` and exposes as a convar (default `1.3`, used for its
+  battle royale item drops). `0` stays the default here because that is stock CS:S.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_weapon_prev_owner_touch_time` | `0.8` | seconds, `>= 0` | Delay before the previous owner may pick the weapon up again |
+| `mp_weapon_next_owner_touch_time` | `0` | seconds, `>= 0` | Delay before anybody may pick a just-dropped weapon up |
+
+**Client compatibility.** Server-side: both values are read only on the server's drop and touch path,
+and a dropped weapon is still an ordinary networked weapon.
+
+**Files:** `game_shared/cstrike/weapon_csbase.cpp` (both convars, `CWeaponCSBase::Drop`,
+`CWeaponCSBase::DefaultTouch`), `game_shared/cstrike/weapon_csbase.h` (`m_nextOwnerTouchTime`).

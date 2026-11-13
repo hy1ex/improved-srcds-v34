@@ -116,6 +116,11 @@ const float CycleLatchInterval = 0.2f;
 ConVar cs_ShowStateTransitions( "cs_ShowStateTransitions", "-2", FCVAR_CHEAT, "cs_ShowStateTransitions <ent index or -1 for all>. Show player state transitions." );
 ConVar sv_max_usercmd_future_ticks( "sv_max_usercmd_future_ticks", "8", 0, "Prevents clients from running usercmds too far in the future. Prevents speed hacks." );
 
+// mp_drop_knife_enable (CS:GO cs_player.cpp:214). CS:GO's knife refuses every drop (CKnife::CanDrop()
+// returns false) and the command checks this switch itself (cs_player.cpp:14451), so the same switch
+// here turns the refusal in the "drop" command into a real drop.
+ConVar mp_drop_knife_enable( "mp_drop_knife_enable", "0", FCVAR_NOTIFY, "Allows players to drop knives.", true, 0, true, 1 );
+
 static ConVar cs_enable_player_physics_box( "cs_enable_player_physics_box", "1", FCVAR_NONE );
 
 ConVar bot_mimic( "bot_mimic", "0", FCVAR_CHEAT );
@@ -4700,7 +4705,13 @@ bool CCSPlayer::ClientCommand( const char* command )
 		{
 			CSWeaponType type = pWeapon->GetCSWpnData().m_WeaponType;
 
-			if( type != WEAPONTYPE_KNIFE && type != WEAPONTYPE_GRENADE )
+			if ( type == WEAPONTYPE_KNIFE )
+			{
+				// Stock refuses every knife drop; CS:GO only allows it with mp_drop_knife_enable.
+				if ( mp_drop_knife_enable.GetBool() )
+					CSWeaponDrop( pWeapon, true, true );
+			}
+			else if( type != WEAPONTYPE_GRENADE )
 			{
 				CSWeaponDrop( pWeapon, true, true );
 			}
