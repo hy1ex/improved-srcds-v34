@@ -5150,7 +5150,16 @@ CBaseEntity	*CBasePlayer::GiveNamedItem( const char *pszName, int iSubType )
 
 	if ( pent != NULL && !(pent->IsMarkedForDeletion()) ) 
 	{
+		// A weapon handed straight to the player is not a ground pickup: mark it so pickup rules that
+		// ask for +USE (mp_require_gun_use_to_acquire) do not refuse it.
+		CBaseCombatWeapon *pGivenWeapon = dynamic_cast< CBaseCombatWeapon * >( (CBaseEntity*)pent );
+		if ( pGivenWeapon )
+			pGivenWeapon->SetGivenByGame( true );
+
 		pent->Touch( this );
+
+		if ( pGivenWeapon )
+			pGivenWeapon->SetGivenByGame( false );
 	}
 
 	return pent;

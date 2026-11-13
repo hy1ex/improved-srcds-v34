@@ -904,7 +904,7 @@ void CWeaponCSBase::DefaultTouch(CBaseEntity *pOther)
 	// mp_require_gun_use_to_acquire: walk-over pickup is skipped unless the player is using +USE. This is
 	// a server-side approximation: the engine has no acquire prompt, so holding +USE while touching the
 	// weapon is the whole interaction.
-	if ( mp_require_gun_use_to_acquire.GetBool() )
+	if ( mp_require_gun_use_to_acquire.GetBool() && !IsGivenByGame() )
 	{
 		CCSPlayer *pPlayer = dynamic_cast< CCSPlayer * >( pOther );
 

@@ -1583,7 +1583,10 @@ punch after the stock clamps. Both default to stock (`1.0` / `0`); CS:GO's own d
 
 The accuracy convars are applied in `CSBaseGunFire`, the one function every gun uses to fire:
 `weapon_accuracy_nospread 1` sets the spread to zero, and `weapon_accuracy_forcespread` above `-1`
-overrides it with a fixed value. `sv_turning_inaccuracy_enabled 1` adds spread proportional to how
+overrides it with a fixed value; both are also enforced in `CCSPlayer::FireBullet`, which is where the
+authoritative bullet direction is finally computed, so a weapon that reaches the trace by another path
+still obeys them. Note that recoil is separate: even with zero spread the shot leaves along
+`EyeAngles() + 2 × punchangle`, so use `weapon_recoil_scale 0` for pinpoint fire. `sv_turning_inaccuracy_enabled 1` adds spread proportional to how
 fast the player turned since his previous shot (one unit per 2000 degrees per second). They default to
 `0` / `-1` / `0`, which is stock CS:S.
 
@@ -1626,6 +1629,10 @@ server-side change can get to CS:GO's acquire prompt: the engine has no prompt t
 | --- | --- | --- | --- |
 | `mp_require_gun_use_to_acquire` | `0` | `0`/`1` | Only pick up ground weapons while holding +USE |
 
+A weapon the game hands straight to the player (a buy, a respawn grant, a rebuy) is flagged as given
+while it is being equipped, so the rule never throws a weapon the player just received onto the floor;
+only weapons lying in the world need +USE.
+
 **Client compatibility.** `m_nButtons` is the stock usercmd button state the client already sends, so
 the server sees +USE without any client change.
 
@@ -1642,6 +1649,9 @@ other grenade type, and therefore four grenades in total.
 **What it does here.** The three limits are convars, checked in `CCSPlayer::BuyWeapon` for every buy
 path (menu, aliases, autobuy, bots). The defaults are the stock values, so nothing changes until an
 operator edits them; the total limit is checked against the ammo of every grenade the player carries.
+The same convars also replace the fixed ammo-table cap in `CCSPlayer::AddPlayerItem`, so raising a
+limit really lets the player hold the extra grenades instead of dropping them on the floor. The client
+HUD still draws its own stock maximum for a grenade slot, which a server cannot change.
 
 **Convars**
 

@@ -42,6 +42,7 @@ CBaseCombatWeapon::CBaseCombatWeapon()
 	m_fMaxRange2		= 1024;
 
 	m_bReloadsSingly	= false;
+	m_bGivenByGame		= false;
 
 	// Defaults to zero
 	m_nViewModelIndex	= 0;

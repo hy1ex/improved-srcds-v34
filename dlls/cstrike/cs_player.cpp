@@ -6052,6 +6052,13 @@ bool CCSPlayer::BumpWeapon( CBaseCombatWeapon *pBaseWeapon )
 			}
 			maxGrenades = GetAmmoDef()->MaxCarry(ammoIndex);
 
+			// ammo_grenade_limit_*: the inventory cap has to be the convar, otherwise a buy limit raised
+			// above the fixed ammo table value lets a player buy grenades he then cannot hold, and they
+			// end up on the floor.
+			const char *pszGrenadeName = pOwnedGrenade->GetClassname();
+			maxGrenades = Q_strstr( pszGrenadeName, "flashbang" ) ?
+				ammo_grenade_limit_flashbang.GetInt() : ammo_grenade_limit_default.GetInt();
+
 			if( numGrenades >= maxGrenades )
 			{
 				return false;

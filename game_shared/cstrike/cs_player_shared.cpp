@@ -281,6 +281,13 @@ inline void UTIL_TraceLineIgnoreTwoEntities( const Vector& vecAbsStart, const Ve
 	}
 }
 
+#ifndef CLIENT_DLL
+// Defined in weapon_csbasegun.cpp. Applied here as well because FireBullet is the last place every
+// bullet's direction is chosen, so a weapon that reaches the trace by another path still obeys them.
+extern ConVar weapon_accuracy_nospread;
+extern ConVar weapon_accuracy_forcespread;
+#endif
+
 void CCSPlayer::FireBullet( 
 	Vector vecSrc,	// shooting postion
 	const QAngle &shootAngles,  //shooting angle
@@ -313,6 +320,19 @@ void CCSPlayer::FireBullet(
 
 	if ( !pevAttacker )
 		pevAttacker = this;  // the default attacker is ourselves
+
+#ifndef CLIENT_DLL
+	// weapon_accuracy_*: the authoritative bullet direction is computed here, so the overrides are
+	// applied to the spread itself rather than trusting the value each weapon passed in.
+	if ( weapon_accuracy_nospread.GetBool() )
+	{
+		vecSpread = 0.0f;
+	}
+	else if ( weapon_accuracy_forcespread.GetFloat() >= 0.0f )
+	{
+		vecSpread = weapon_accuracy_forcespread.GetFloat();
+	}
+#endif
 
 	// add the spray 
 	Vector vecDir = vecDirShooting +
