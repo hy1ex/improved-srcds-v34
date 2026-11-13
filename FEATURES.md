@@ -43,7 +43,7 @@ Source game. For each feature it records:
 | `mp_respawn_weapons` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=default pistol, 1=random, 2=keep |
 | `mp_buy_during_immunity` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=off, 1=both, 2=T, 3=CT: spawn immunity becomes the buy window, cut when it ends |
 | `mp_buy_anywhere` | `0` | [3. Respawn on death](#3-respawn-on-death) | 0=stock, 1=both, 2=T, 3=CT (also opens the menu) |
-| `mp_solid_player` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through every player, no push |
+| `mp_solid_player` | `-1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | -1 = never touch collision groups, 0 = walk through every player, no push |
 | `mp_solid_hostages` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through hostages |
 | `mp_solid_grenades` | `1` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | 0 = walk through thrown grenades |
 | `mp_players_nonsolid_time` | `0` | [4. Player, hostage and grenade solidity](#4-player-hostage-and-grenade-solidity) | seconds of spawn/respawn non-solidity |
@@ -413,16 +413,26 @@ forbids.
 
 **What it does.**
 
-* `mp_solid_player` — `1` leaves every player in `COLLISION_GROUP_PLAYER` (stock), `0` puts every
-  living player in `COLLISION_GROUP_DEBRIS_TRIGGER`, so no player blocks or pushes any other
-  player. `CCSPlayer::UpdateSolidityCollisionGroup()` runs from `PreThink()` and writes the group
-  only when it changes, so a runtime flip takes effect on the next frame with no respawn. Players
-  inside a vehicle are skipped: the vehicle's own collision decides there. The group is restored to
-  `COLLISION_GROUP_PLAYER` as soon as the convar goes back to `1` or the non-solid window below
-  expires, and that transition runs the unstick check described after the list.
+* `mp_solid_player` — `-1` (the default) never writes a player's collision group at all. The group
+  the engine assigns at spawn stays, so players still block each other exactly as they do in stock,
+  but the field belongs to whoever else wants it: a plugin can put one or two specific players in
+  any group it chooses (the usual reason is a game mode where a single player walks through
+  everybody) and this build will not revert it on the next frame. `0` puts every living player in
+  `COLLISION_GROUP_DEBRIS_TRIGGER`, so no player blocks or pushes any other player, and `1` holds
+  every living player in `COLLISION_GROUP_PLAYER` (stock). Those two are opt-in *and* authoritative:
+  `CCSPlayer::UpdateSolidityCollisionGroup()` runs from `PreThink()` and, while the convar is `0` or
+  `1`, keeps re-asserting the matching group, which is exactly why the hands-off value is the
+  default. A runtime flip takes effect on the next frame with no respawn. Players inside a vehicle
+  are skipped: the vehicle's own collision decides there. Switching back to `-1` restores a player
+  that this build left non-solid to `COLLISION_GROUP_PLAYER` once — and only if the player is still
+  in this build's non-solid group, so a group written by a plugin is never overwritten — and that
+  transition runs the unstick check described after the list, as does the end of the non-solid
+  window below.
 * `mp_players_nonsolid_time` — for N seconds after any spawn or respawn the player is put in
   `COLLISION_GROUP_DEBRIS_TRIGGER`, so neither side is blocked *or* pushed. The timer starts in
-  `CCSPlayer::Spawn()`, which covers players respawned by feature 3 as well.
+  `CCSPlayer::Spawn()`, which covers players respawned by feature 3 as well. It only acts while
+  `mp_solid_player` is `0` or `1`: with the default `-1` no group is written, so the window is
+  inert and a plugin keeps control of the field.
 * `mp_solid_hostages` — `0` puts the hostage in `COLLISION_GROUP_DEBRIS_TRIGGER` at spawn, refreshed
   in `CHostage::HostageThink()` so a runtime change takes effect; `1` restores
   `COLLISION_GROUP_PLAYER` (stock). Players walk through the hostage, the player's push-away does
@@ -447,7 +457,8 @@ forbids.
 
 * **Unstick when turning solid** — `CCSPlayer::UnstickFromPlayers()`, called from
   `UpdateSolidityCollisionGroup()` on the transition from non-solid back to solid, i.e. exactly when
-  `mp_players_nonsolid_time` runs out or `mp_solid_player` is set back to `1`. If the player's box
+  `mp_players_nonsolid_time` runs out, `mp_solid_player` is set back to `1`, or `mp_solid_player` is
+  switched to `-1` while this build still had him non-solid. If the player's box
   then overlaps another **solid** player's box (the case that used to leave both of them trapped
   inside each other until the movement solver separated them), he is moved to the nearest free
   standing spot just outside that box: eight directions around the other player at 36, 56 and 76
@@ -461,7 +472,7 @@ forbids.
 
 | Convar | Default | Values | Meaning |
 | --- | --- | --- | --- |
-| `mp_solid_player` | `1` | `0`/`1` | Players block each other at all (stock: yes) |
+| `mp_solid_player` | `-1` | `-1`/`0`/`1` | `-1`: leave collision groups alone (default, stock behaviour), `0`: walk through every player, `1`: players block |
 | `mp_solid_hostages` | `1` | `0`/`1` | Hostages block movement (stock: yes) |
 | `mp_solid_grenades` | `1` | `0`/`1` | Thrown grenades block movement (stock: yes) |
 | `mp_players_nonsolid_time` | `0` | seconds | Spawn/respawn non-solid window (`0` = off, stock) |

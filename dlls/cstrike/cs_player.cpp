@@ -2473,13 +2473,35 @@ void CCSPlayer::ResetSpawnImmunityRender( void )
 //			through *and* not pushed. A group belongs to the entity rather than to a
 //			relationship, which is why this is one global switch and not a per-team one.
 //			Bullet and damage traces use COLLISION_GROUP_NONE and still hit the player.
+//			mp_solid_player -1 (the default) writes no group at all, leaving the field to the
+//			engine and to plugins.
 //-----------------------------------------------------------------------------
 void CCSPlayer::UpdateSolidityCollisionGroup( void )
 {
 	if ( !IsAlive() || GetVehicle() != NULL )
 		return;
 
-	bool bNonSolid = !mp_solid_player.GetBool();
+	const int nMode = mp_solid_player.GetInt();
+
+	// -1 (the default) means this build never writes a player's collision group: whatever the engine
+	// or a plugin put there is left alone, which is what lets a plugin set a group on one or two
+	// specific players. If an earlier mp_solid_player 0 left this player non-solid, hand him back on
+	// the stock group once instead of letting him walk through everyone forever. A plugin's own
+	// group is never overwritten, hence the test for this build's non-solid group.
+	if ( nMode < 0 )
+	{
+		if ( m_bWasNonsolidPlayer && GetCollisionGroup() == COLLISION_GROUP_DEBRIS_TRIGGER )
+		{
+			SetCollisionGroup( COLLISION_GROUP_PLAYER );
+			UnstickFromPlayers();
+		}
+
+		m_bWasNonsolidPlayer = false;
+
+		return;
+	}
+
+	bool bNonSolid = ( nMode == 0 );
 
 	if ( !bNonSolid )
 	{

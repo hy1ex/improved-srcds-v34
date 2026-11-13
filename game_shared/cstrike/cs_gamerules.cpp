@@ -516,16 +516,21 @@ ConVar mp_halftime(
 // ---------------------------------------------------------------------------------------------------
 // Collision control. Ported from CS:GO's mp_solid_teammates, generalised to one switch for every
 // player plus the equivalent switches for hostages and thrown grenades. Server side only, never
-// replicated. Every default is 1, which is stock Counter-Strike: Source behaviour (everything
-// blocks). A collision group belongs to the entity, so a player cannot be non-solid to teammates
+// replicated. Hostages and grenades default to 1, which is stock Counter-Strike: Source behaviour
+// (everything blocks). mp_solid_player defaults to -1, which never writes a player's collision
+// group: the stock group the engine assigns at spawn stays, so the behaviour is still stock, and a
+// plugin is free to put an individual player in any group it likes. A collision group belongs to
+// the entity, so a player cannot be non-solid to teammates
 // only without the stock client pushing him out of the body it still predicts: there is one
 // player switch, not one per team.
 // ---------------------------------------------------------------------------------------------------
 ConVar mp_solid_player(
 	"mp_solid_player",
-	"1",
+	"-1",
 	FCVAR_NOTIFY,
-	"Whether players block each other's movement (0 = walk through every player, no push)" );
+	"Whether players block each other's movement (-1 = never touch collision groups, 0 = walk through every player, 1 = players block)",
+	true, -1,
+	true, 1 );
 
 ConVar mp_solid_hostages(
 	"mp_solid_hostages",
