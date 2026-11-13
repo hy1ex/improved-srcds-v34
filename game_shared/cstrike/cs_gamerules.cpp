@@ -1047,6 +1047,67 @@ ConVar cl_autohelp(
 		true, 9		// max value
 		);
 
+	// CS:GO round time per objective type plus its hostage rescue bonus (ref cs_gamerules.cpp:3148-3164,
+	// 1903-1907). 0 in either mp_roundtime_* convar means "use mp_roundtime", which is the stock
+	// behaviour, and mp_hostages_rescuetime only ever adds time to a hostage round.
+	ConVar mp_roundtime_hostage(
+		"mp_roundtime_hostage",
+		"0",
+		FCVAR_NOTIFY,
+		"How many minutes each round of Hostage Rescue takes. If 0 then use mp_roundtime instead.",
+		true, 0,	// min value
+		true, 60	// max value
+		);
+
+	ConVar mp_roundtime_defuse(
+		"mp_roundtime_defuse",
+		"0",
+		FCVAR_NOTIFY,
+		"How many minutes each round of Bomb Defuse takes. If 0 then use mp_roundtime instead.",
+		true, 0,	// min value
+		true, 60	// max value
+		);
+
+	ConVar mp_hostages_rescuetime(
+		"mp_hostages_rescuetime",
+		"1",
+		FCVAR_NOTIFY,
+		"Additional time added to round time if a hostage is reached by a CT.",
+		true, 0,	// min value
+		true, 60	// max value
+		);
+
+	// CS:GO's fall damage controls (ref cs_gamerules.cpp:212-215). sv_falldamage_scale replaces the
+	// dead mp_falldamage convar; the below-player pair only engages once the ratio is above 0.
+	ConVar sv_falldamage_scale(
+		"sv_falldamage_scale",
+		"1",
+		FCVAR_NOTIFY,
+		"Scale applied to the damage from falling" );
+
+	ConVar sv_falldamage_to_below_player_ratio(
+		"sv_falldamage_to_below_player_ratio",
+		"0",
+		FCVAR_NOTIFY,
+		"Landing on another player's head gives them this ratio of the damage." );
+
+	ConVar sv_falldamage_to_below_player_multiplier(
+		"sv_falldamage_to_below_player_multiplier",
+		"1",
+		FCVAR_NOTIFY,
+		"Scale damage when distributed across two players" );
+
+	// CS:GO's per-match gun purchase cap (ref cs_player_shared.cpp:3278-3303). -1 is unlimited,
+	// which keeps the stock CS:S behaviour of buying the same gun as often as the money allows.
+	ConVar mp_weapons_max_gun_purchases_per_weapon_per_match(
+		"mp_weapons_max_gun_purchases_per_weapon_per_match",
+		"-1",
+		FCVAR_NOTIFY,
+		"Max number of times a player may purchase any weapon per match",
+		true, -1,	// min value
+		true, 10	// max value
+		);
+
 	ConVar mp_freezetime( 
 		"mp_freezetime",
 		"6",
@@ -2625,6 +2686,9 @@ ConVar cl_autohelp(
 
 		float fallDamage = pPlayer->m_Local.m_flFallVelocity * CS_DAMAGE_FOR_FALL_SPEED * 1.25;
 
+		// CS:GO's sv_falldamage_scale (ref cs_gamerules.cpp:6911). 1 leaves the stock damage.
+		fallDamage *= sv_falldamage_scale.GetFloat();
+
 		if ( fallDamage > 0.0f )
 		{
 			// let the bots know
@@ -3247,7 +3311,21 @@ ConVar cl_autohelp(
 
 	void CCSGameRules::ReadMultiplayCvars()
 	{
-		m_iRoundTime = (int)(mp_roundtime.GetFloat() * 60);
+		// CS:GO lets a hostage or defuse map have its own round length (ref cs_gamerules.cpp:7992-8007).
+		// A value of 0 in either convar falls back to mp_roundtime, so leaving them alone keeps the
+		// stock length. RestartRound() establishes the map type before calling this.
+		float flRoundTime = mp_roundtime.GetFloat();
+
+		if ( m_bMapHasRescueZone && mp_roundtime_hostage.GetFloat() > 0.0f )
+		{
+			flRoundTime = mp_roundtime_hostage.GetFloat();
+		}
+		else if ( m_bMapHasBombTarget && mp_roundtime_defuse.GetFloat() > 0.0f )
+		{
+			flRoundTime = mp_roundtime_defuse.GetFloat();
+		}
+
+		m_iRoundTime = (int)( flRoundTime * 60 );
 		m_iFreezeTime = mp_freezetime.GetInt();
 	}
 
@@ -3334,6 +3412,7 @@ ConVar cl_autohelp(
 		
 		m_bBombDropped = false;
 		m_bBombPlanted = false;
+		m_bAnyHostageReached = false;
 		
 		if ( GetHumanTeam() != TEAM_UNASSIGNED )
 		{
@@ -3419,6 +3498,33 @@ ConVar cl_autohelp(
 			SwapTeamsForHalftime();
 		}
 
+		// The map type has to be known before ReadMultiplayCvars() picks the round length, so the
+		// checks CS:S used to do further down RestartRound() happen here.
+		// Check to see if this map has a bomb target in it
+
+		if ( gEntList.FindEntityByClassname( NULL, "func_bomb_target" ) )
+		{
+			m_bMapHasBombTarget		= true;
+			m_bMapHasBombZone		= true;
+		}
+		else if ( gEntList.FindEntityByClassname( NULL, "info_bomb_target" ) )
+		{
+			m_bMapHasBombTarget		= true;
+			m_bMapHasBombZone		= false;
+		}
+		else
+		{
+			m_bMapHasBombTarget		= false;
+			m_bMapHasBombZone		= false;
+		}
+
+		// Check to see if this map has hostage rescue zones
+
+		if ( gEntList.FindEntityByClassname( NULL, "func_hostage_rescue" ) )
+			m_bMapHasRescueZone = true;
+		else
+			m_bMapHasRescueZone = false;
+
 		m_bFreezePeriod = true;
 
 		ReadMultiplayCvars();
@@ -3466,30 +3572,6 @@ ConVar cl_autohelp(
 		}
 		
 		
-		// Check to see if this map has a bomb target in it
-
-		if ( gEntList.FindEntityByClassname( NULL, "func_bomb_target" ) )
-		{
-			m_bMapHasBombTarget		= true;
-			m_bMapHasBombZone		= true;
-		}
-		else if ( gEntList.FindEntityByClassname( NULL, "info_bomb_target" ) )
-		{
-			m_bMapHasBombTarget		= true;
-			m_bMapHasBombZone		= false;
-		}
-		else
-		{
-			m_bMapHasBombTarget		= false;
-			m_bMapHasBombZone		= false;
-		}
-
-		// Check to see if this map has hostage rescue zones
-
-		if ( gEntList.FindEntityByClassname( NULL, "func_hostage_rescue" ) )
-			m_bMapHasRescueZone = true;
-		else
-			m_bMapHasRescueZone = false;
 
 
 		// See if the map has func_buyzone entities
@@ -5592,6 +5674,35 @@ extern bool UTIL_IsVisibleToTeam( const Vector &spot, int team );
 			//BroadcastSound( "Event.HostageTouched" );
 			m_flNextHostageAnnouncement = gpGlobals->curtime + 60.0;
 		}		
+
+		AddHostageRescueTime();
+	}
+
+	//-----------------------------------------------------------------------------
+	// Purpose: mp_hostages_rescuetime. The first time a CT reaches a hostage this round the round
+	//			gets extra time, once per round and never after the round is already decided
+	//			(ref cs_gamerules.cpp:7200-7215). m_iRoundTime is networked and the round timer reads
+	//			it live, so the clock on the HUD moves immediately.
+	//-----------------------------------------------------------------------------
+	void CCSGameRules::AddHostageRescueTime( void )
+	{
+		if ( m_bAnyHostageReached )
+			return;
+
+		m_bAnyHostageReached = true;
+
+		if ( m_iRoundWinStatus != WINNER_NONE )
+			return;
+
+		const int nExtraTime = (int)( mp_hostages_rescuetime.GetFloat() * 60.0f );
+
+		if ( nExtraTime <= 0 )
+			return;
+
+		m_iRoundTime = m_iRoundTime.Get() + nExtraTime;
+
+		// CS:S has no "#hostagerescuetime" token in its localization files.
+		UTIL_ClientPrintAll( HUD_PRINTTALK, "Hostage reached: extra round time added" );
 	}
 
 	void CCSGameRules::CreateStandardEntities()

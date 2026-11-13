@@ -356,19 +356,12 @@ bool CMultiplayRules::IsMultiplayer( void )
 	//=========================================================
 	float CMultiplayRules::FlPlayerFallDamage( CBasePlayer *pPlayer )
 	{
-		int iFallDamage = (int)falldamage.GetFloat();
-
-		switch ( iFallDamage )
-		{
-		case 1://progressive
-			pPlayer->m_Local.m_flFallVelocity -= PLAYER_MAX_SAFE_FALL_SPEED;
-			return pPlayer->m_Local.m_flFallVelocity * DAMAGE_FOR_FALL_SPEED;
-			break;
-		default:
-		case 0:// fixed
-			return 10;
-			break;
-		}
+		// mp_falldamage used to pick between a fixed 10 damage and this velocity based formula, but
+		// Counter-Strike never reached this function: CCSGameRules overrides FlPlayerFallDamage, so
+		// the convar was dead on every CS:S server and has been removed (see FEATURES.md). CS fall
+		// damage, including the sv_falldamage_* convars, lives in CCSGameRules.
+		pPlayer->m_Local.m_flFallVelocity -= PLAYER_MAX_SAFE_FALL_SPEED;
+		return pPlayer->m_Local.m_flFallVelocity * DAMAGE_FOR_FALL_SPEED;
 	} 
 
 	//=========================================================

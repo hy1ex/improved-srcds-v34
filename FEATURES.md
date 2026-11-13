@@ -142,6 +142,16 @@ Source game. For each feature it records:
 | `ammo_grenade_limit_flashbang` | `2` | [24. Grenade carry limits](#24-grenade-carry-limits) | flashbang limit |
 | `ammo_grenade_limit_total` | `4` | [24. Grenade carry limits](#24-grenade-carry-limits) | total grenades carried |
 
+| `mp_roundtime_hostage` | `0` | [25. Objective round times](#25-round-time-per-objective-type-and-hostage-rescue-time) | minutes per hostage round; 0 = use `mp_roundtime` |
+| `mp_roundtime_defuse` | `0` | [25. Objective round times](#25-round-time-per-objective-type-and-hostage-rescue-time) | minutes per defuse round; 0 = use `mp_roundtime` |
+| `mp_hostages_rescuetime` | `1` | [25. Objective round times](#25-round-time-per-objective-type-and-hostage-rescue-time) | extra minutes once a CT reaches a hostage; 0 = never |
+| `sv_hegrenade_damage_multiplier` | `1` | [26. HE grenade scaling](#26-he-grenade-scaling) | scale on grenade damage |
+| `sv_hegrenade_radius_multiplier` | `1` | [26. HE grenade scaling](#26-he-grenade-scaling) | scale on grenade radius |
+| `sv_falldamage_scale` | `1` | [27. Fall damage](#27-fall-damage) | scale on fall damage (replaces `mp_falldamage`) |
+| `sv_falldamage_to_below_player_ratio` | `0` | [27. Fall damage](#27-fall-damage) | share of a fall given to the player landed on; 0 = off |
+| `sv_falldamage_to_below_player_multiplier` | `1` | [27. Fall damage](#27-fall-damage) | scale on the total when landing on a player |
+| `mp_weapons_max_gun_purchases_per_weapon_per_match` | `-1` | [28. Per-match gun purchase limit](#28-per-match-gun-purchase-limit) | max buys of one gun per match; -1 = unlimited |
+
 ## Command index
 
 | Command | Feature | Notes |
@@ -1670,3 +1680,134 @@ already validates, so the client needs no change and a rejected buy is answered 
 "cannot carry anymore" case.
 
 **Files:** `dlls/cstrike/cs_player.cpp` (convars and the grenade branch of `CCSPlayer::BuyWeapon`).
+
+# 25. Round time per objective type and hostage rescue time
+
+**Origin:** CS:GO `mp_roundtime_hostage` and `mp_roundtime_defuse` (`cs_gamerules.cpp:3148-3164`) and
+`mp_hostages_rescuetime` (`cs_gamerules.cpp:1903-1907`, used at `:7200`).
+
+**What stock CS:S does.** Every round lasts `mp_roundtime` minutes whatever the objective, and reaching
+a hostage gives no extra time.
+
+**What it does here.** `CCSGameRules::ReadMultiplayCvars` picks the length from the map type: a map
+with a rescue zone uses `mp_roundtime_hostage`, a map with bomb targets uses `mp_roundtime_defuse`, and
+a `0` in either convar falls back to `mp_roundtime`. Both default to `0`, so an unmodified server keeps
+exactly the stock length. Because the choice needs the map type, `RestartRound()` now runs its
+bomb/hostage entity checks before it reads the cvars rather than after.
+
+The first time a CT reaches a hostage in a round, `CCSGameRules::AddHostageRescueTime` adds
+`mp_hostages_rescuetime` minutes to `m_iRoundTime`. `m_iRoundTime` is networked and the round timer is
+computed from it every frame, so the clock on the HUD gains the time immediately. The bonus happens at
+most once per round and never once the round is already decided, matching CS:GO's
+`m_bAnyHostageReached` guard. CS:S ships no `#hostagerescuetime` localization token, so the notice is
+a plain chat line instead of CS:GO's translated one.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_roundtime_hostage` | `0` | `0`-`60` | Minutes per hostage round; `0` uses `mp_roundtime` |
+| `mp_roundtime_defuse` | `0` | `0`-`60` | Minutes per defuse round; `0` uses `mp_roundtime` |
+| `mp_hostages_rescuetime` | `1` | `0`-`60` | Extra minutes when a CT first reaches a hostage; `0` disables |
+
+**Client compatibility.** The server already networks `m_iRoundTime` and the round start time, so the
+stock client's timer picks the change up with no client-side code.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars, `ReadMultiplayCvars`,
+`AddHostageRescueTime`, the map-type checks in `RestartRound`), `game_shared/cstrike/cs_gamerules.h`.
+
+
+# 26. HE grenade scaling
+
+**Origin:** CS:GO `sv_hegrenade_damage_multiplier` and `sv_hegrenade_radius_multiplier`
+(`hegrenade_projectile.cpp:19-20`, applied at `:71-72`).
+
+**What stock CS:S does.** `CHEGrenadeProjectile::Create` hardcodes 100 damage and a radius of
+3.5 times that, and a server has no way to scale either.
+
+**What it does here.** Both values are multiplied by the two convars when the grenade is thrown, so the
+change also applies to grenades that are already in the air. Both default to `1`, which is the stock
+explosion.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `sv_hegrenade_damage_multiplier` | `1` | `>= 0` | Scale on the explosion's damage |
+| `sv_hegrenade_radius_multiplier` | `1` | `>= 0` | Scale on the explosion's damage radius |
+
+**Client compatibility.** The throw, the detonation and all damage resolution are server side; the
+client only plays the effects it is sent, so nothing changes on it.
+
+**Files:** `game_shared/cstrike/hegrenade_projectile.cpp`.
+
+
+# 27. Fall damage
+
+**Origin:** CS:GO `sv_falldamage_scale` and `sv_falldamage_to_below_player_ratio` /
+`_multiplier` (`cs_gamerules.cpp:212-215`, `movehelper_server.cpp:382-417`).
+
+**What stock CS:S does.** `CCSGameRules::FlPlayerFallDamage` scales the fall velocity above the safe
+fall speed by a fixed constant, and landing on another player's head hurts only the player who fell.
+The game also registers an `mp_falldamage` convar, but its only reader is the Half-Life 2 deathmatch
+rule set, which CS overrides, so in CS:S the convar has never had any effect.
+
+**What it does here.** `sv_falldamage_scale` multiplies the damage the fall produces, defaulting to `1`
+for the stock value. When `sv_falldamage_to_below_player_ratio` is above `0`,
+`CMoveHelperServer::PlayerFallingDamage` gives that share of the (multiplier-adjusted) damage to the
+player the faller landed on and leaves the rest on the faller, the way CS:GO splits it. The ratio
+defaults to `0`, so not landing on players behaves exactly like stock.
+
+**`mp_falldamage` is removed.** It could never fire in Counter-Strike, so it is gone from
+`dlls/game.cpp` instead of being quietly kept as a knob that does nothing; `CMultiplayRules` keeps the
+velocity-based formula it used to select with the convar. A configuration file that still contains
+`mp_falldamage 1` now only prints an unknown-command line at startup. Use `sv_falldamage_scale` to
+tune fall damage, and `sv_falldamage_scale 0` to turn it off entirely.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `sv_falldamage_scale` | `1` | `>= 0` | Multiplier on all fall damage; `0` disables it |
+| `sv_falldamage_to_below_player_ratio` | `0` | `0`-`1` | Share of the fall damage given to the player below |
+| `sv_falldamage_to_below_player_multiplier` | `1` | `>= 0` | Multiplier on the combined damage when a player is below |
+
+**Client compatibility.** Fall damage is decided by the server's move helper and applied with a normal
+damage call, so the stock client needs no change; it just shows the health the server reports.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars and `FlPlayerFallDamage`),
+`dlls/movehelper_server.cpp` (`PlayerFallingDamage`), `dlls/game.cpp` and `dlls/game.h`
+(`mp_falldamage` removal), `game_shared/multiplay_gamerules.cpp`.
+
+
+# 28. Per-match gun purchase limit
+
+**Origin:** CS:GO `mp_weapons_max_gun_purchases_per_weapon_per_match`
+(`cs_player_shared.cpp:3278-3303`).
+
+**What stock CS:S does.** A player may buy the same gun as many times as the money allows; there is no
+per-match tally.
+
+**What it does here.** `CCSPlayer::HandleCommand_Buy` counts buys per weapon id in
+`m_iWeaponPurchasesThisMatch` and refuses the buy once the count reaches the convar, with the same
+centre-screen message path used for the other buy refusals. Only the gun groups CS:GO counts are
+counted (pistols, SMGs, rifles, shotguns, sniper rifles and machine guns); grenades, armour, defuse
+kits and the shield are not affected. `-1`, the default, leaves the counter out of the decision
+entirely, which is stock behaviour. The counters are cleared in `CCSPlayer::Reset()`, which runs when a
+new match starts.
+
+Because every buy path (menu, buy aliases, autobuy, rebuy and the bots) ends up in the same function,
+all of them obey the limit.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_weapons_max_gun_purchases_per_weapon_per_match` | `-1` | `-1`-`10` | Buys of one gun per match; `-1` is unlimited |
+
+**Client compatibility.** The buy menu is a usercmd the server validates, so a refused purchase is
+answered like any other refused purchase and the client needs no change. The client cannot see the
+remaining count before it asks.
+
+**Files:** `dlls/cstrike/cs_player.cpp` (convar extern, the check and the counter),
+`dlls/cstrike/cs_player.h` (`m_iWeaponPurchasesThisMatch`).

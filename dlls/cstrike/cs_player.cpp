@@ -61,6 +61,7 @@ extern ConVar mp_damage_scale_t_head;
 extern ConVar mp_damage_scale_t_body;
 extern ConVar mp_damage_headshot_only;
 extern ConVar mp_buy_allow_guns;
+extern ConVar mp_weapons_max_gun_purchases_per_weapon_per_match;
 extern ConVar mp_max_armor_ct;
 extern ConVar mp_max_armor_t;
 extern ConVar mp_buy_allow_grenades_ct;
@@ -459,6 +460,9 @@ CCSPlayer::CCSPlayer()
 	m_iDirection = 0;
 	m_receivesMoneyNextRound = true;
 	m_bIsBeingGivenItem = false;
+
+	for ( int i = 0; i < MAX_WEAPON_PURCHASE_RECORDS; i++ )
+		m_iWeaponPurchasesThisMatch[i] = 0;
 	m_isVIP = false;
 
 	m_bJustKilledTeammate = false;
@@ -2071,6 +2075,10 @@ void CCSPlayer::Reset()
 {
 	ResetFragCount();
 	ResetDeathCount();
+
+	// A new match starts with a clean purchase count per weapon.
+	for ( int i = 0; i < MAX_WEAPON_PURCHASE_RECORDS; i++ )
+		m_iWeaponPurchasesThisMatch[i] = 0;
 	m_iAccount = 0;
 	AddAccount( -16000, false );
 
@@ -3831,6 +3839,39 @@ BuyResult_e CCSPlayer::HandleCommand_Buy( const char *item )
 			return BUY_NOT_ALLOWED;
 		}
 
+		// mp_weapons_max_gun_purchases_per_weapon_per_match: CS:GO caps how often the same gun may be
+		// bought in one match (ref cs_player_shared.cpp:3278-3303). -1 is unlimited, which is the
+		// stock CS:S behaviour, and only the gun groups are counted, not grenades, armour or kits.
+		const int nPurchaseLimit = mp_weapons_max_gun_purchases_per_weapon_per_match.GetInt();
+
+		bool bIsLimitedGun = false;
+
+		switch ( pWeaponInfo->m_WeaponType )
+		{
+		case WEAPONTYPE_PISTOL:
+		case WEAPONTYPE_SUBMACHINEGUN:
+		case WEAPONTYPE_RIFLE:
+		case WEAPONTYPE_SHOTGUN:
+		case WEAPONTYPE_SNIPER_RIFLE:
+		case WEAPONTYPE_MACHINEGUN:
+			bIsLimitedGun = true;
+			break;
+
+		default:
+			break;
+		}
+
+		const bool bCountsAsPurchase = bIsLimitedGun && nPurchaseLimit >= 0 &&
+			nWeaponID > WEAPON_NONE && nWeaponID < MAX_WEAPON_PURCHASE_RECORDS;
+
+		if ( bCountsAsPurchase && m_iWeaponPurchasesThisMatch[nWeaponID] >= nPurchaseLimit )
+		{
+			if ( !m_bIsInAutoBuy && !m_bIsInRebuy )
+				ClientPrint( this, HUD_PRINTCENTER, "You have reached the purchase limit for this weapon" );
+
+			return BUY_NOT_ALLOWED;
+		}
+
 		bool bPurchase = false;
 
 		if ( Q_stristr( wpnName, "kevlar" ) )
@@ -3983,6 +4024,9 @@ BuyResult_e CCSPlayer::HandleCommand_Buy( const char *item )
 			GiveNamedItem( pWeaponInfo->szClassName );
 
 			AddAccount( -pWeaponInfo->GetWeaponPrice() ); 
+
+			if ( bCountsAsPurchase )
+				m_iWeaponPurchasesThisMatch[nWeaponID]++;
 
 			BlackMarketAddWeapon( wpnName, this );
 

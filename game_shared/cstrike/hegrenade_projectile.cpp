@@ -12,6 +12,20 @@
 
 #define GRENADE_MODEL "models/Weapons/w_eq_fraggrenade_thrown.mdl"
 
+// CS:GO's grenade scaling convars (ref hegrenade_projectile.cpp:19-20). Both default to 1, which
+// leaves the stock CS:S 100 damage / 3.5x radius explosion untouched.
+ConVar sv_hegrenade_damage_multiplier(
+	"sv_hegrenade_damage_multiplier",
+	"1",
+	FCVAR_NOTIFY,
+	"Scale applied to the damage of an HE grenade explosion" );
+
+ConVar sv_hegrenade_radius_multiplier(
+	"sv_hegrenade_radius_multiplier",
+	"1",
+	FCVAR_NOTIFY,
+	"Scale applied to the damage radius of an HE grenade explosion" );
+
 
 LINK_ENTITY_TO_CLASS( hegrenade_projectile, CHEGrenadeProjectile );
 PRECACHE_WEAPON_REGISTER( hegrenade_projectile );
@@ -40,6 +54,11 @@ CHEGrenadeProjectile* CHEGrenadeProjectile::Create(
 
 	pGrenade->m_flDamage = 100;
 	pGrenade->m_DmgRadius = pGrenade->m_flDamage * 3.5f;
+
+	// sv_hegrenade_damage_multiplier / sv_hegrenade_radius_multiplier are applied to the finished
+	// values, exactly as CS:GO does after setting its defaults.
+	pGrenade->m_flDamage *= sv_hegrenade_damage_multiplier.GetFloat();
+	pGrenade->m_DmgRadius *= sv_hegrenade_radius_multiplier.GetFloat();
 	pGrenade->ChangeTeam( pOwner->GetTeamNumber() );
 	pGrenade->ApplyLocalAngularVelocityImpulse( angVelocity );	
 

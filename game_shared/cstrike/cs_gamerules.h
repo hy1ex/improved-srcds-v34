@@ -140,6 +140,9 @@ private:
 	CNetworkVar( bool, m_bBlackMarket );
 
 	bool		m_bDontUploadStats;
+
+	// mp_hostages_rescuetime may only add its time once per round.
+	bool		m_bAnyHostageReached;
 	
 public:
 
@@ -273,6 +276,7 @@ public:
 		);
 
 	void ReadMultiplayCvars();
+	void AddHostageRescueTime();
 	void SwapAllPlayers();
 
 	void BroadcastSound( const char *sound, int team = -1 );

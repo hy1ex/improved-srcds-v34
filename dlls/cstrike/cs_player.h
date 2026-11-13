@@ -201,6 +201,10 @@ enum BuyResult_e
 //=============================================================================
 // >> CounterStrike player
 //=============================================================================
+// Enough room for every CSWeaponID (WEAPON_MAX is well under this) without pulling the weapon id
+// enum into this header.
+#define MAX_WEAPON_PURCHASE_RECORDS 64
+
 class CCSPlayer : public CBasePlayer, public ICSPlayerAnimStateHelpers
 {
 public:
@@ -749,6 +753,11 @@ private:
 	bool			m_bUsingDefaultPistol;
 
 	bool			m_bIsBeingGivenItem;
+
+	// mp_weapons_max_gun_purchases_per_weapon_per_match: how many times this player has bought each
+	// gun in the current match, indexed by CSWeaponID. Cleared in Reset(), which runs when a new
+	// match starts, and in the constructor.
+	int				m_iWeaponPurchasesThisMatch[MAX_WEAPON_PURCHASE_RECORDS];
 
 #ifdef CS_SHIELD_ENABLED
 	CNetworkVar( bool, m_bHasShield );

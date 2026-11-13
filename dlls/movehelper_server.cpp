@@ -343,11 +343,34 @@ void CMoveHelperServer::Con_NPrintf( int idx, char const* pFormat, ...)
 //			damage, according to the rules in CGameMovement::CheckFalling.
 // Output : Returns true if the player survived the fall, false if they died.
 //-----------------------------------------------------------------------------
+// CS:GO's sv_falldamage_to_below_player_* convars (ref movehelper_server.cpp:382-417). Defined in
+// game_shared/cstrike/cs_gamerules.cpp.
+extern ConVar sv_falldamage_to_below_player_ratio;
+extern ConVar sv_falldamage_to_below_player_multiplier;
+
 bool CMoveHelperServer::PlayerFallingDamage( void )
 {
 	float flFallDamage = g_pGameRules->FlPlayerFallDamage( m_pHostPlayer );	
 	if ( flFallDamage > 0 )
 	{
+		// Landing on another player's head splits the damage between the two of them: the player
+		// below takes ratio * damage, the falling player keeps the rest, and the multiplier scales
+		// the total first. With ratio at its default of 0 this changes nothing from stock CS:S.
+		if ( sv_falldamage_to_below_player_ratio.GetFloat() > 0.0f )
+		{
+			CBasePlayer *pPlayerGettingLandedOn = ToBasePlayer( m_pHostPlayer->GetGroundEntity() );
+
+			if ( pPlayerGettingLandedOn )
+			{
+				flFallDamage *= sv_falldamage_to_below_player_multiplier.GetFloat();
+
+				float flDamageToBelowPlayer = flFallDamage * sv_falldamage_to_below_player_ratio.GetFloat();
+				flFallDamage -= flDamageToBelowPlayer;
+
+				pPlayerGettingLandedOn->TakeDamage( CTakeDamageInfo( GetContainingEntity(INDEXENT(0)), GetContainingEntity(INDEXENT(0)), flDamageToBelowPlayer, DMG_FALL ) );
+			}
+		}
+
 		m_pHostPlayer->TakeDamage( CTakeDamageInfo( GetContainingEntity(INDEXENT(0)), GetContainingEntity(INDEXENT(0)), flFallDamage, DMG_FALL ) ); 
 		StartSound( m_pHostPlayer->GetAbsOrigin(), "Player.FallDamage" );
 	}
