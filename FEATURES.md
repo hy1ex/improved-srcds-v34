@@ -141,7 +141,6 @@ Source game. For each feature it records:
 | `ammo_grenade_limit_default` | `1` | [24. Grenade carry limits](#24-grenade-carry-limits) | per grenade type, apart from the flashbang |
 | `ammo_grenade_limit_flashbang` | `2` | [24. Grenade carry limits](#24-grenade-carry-limits) | flashbang limit |
 | `ammo_grenade_limit_total` | `4` | [24. Grenade carry limits](#24-grenade-carry-limits) | total grenades carried |
-
 | `mp_roundtime_hostage` | `0` | [25. Objective round times](#25-round-time-per-objective-type-and-hostage-rescue-time) | minutes per hostage round; 0 = use `mp_roundtime` |
 | `mp_roundtime_defuse` | `0` | [25. Objective round times](#25-round-time-per-objective-type-and-hostage-rescue-time) | minutes per defuse round; 0 = use `mp_roundtime` |
 | `mp_hostages_rescuetime` | `1` | [25. Objective round times](#25-round-time-per-objective-type-and-hostage-rescue-time) | extra minutes once a CT reaches a hostage; 0 = never |
