@@ -151,7 +151,6 @@ Source game. For each feature it records:
 | `sv_falldamage_to_below_player_ratio` | `0` | [27. Fall damage](#27-fall-damage) | share of a fall given to the player landed on; 0 = off |
 | `sv_falldamage_to_below_player_multiplier` | `1` | [27. Fall damage](#27-fall-damage) | scale on the total when landing on a player |
 | `mp_weapons_max_gun_purchases_per_weapon_per_match` | `-1` | [28. Per-match gun purchase limit](#28-per-match-gun-purchase-limit) | max buys of one gun per match; -1 = unlimited |
-
 | `mp_starting_losses` | `0` | [29. Economy and streak controls](#29-economy-and-streak-controls) | loss streak a new match starts with; 0 = none |
 | `mp_consecutive_loss_max` | `0` | [29. Economy and streak controls](#29-economy-and-streak-controls) | cap on losses counted towards the loser bonus; 0 = no cap |
 | `mp_economy_reset_rounds` | `0` | [29. Economy and streak controls](#29-economy-and-streak-controls) | reset money every N rounds; 0 = never |
