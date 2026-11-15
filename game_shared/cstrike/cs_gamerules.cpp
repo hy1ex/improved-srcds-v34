@@ -1,6 +1,6 @@
 //========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
-// Purpose: The TF Game rules 
+// Purpose: The TF Game rules
 //
 // $NoKeywords: $
 //=============================================================================//
@@ -18,7 +18,7 @@
 	#include "networkstringtable_clientdll.h"
 
 #else
-	
+
 	#include "bot.h"
 	#include "utldict.h"
 	#include "cs_player.h"
@@ -46,7 +46,7 @@
 	#include "nav_mesh.h"
 	#include "nav_area.h"
 	#include "nav_pathfind.h"
-	
+
 #endif
 
 
@@ -169,14 +169,14 @@ ConVar ammo_smokegrenade_max( "ammo_smokegrenade_max", "1", FCVAR_REPLICATED );
 
 extern ConVar sv_stopspeed;
 
-ConVar mp_dynamicpricing( 
-	"mp_dynamicpricing", 
-	"1", 
-	FCVAR_REPLICATED, 
+ConVar mp_dynamicpricing(
+	"mp_dynamicpricing",
+	"1",
+	FCVAR_REPLICATED,
 	"Enables or Disables the dynamic weapon prices" );
 
-ConVar mp_buytime( 
-	"mp_buytime", 
+ConVar mp_buytime(
+	"mp_buytime",
 	"1.5",
 	FCVAR_REPLICATED,
 	"How many minutes after round start players can buy items for.",
@@ -886,19 +886,19 @@ ConVar mp_playerid_hold(
 	"Number of seconds to keep showing old information in the status bar",
 	true, 0,
 	true, 1 );
-	
-ConVar mp_fadetoblack( 
-	"mp_fadetoblack", 
-	"0", 
-	FCVAR_REPLICATED, 
+
+ConVar mp_fadetoblack(
+	"mp_fadetoblack",
+	"0",
+	FCVAR_REPLICATED,
 	"fade a player's screen to black when he dies" );
 
-ConVar nextlevel( 
-	"nextlevel", 
-	"", 
+ConVar nextlevel(
+	"nextlevel",
+	"",
 	FCVAR_REPLICATED | FCVAR_NOTIFY,
 	"If set, will trigger a changelevel to the specified map at the end of the round" );
-	
+
 #ifdef CLIENT_DLL
 
 ConVar cl_autowepswitch(
@@ -1009,42 +1009,42 @@ ConVar cl_autohelp(
 		"CT"
 	};
 
-	ConVar mp_autoteambalance( 
-		"mp_autoteambalance", 
-		"1", 
+	ConVar mp_autoteambalance(
+		"mp_autoteambalance",
+		"1",
 		FCVAR_NOTIFY );
-		
-	ConVar mp_maxrounds( 
-		"mp_maxrounds", 
-		"0", 
-		FCVAR_REPLICATED | FCVAR_NOTIFY, 
-		"max number of rounds to play before server changes maps", 
-		true, 0, 
-		false, 0 );
-		
-	ConVar mp_winlimit( 
-		"mp_winlimit", 
-		"0", 
-		FCVAR_REPLICATED, 
-		"max number of rounds one team can win before server changes maps", 
-		true, 0, 
+
+	ConVar mp_maxrounds(
+		"mp_maxrounds",
+		"0",
+		FCVAR_REPLICATED | FCVAR_NOTIFY,
+		"max number of rounds to play before server changes maps",
+		true, 0,
 		false, 0 );
 
-	ConVar mp_startmoney( 
-		"mp_startmoney", 
-		"800", 
+	ConVar mp_winlimit(
+		"mp_winlimit",
+		"0",
+		FCVAR_REPLICATED,
+		"max number of rounds one team can win before server changes maps",
+		true, 0,
+		false, 0 );
+
+	ConVar mp_startmoney(
+		"mp_startmoney",
+		"800",
 		FCVAR_REPLICATED,
 		"amount of money each player gets when they reset",
 		true, 0,
 		false, 0 );
 
-	ConVar mp_roundtime( 
+	ConVar mp_roundtime(
 		"mp_roundtime",
 		"5",
 		FCVAR_REPLICATED | FCVAR_NOTIFY,
 		"How many minutes each round takes.",
 		true, 1,	// min value
-		true, 9		// max value
+		true, 60		// max value
 		);
 
 	// CS:GO round time per objective type plus its hostage rescue bonus (ref cs_gamerules.cpp:3148-3164,
@@ -1070,7 +1070,7 @@ ConVar cl_autohelp(
 
 	ConVar mp_hostages_rescuetime(
 		"mp_hostages_rescuetime",
-		"1",
+		"0",
 		FCVAR_NOTIFY,
 		"Additional time added to round time if a hostage is reached by a CT.",
 		true, 0,	// min value
@@ -1183,7 +1183,7 @@ ConVar cl_autohelp(
 		FCVAR_NOTIFY,
 		"Log every bullet hit on a player to the server console" );
 
-	ConVar mp_freezetime( 
+	ConVar mp_freezetime(
 		"mp_freezetime",
 		"6",
 		FCVAR_REPLICATED | FCVAR_NOTIFY,
@@ -1192,27 +1192,27 @@ ConVar cl_autohelp(
 		true, 60	// max value
 		);
 
-	ConVar mp_c4timer( 
-		"mp_c4timer", 
-		"45", 
+	ConVar mp_c4timer(
+		"mp_c4timer",
+		"45",
 		FCVAR_REPLICATED | FCVAR_NOTIFY,
 		"how long from when the C4 is armed until it blows",
 		true, 10,	// min value
 		true, 90	// max value
 		);
 
-	ConVar mp_limitteams( 
-		"mp_limitteams", 
-		"2", 
+	ConVar mp_limitteams(
+		"mp_limitteams",
+		"2",
 		FCVAR_REPLICATED | FCVAR_NOTIFY,
 		"Max # of players 1 team can have over another (0 disables check)",
 		true, 0,	// min value
 		true, 30	// max value
 		);
 
-	ConVar mp_tkpunish( 
-		"mp_tkpunish", 
-		"0", 
+	ConVar mp_tkpunish(
+		"mp_tkpunish",
+		"0",
 		FCVAR_REPLICATED,
 		"Will a TK'er be punished in the next round?  {0=no,  1=yes}" );
 
@@ -1228,28 +1228,28 @@ ConVar cl_autohelp(
 		FCVAR_REPLICATED,
 		"Kick players who team-kill within this many seconds of a round restart." );
 
-	ConVar mp_restartgame( 
-		"mp_restartgame", 
-		"0", 
-		FCVAR_GAMEDLL, 
+	ConVar mp_restartgame(
+		"mp_restartgame",
+		"0",
+		FCVAR_GAMEDLL,
 		"If non-zero, game will restart in the specified number of seconds" );
-		
-	ConVar mp_humanteam( 
-		"mp_humanteam", 
-		"any", 
+
+	ConVar mp_humanteam(
+		"mp_humanteam",
+		"any",
 		FCVAR_REPLICATED,
 		"Restricts human players to a single team {any, CT, T}" );
-		
-	static ConVar mp_ignore_round_win_conditions( 
-		"mp_ignore_round_win_conditions", 
-		"0", 
-		FCVAR_NONE, 
+
+	static ConVar mp_ignore_round_win_conditions(
+		"mp_ignore_round_win_conditions",
+		"0",
+		FCVAR_NONE,
 		"Ignore conditions which would end the current round" );
-		
-	static ConVar mp_round_restart_delay( 
-		"mp_round_restart_delay", 
-		"5.0", 
-		FCVAR_NONE, 
+
+	static ConVar mp_round_restart_delay(
+		"mp_round_restart_delay",
+		"5.0",
+		FCVAR_NONE,
 		"Number of seconds to delay before restarting a round after a win" );
 
 	ConCommand EndRound( "endround", &CCSGameRules::EndRound, "End the current round.", FCVAR_CHEAT );
@@ -1338,10 +1338,10 @@ ConVar cl_autohelp(
 	}
 
 
-	Vector DropToGround( 
-		CBaseEntity *pMainEnt, 
-		const Vector &vPos, 
-		const Vector &vMins, 
+	Vector DropToGround(
+		CBaseEntity *pMainEnt,
+		const Vector &vPos,
+		const Vector &vMins,
 		const Vector &vMaxs )
 	{
 		trace_t trace;
@@ -1368,13 +1368,13 @@ ConVar cl_autohelp(
 	{
 		// This function moves the box out in each dimension in each step trying to find empty space like this:
 		//
-		//											  X  
-		//							   X			  X  
+		//											  X
+		//							   X			  X
 		// Step 1:   X     Step 2:    XXX   Step 3: XXXXX
-		//							   X 			  X  
-		//											  X  
+		//							   X 			  X
+		//											  X
 		//
-			 
+
 		Vector mins, maxs;
 		pMainEnt->CollisionProp()->WorldSpaceAABB( &mins, &maxs );
 		mins -= pMainEnt->GetAbsOrigin();
@@ -1404,7 +1404,7 @@ ConVar cl_autohelp(
 		// Keep branching out until we get too far.
 		int iCurIteration = 0;
 		int nMaxIterations = 15;
-		
+
 		int offset = 0;
 		do
 		{
@@ -1416,7 +1416,7 @@ ConVar cl_autohelp(
 				{
 					Vector vBase = vOrigin;
 					vBase[iDim] += (iSign*2-1) * flCurOffset;
-				
+
 					if ( UTIL_IsSpaceEmpty( pMainEnt, vBase + vTestMins, vBase + vTestMaxs ) )
 					{
 						// Ensure that there is a clear line of sight from the spawnpoint entity to the actual spawn point.
@@ -1428,7 +1428,7 @@ ConVar cl_autohelp(
 						{
 							continue;
 						}
-						
+
 						if ( bDropToGround )
 							outPos = DropToGround( pMainEnt, vBase, vTestMins, vTestMaxs );
 						else
@@ -1599,17 +1599,17 @@ ConVar cl_autohelp(
 	}
 
 	//-----------------------------------------------------------------------------
-	// Purpose: 
+	// Purpose:
 	//-----------------------------------------------------------------------------
 	CCSGameRules::~CCSGameRules()
 	{
-		// Note, don't delete each team since they are in the gEntList and will 
+		// Note, don't delete each team since they are in the gEntList and will
 		// automatically be deleted from there, instead.
 		g_Teams.Purge();
 	}
 
 	//-----------------------------------------------------------------------------
-	// Purpose: 
+	// Purpose:
 	//-----------------------------------------------------------------------------
 	void CCSGameRules::UpdateClientData( CBasePlayer *player )
 	{
@@ -2038,7 +2038,7 @@ ConVar cl_autohelp(
 			falloff = 1.0;
 
 		int bInWater = (UTIL_PointContents ( vecSrc ) & MASK_WATER) ? true : false;
-		
+
 		vecSrc.z += 1;// in case grenade is lying on the ground
 
 		// iterate on all entities in the vicinity.
@@ -2096,7 +2096,7 @@ ConVar cl_autohelp(
 					flAdjustedDamage = vecToTarget.Length() * falloff;
 					flAdjustedDamage = info.GetDamage() - flAdjustedDamage;
 					flAdjustedDamage = flAdjustedDamage * damagePercentage;
-				
+
 					if ( flAdjustedDamage > 0 )
 					{
 						CTakeDamageInfo adjustedInfo = info;
@@ -2134,8 +2134,8 @@ ConVar cl_autohelp(
 						{
 							pEntity->TakeDamage( adjustedInfo );
 						}
-			
-						// Now hit all triggers along the way that respond to damage... 
+
+						// Now hit all triggers along the way that respond to damage...
 						pEntity->TraceAttackToTriggers( adjustedInfo, vecSrc, vecEndPos, dir );
 					}
 				}
@@ -2144,10 +2144,10 @@ ConVar cl_autohelp(
 	}
 
 	//-----------------------------------------------------------------------------
-	// Purpose: 
-	// Input  : *pVictim - 
-	//			*pKiller - 
-	//			*pInflictor - 
+	// Purpose:
+	// Input  : *pVictim -
+	//			*pKiller -
+	//			*pInflictor -
 	//-----------------------------------------------------------------------------
 	void CCSGameRules::DeathNotice( CBasePlayer *pVictim, const CTakeDamageInfo &info )
 	{
@@ -2165,13 +2165,13 @@ ConVar cl_autohelp(
 		if ( pScorer )	// Is the killer a client?
 		{
 			killer_ID = pScorer->GetUserID();
-		
+
 			if( info.GetDamageType() & DMG_HEADSHOT )
 			{
-				//to enable drawing the headshot icon as well as the weapon icon, 
+				//to enable drawing the headshot icon as well as the weapon icon,
 				bHeadshot = true;
 			}
-			
+
 			if ( pInflictor )
 			{
 				if ( pInflictor == pScorer )
@@ -2206,7 +2206,7 @@ ConVar cl_autohelp(
 		{
 			killer_weapon_name += 5;
 		}
-		else if( strncmp( killer_weapon_name, "hegrenade", 9 ) == 0 )	//"hegrenade_projectile"	
+		else if( strncmp( killer_weapon_name, "hegrenade", 9 ) == 0 )	//"hegrenade_projectile"
 		{
 			killer_weapon_name = "hegrenade";
 		}
@@ -2224,7 +2224,7 @@ ConVar cl_autohelp(
 			event->SetString("weapon", killer_weapon_name );
 			event->SetInt("headshot", bHeadshot ? 1 : 0 );
 			event->SetInt("priority", bHeadshot ? 8 : 7 );	// HLTV event priority, not transmitted
-			
+
 			gameeventmanager->FireEvent( event );
 		}
 
@@ -2394,8 +2394,8 @@ ConVar cl_autohelp(
 	//-----------------------------------------------------------------------------
 	// Purpose: When gaining new technologies in TF, prevent auto switching if we
 	//  receive a weapon during the switch
-	// Input  : *pPlayer - 
-	//			*pWeapon - 
+	// Input  : *pPlayer -
+	//			*pWeapon -
 	// Output : Returns true on success, false on failure.
 	//-----------------------------------------------------------------------------
 	bool CCSGameRules::FShouldSwitchWeapon( CBasePlayer *pPlayer, CBaseCombatWeapon *pWeapon )
@@ -2429,8 +2429,8 @@ ConVar cl_autohelp(
 	}
 
 	//-----------------------------------------------------------------------------
-	// Purpose: 
-	// Input  : allow - 
+	// Purpose:
+	// Input  : allow -
 	//-----------------------------------------------------------------------------
 	void CCSGameRules::SetAllowWeaponSwitch( bool allow )
 	{
@@ -2438,7 +2438,7 @@ ConVar cl_autohelp(
 	}
 
 	//-----------------------------------------------------------------------------
-	// Purpose: 
+	// Purpose:
 	// Output : Returns true on success, false on failure.
 	//-----------------------------------------------------------------------------
 	bool CCSGameRules::GetAllowWeaponSwitch()
@@ -2447,8 +2447,8 @@ ConVar cl_autohelp(
 	}
 
 	//-----------------------------------------------------------------------------
-	// Purpose: 
-	// Input  : *pPlayer - 
+	// Purpose:
+	// Input  : *pPlayer -
 	// Output : const char
 	//-----------------------------------------------------------------------------
 	const char *CCSGameRules::SetDefaultPlayerTeam( CBasePlayer *pPlayer )
@@ -2765,7 +2765,7 @@ ConVar cl_autohelp(
 			}
 		}
 	}
-	
+
 	INetworkStringTable *g_StringTableBlackMarket = NULL;
 
 	void CCSGameRules::CreateCustomNetworkStringTables( void )
@@ -2806,15 +2806,15 @@ ConVar cl_autohelp(
 				event->SetInt( "userid", pPlayer->GetUserID() );
 				event->SetFloat( "damage", fallDamage );
 				event->SetInt( "priority", 4 );	// HLTV event priority, not transmitted
-				
+
 				gameeventmanager->FireEvent( event );
 			}
 		}
 
 		return fallDamage;
-	} 
+	}
 
-	
+
 	void CCSGameRules::ClientDisconnected( edict_t *pClient )
 	{
 		// mp_disconnect_kills_players / mp_disconnect_kills_bots: kill the player while the entity is
@@ -2857,7 +2857,7 @@ ConVar cl_autohelp(
 		BaseClass::LevelShutdown();
 	}
 
-	
+
 	//---------------------------------------------------------------------------------------------------
 	/**
 	 * Check if the scenario has been won/lost.
@@ -2867,7 +2867,7 @@ ConVar cl_autohelp(
 	{
 		if ( mp_ignore_round_win_conditions.GetBool() )
 			return false;
-		
+
 		// If a winner has already been determined.. then get the heck out of here
 		if (m_iRoundWinStatus != WINNER_NONE)
 		{
@@ -2910,7 +2910,7 @@ ConVar cl_autohelp(
 		if ( TeamExterminationCheck( NumAliveTerrorist, NumAliveCT, NumDeadTerrorist, NumDeadCT, bNeededPlayers ) )
 			return true;
 
-		
+
 		/******************************** HOSTAGE RESCUE CHECK ******************************************************/
 		if ( HostageRescueRoundEndCheck( bNeededPlayers ) )
 			return true;
@@ -3107,7 +3107,7 @@ ConVar cl_autohelp(
 			{
 				BroadcastSound( "Event.CTWin" );
 				m_iAccountCT += (1 - flEscapeRatio) * 3500; // CTs are rewarded based on how many terrorists have escaped...
-				
+
 				if ( !bNeededPlayers )
 				{
 					m_iNumCTWins++;
@@ -3123,7 +3123,7 @@ ConVar cl_autohelp(
 			{
 				BroadcastSound( "Event.CTWin" );
 				m_iAccountCT += (1 - flEscapeRatio) * 3250; // CTs are rewarded based on how many terrorists have escaped...
-				
+
 				if ( !bNeededPlayers )
 				{
 					m_iNumCTWins++;
@@ -3134,7 +3134,7 @@ ConVar cl_autohelp(
 				TerminateRound( 5, WINNER_CT );
 				return;
 			}
-			// else return;    
+			// else return;
 		}
 		*/
 
@@ -3267,7 +3267,7 @@ ConVar cl_autohelp(
 			if ( NumAliveTerrorist == 0 && NumDeadTerrorist != 0 && !bTsRespawn && m_iNumSpawnableCT > 0 )
 			{
 				bool nowin = false;
-					
+
 				for ( int iGrenade=0; iGrenade < g_PlantedC4s.Count(); iGrenade++ )
 				{
 					CPlantedC4 *pC4 = g_PlantedC4s[iGrenade];
@@ -3294,7 +3294,7 @@ ConVar cl_autohelp(
 					return true;
 				}
 			}
-		
+
 			// Terrorists WON
 			if ( NumAliveCT == 0 && NumDeadCT != 0 && !bCTsRespawn && m_iNumSpawnableTerrorist > 0 )
 			{
@@ -3367,7 +3367,7 @@ ConVar cl_autohelp(
 				if (	!(pPlayer->pev->flags & FL_DORMANT)	)
 				{
 					player = GetClassPtr((CBasePlayer *)pPlayer->pev);
-					
+
 					if (	(player->m_iTeam == CT) && (iCount == m_iLastPick)	)
 					{
 						if (	(player == m_pVIP) && (pLastPlayer != NULL)	)
@@ -3402,7 +3402,7 @@ ConVar cl_autohelp(
 				if ( pPlayer->pev->flags != FL_DORMANT	)
 				{
 					player = GetClassPtr((CBasePlayer *)pPlayer->pev);
-		
+
 					if ( player->m_iTeam == CT )
 					{
 						player->MakeVIP();
@@ -3504,7 +3504,7 @@ ConVar cl_autohelp(
 		int i;
 
 		m_iTotalRoundsPlayed++;
-		
+
 		//ClearBodyQue();
 
 		// Hardlock the player accelaration to 5.0
@@ -3517,11 +3517,11 @@ ConVar cl_autohelp(
 		// Tabulate the number of players on each team.
 		int NumDeadCT, NumDeadTerrorist, NumAliveTerrorist, NumAliveCT;
 		InitializePlayerCounts( NumAliveTerrorist, NumAliveCT, NumDeadTerrorist, NumDeadCT );
-		
+
 		m_bBombDropped = false;
 		m_bBombPlanted = false;
 		m_bAnyHostageReached = false;
-		
+
 		if ( GetHumanTeam() != TEAM_UNASSIGNED )
 		{
 			MoveHumansToHumanTeam();
@@ -3642,49 +3642,49 @@ ConVar cl_autohelp(
 		{
 			switch ( g_pMapInfo->m_iBuyingStatus )
 			{
-				case 0: 
-					m_bCTCantBuy = false; 
-					m_bTCantBuy = false; 
+				case 0:
+					m_bCTCantBuy = false;
+					m_bTCantBuy = false;
 					Msg( "EVERYONE CAN BUY!\n" );
 					break;
-				
-				case 1: 
-					m_bCTCantBuy = false; 
-					m_bTCantBuy = true; 
+
+				case 1:
+					m_bCTCantBuy = false;
+					m_bTCantBuy = true;
 					Msg( "Only CT's can buy!!\n" );
 					break;
 
-				case 2: 
-					m_bCTCantBuy = true; 
-					m_bTCantBuy = false; 
+				case 2:
+					m_bCTCantBuy = true;
+					m_bTCantBuy = false;
 					Msg( "Only T's can buy!!\n" );
 					break;
-				
-				case 3: 
-					m_bCTCantBuy = true; 
-					m_bTCantBuy = true; 
+
+				case 3:
+					m_bCTCantBuy = true;
+					m_bTCantBuy = true;
 					Msg( "No one can buy!!\n" );
 					break;
 
-				default: 
-					m_bCTCantBuy = false; 
-					m_bTCantBuy = false; 
+				default:
+					m_bCTCantBuy = false;
+					m_bTCantBuy = false;
 					break;
 			}
 		}
 		else
 		{
 			// by default everyone can buy
-			m_bCTCantBuy = false; 
-			m_bTCantBuy = false; 
+			m_bCTCantBuy = false;
+			m_bTCantBuy = false;
 		}
-		
-		
+
+
 
 
 		// See if the map has func_buyzone entities
 		// Used by CBasePlayer::HandleSignals() to support maps without these entities
-		
+
 		if ( gEntList.FindEntityByClassname( NULL, "func_buyzone" ) )
 			m_bMapHasBuyZone = true;
 		else
@@ -3718,7 +3718,7 @@ ConVar cl_autohelp(
 		else
 			m_iMapHasVIPSafetyZone = 2;
 
-		// Update accounts based on number of hostages remaining.. 
+		// Update accounts based on number of hostages remaining..
 		int iRescuedHostageBonus = 0;
 
 		for ( int iHostage=0; iHostage < g_Hostages.Count(); iHostage++ )
@@ -3729,7 +3729,7 @@ ConVar cl_autohelp(
 			{
 				iRescuedHostageBonus += cash_team_hostage_alive.GetInt();
 			}
-			
+
 			if ( iRescuedHostageBonus >= 2000 )
 				break;
 		}
@@ -3781,7 +3781,7 @@ ConVar cl_autohelp(
 			if (m_bMapHasEscapeZone == false)	// only give them the bonus if this isn't an escape map
 				m_iAccountTerrorist += m_iLoserBonus;
 		}
-		
+
 
 		// cash_team_winner_bonus_consecutive_rounds: CS:GO pays the winner this extra amount once the
 		// loser is on a losing streak (cs_gamerules.cpp:8211). Default 0 keeps the stock economy.
@@ -3802,7 +3802,7 @@ ConVar cl_autohelp(
 		// Update individual players accounts and respawn players
 
 		//**********new code by SupraFiend
-		//##########code changed by MartinO 
+		//##########code changed by MartinO
 		//the round time stamp must be set before players are spawned
 		m_fRoundStartTime = gpGlobals->curtime + m_iFreezeTime;
 
@@ -3811,14 +3811,14 @@ ConVar cl_autohelp(
 			Warning( "Trying to set a NaN round start time\n" );
 			m_fRoundStartTime.GetForModify() = 0.0f;
 		}
-		
+
 		//Adrian - No cash for anyone at first rounds! ( well, only the default. )
 		if ( m_bCompleteReset )
 		{
 			m_iAccountTerrorist = m_iAccountCT = 0; //No extra cash!.
 
 			//We are starting fresh. So it's like no one has ever won or lost.
-			m_iNumTerroristWins				= 0; 
+			m_iNumTerroristWins				= 0;
 			m_iNumCTWins					= 0;
 			// mp_starting_losses: CS:GO can open a match with a loss streak already running
 			// (ref cs_gamerules.cpp:8595). 0, the default, is the stock fresh start.
@@ -3841,7 +3841,7 @@ ConVar cl_autohelp(
 
 			pPlayer->m_iNumSpawns	= 0;
 			pPlayer->m_bTeamChanged	= false;
-				
+
 			if ( pPlayer->GetTeamNumber() == TEAM_CT )
 			{
 				if ( pPlayer->DoesPlayerGetRoundStartMoney() && mp_teamcashawards.GetBool() )
@@ -3957,7 +3957,7 @@ ConVar cl_autohelp(
 			event->SetInt("timelimit", m_iRoundTime );
 			event->SetInt("fraglimit", 0 );
 			event->SetInt( "priority", 6 ); // HLTV event priority, not transmitted
-		
+
 			if ( m_bMapHasRescueZone )
 			{
 				event->SetString("objective","HOSTAGE RESCUE");
@@ -3981,7 +3981,7 @@ ConVar cl_autohelp(
 
 			gameeventmanager->FireEvent( event );
 		}
-	
+
 		UploadGameStats();
 
 		CreateWeaponManager( "weapon_*", gpGlobals->maxClients * 2 );
@@ -4049,12 +4049,12 @@ ConVar cl_autohelp(
 
 			//pPlayer->SetBombIcon();
 			//pPlayer->pev->body = 1;
-			
+
 			pPlayer->m_iDisplayHistoryBits |= DHF_BOMB_RETRIEVED;
 			pPlayer->HintMessage( "#Hint_you_have_the_bomb", false, true );
 
 			// Log this information
-			//UTIL_LogPrintf("\"%s<%i><%s><TERRORIST>\" triggered \"Spawned_With_The_Bomb\"\n", 
+			//UTIL_LogPrintf("\"%s<%i><%s><TERRORIST>\" triggered \"Spawned_With_The_Bomb\"\n",
 			//	STRING( pPlayer->GetPlayerName() ),
 			//	GETPLAYERUSERID( pPlayer->edict() ),
 			//	GETPLAYERAUTHID( pPlayer->edict() ) );
@@ -4098,13 +4098,13 @@ ConVar cl_autohelp(
 			return;
 		}
 
-		
+
 		// Check for the end of the round.
 		if ( IsFreezePeriod() )
 		{
 			CheckFreezePeriodExpired();
 		}
-		else 
+		else
 		{
 			CheckRoundTimeExpired();
 		}
@@ -4125,7 +4125,7 @@ ConVar cl_autohelp(
 
 				if (!player->IsBot())
 					continue;
-				
+
 				CCSBot *bot = dynamic_cast< CCSBot * >(player);
 				if ( !bot )
 					continue;
@@ -4149,7 +4149,7 @@ ConVar cl_autohelp(
 				RestartRound();
 			}
 		}
-		
+
 		if ( gpGlobals->curtime > m_tmNextPeriodicThink )
 		{
 			CheckRestartRound();
@@ -4179,7 +4179,7 @@ ConVar cl_autohelp(
 					g_fGameOver = true;
 
 					Msg( "CHANGE LEVEL: %s\n", nextlevel.GetString() );
-		
+
 					engine->ChangeLevel( nextlevel.GetString(), NULL );
 				}
 				else
@@ -4210,7 +4210,7 @@ ConVar cl_autohelp(
 				{
 					teamName = pPlayer->GetTeam()->GetName();
 				}
-				UTIL_LogPrintf("\"%s<%i><%s><%s>\" triggered \"Intermission_Kill_Limit\"\n", 
+				UTIL_LogPrintf("\"%s<%i><%s><%s>\" triggered \"Intermission_Kill_Limit\"\n",
 					pPlayer->GetPlayerName(),
 					pPlayer->GetUserID(),
 					pPlayer->GetNetworkIDString(),
@@ -4235,7 +4235,7 @@ ConVar cl_autohelp(
 				return true;
 			}
 		}
-		
+
 		return false;
 	}
 
@@ -4282,17 +4282,17 @@ ConVar cl_autohelp(
 
 		char CT_sentence[40];
 		char T_sentence[40];
-		
+
 		switch ( random->RandomInt( 0, 3 ) )
 		{
 		case 0:
-			Q_strncpy(CT_sentence,"radio.moveout", sizeof( CT_sentence ) ); 
-			Q_strncpy(T_sentence ,"radio.moveout", sizeof( T_sentence ) ); 
+			Q_strncpy(CT_sentence,"radio.moveout", sizeof( CT_sentence ) );
+			Q_strncpy(T_sentence ,"radio.moveout", sizeof( T_sentence ) );
 			break;
 
 		case 1:
-			Q_strncpy(CT_sentence, "radio.letsgo", sizeof( CT_sentence ) ); 
-			Q_strncpy(T_sentence , "radio.letsgo", sizeof( T_sentence ) ); 
+			Q_strncpy(CT_sentence, "radio.letsgo", sizeof( CT_sentence ) );
+			Q_strncpy(T_sentence , "radio.letsgo", sizeof( T_sentence ) );
 			break;
 
 		case 2:
@@ -4354,7 +4354,7 @@ ConVar cl_autohelp(
 						pPlayer->ResetMaxSpeed();
 					}
 				}
-				
+
 				//pPlayer->SyncRoundTimer();
 			}
 		}
@@ -4365,8 +4365,8 @@ ConVar cl_autohelp(
 	{
 		if ( mp_ignore_round_win_conditions.GetBool() )
 			return;
-		
-		if ( GetRoundRemainingTime() > 0 || m_iRoundWinStatus != WINNER_NONE ) 
+
+		if ( GetRoundRemainingTime() > 0 || m_iRoundWinStatus != WINNER_NONE )
 			return; //We haven't completed other objectives, so go for this!.
 
 		if( !m_bFirstConnected )
@@ -4381,7 +4381,7 @@ ConVar cl_autohelp(
 			if( !m_bBombPlanted )
 			{
 				m_iAccountCT += cash_team_win_by_time_running_out_bomb.GetInt();
-				
+
 				m_iNumCTWins++;
 
 				TerminateRound( mp_round_restart_delay.GetFloat(), Target_Saved );
@@ -4391,8 +4391,8 @@ ConVar cl_autohelp(
 		}
 		else if ( m_bMapHasRescueZone )
 		{
-			m_iAccountTerrorist += cash_team_win_by_time_running_out_hostage.GetInt(); 
-			
+			m_iAccountTerrorist += cash_team_win_by_time_running_out_hostage.GetInt();
+
 			m_iNumTerroristWins++;
 			TerminateRound( mp_round_restart_delay.GetFloat(), Hostages_Not_Rescued );
 			UpdateTeamScores();
@@ -4495,7 +4495,7 @@ ConVar cl_autohelp(
 	{
 		if ( !UTIL_IsCommandIssuedByServerAdmin() )
 			return;
-		
+
 		if ( CSGameRules() )
 		{
 			CSGameRules()->DumpTimers();
@@ -4531,8 +4531,8 @@ ConVar cl_autohelp(
 			// Count the number of spawn points for each team
 			// This determines the maximum number of players allowed on each
 
-			CBaseEntity* ent = NULL; 
-			
+			CBaseEntity* ent = NULL;
+
 			m_iSpawnPointCount_Terrorist	= 0;
 			m_iSpawnPointCount_CT			= 0;
 
@@ -4551,7 +4551,7 @@ ConVar cl_autohelp(
 
 			while ( ( ent = gEntList.FindEntityByClassname( ent, "info_player_counterterrorist" ) ) != NULL )
 			{
-				if ( IsSpawnPointValid( ent, NULL ) ) 
+				if ( IsSpawnPointValid( ent, NULL ) )
 				{
 					m_iSpawnPointCount_CT++;
 				}
@@ -4573,7 +4573,7 @@ ConVar cl_autohelp(
 	void CCSGameRules::ShowSpawnPoints( void )
 	{
 		CBaseEntity* ent = NULL;
-		
+
 		while ( ( ent = gEntList.FindEntityByClassname( ent, "info_player_terrorist" ) ) != NULL )
 		{
 			if ( IsSpawnPointValid( ent, NULL ) )
@@ -4588,7 +4588,7 @@ ConVar cl_autohelp(
 
 		while ( ( ent = gEntList.FindEntityByClassname( ent, "info_player_counterterrorist" ) ) != NULL )
 		{
-			if ( IsSpawnPointValid( ent, NULL ) ) 
+			if ( IsSpawnPointValid( ent, NULL ) )
 			{
 				NDebugOverlay::Box( ent->GetAbsOrigin(), VEC_HULL_MIN, VEC_HULL_MAX, 0, 255, 0, 200, 600 );
 			}
@@ -4708,7 +4708,7 @@ ConVar cl_autohelp(
 		if (m_iMapHasVIPSafetyZone == 1) // The ratio for teams is different for Assasination maps
 		{
 			int iDesiredNumCT, iDesiredNumTerrorist;
-			
+
 			if ( (m_iNumCT + m_iNumTerrorist)%2 != 0)	// uneven number of players
 				iDesiredNumCT			= (int)((m_iNumCT + m_iNumTerrorist) * 0.55) + 1;
 			else
@@ -4734,7 +4734,7 @@ ConVar cl_autohelp(
 			{
 				iTeamToSwap = TEAM_CT;
 				iNumToSwap = (m_iNumCT - m_iNumTerrorist)/2;
-				
+
 			}
 			else if (m_iNumTerrorist > m_iNumCT)
 			{
@@ -4796,8 +4796,8 @@ ConVar cl_autohelp(
 					continue; // don't swap bots - the bot system will handle that
 
 				if ( pPlayer &&
-					 ( m_pVIP != pPlayer ) && 
-					 ( pPlayer->GetTeamNumber() == iTeamToSwap ) && 
+					 ( m_pVIP != pPlayer ) &&
+					 ( pPlayer->GetTeamNumber() == iTeamToSwap ) &&
 					 ( engine->GetPlayerUserId( pPlayer->edict() ) > iHighestUserID ) &&
 					 ( pPlayer->State_Get() != STATE_PICKINGCLASS ) )
 					{
@@ -4855,7 +4855,7 @@ ConVar cl_autohelp(
 
 		return false;
 	}
-	
+
 	int CCSGameRules::GetHumanTeam()
 	{
 		if ( FStrEq( "CT", mp_humanteam.GetString() ) )
@@ -4866,7 +4866,7 @@ ConVar cl_autohelp(
 		{
 			return TEAM_TERRORIST;
 		}
-		
+
 		return TEAM_UNASSIGNED;
 	}
 
@@ -5052,13 +5052,13 @@ ConVar cl_autohelp(
 		variant_t emptyVariant;
 		int iWinnerTeam = WINNER_NONE;
 		const char *text = "UNKNOWN";
-				
+
 		// UTIL_ClientPrintAll( HUD_PRINTCENTER, sentence );
 
 		switch ( iReason )
 		{
 // Terror wins:
-			case Target_Bombed:	
+			case Target_Bombed:
 				text = "#Target_Bombed";
 				iWinnerTeam = WINNER_TER;
 				break;
@@ -5171,7 +5171,7 @@ ConVar cl_autohelp(
 			event->SetInt( "priority", 6 ); // HLTV event priority, not transmitted
 			gameeventmanager->FireEvent( event );
 		}
-	
+
 		if ( GetMapRemainingTime() == 0.0f  )
 		{
 			UTIL_LogPrintf("World triggered \"Intermission_Time_Limit\"\n");
@@ -5274,7 +5274,7 @@ ConVar cl_autohelp(
 		iTemp = m_iNumCTWins;
 		m_iNumCTWins = m_iNumTerroristWins;
 		m_iNumTerroristWins = iTemp;
-		
+
 		// Update the clients team score
 		UpdateTeamScores();
 	}
@@ -5319,10 +5319,10 @@ ConVar cl_autohelp(
 			{
 				UTIL_Remove( pCur );
 			}
-			
+
 			pCur = gEntList.NextEnt( pCur );
 		}
-		
+
 		// Really remove the entities so we can have access to their slots below.
 		gEntList.CleanupDeleteList();
 
@@ -5346,7 +5346,7 @@ ConVar cl_autohelp(
 					// Increment our iterator since it's not going to call CreateNextEntity for this ent.
 					if ( m_iIterator != g_MapEntityRefs.InvalidIndex() )
 						m_iIterator = g_MapEntityRefs.Next( m_iIterator );
-				
+
 					return false;
 				}
 			}
@@ -5356,7 +5356,7 @@ ConVar cl_autohelp(
 			{
 				if ( m_iIterator == g_MapEntityRefs.InvalidIndex() )
 				{
-					// This shouldn't be possible. When we loaded the map, it should have used 
+					// This shouldn't be possible. When we loaded the map, it should have used
 					// CCSMapLoadEntityFilter, which should have built the g_MapEntityRefs list
 					// with the same list of entities we're referring to here.
 					Assert( false );
@@ -5375,7 +5375,7 @@ ConVar cl_autohelp(
 					}
 					else
 					{
-						// Cool, the slot where this entity was is free again (most likely, the entity was 
+						// Cool, the slot where this entity was is free again (most likely, the entity was
 						// freed above). Now create an entity with this specific index.
 						return CreateEntityByName( pClassname, ref.m_iEdict );
 					}
@@ -5432,10 +5432,10 @@ ConVar cl_autohelp(
 		// Move the player to the place it said.
 		pPlayer->Teleport( &pSpawnSpot->GetAbsOrigin(), &pSpawnSpot->GetLocalAngles(), &vec3_origin );
 		pPlayer->m_Local.m_vecPunchAngle = vec3_angle;
-		
+
 		return pSpawnSpot;
 	}
-	
+
 	// checks if the spot is clear of players
 	bool CCSGameRules::IsSpawnPointValid( CBaseEntity *pSpot, CBasePlayer *pPlayer )
 	{
@@ -5449,7 +5449,7 @@ ConVar cl_autohelp(
 
 		Vector vTestMins = pSpot->GetAbsOrigin() + mins;
 		Vector vTestMaxs = pSpot->GetAbsOrigin() + maxs;
-		
+
 		// First test the starting origin.
 		return UTIL_IsSpaceEmpty( pPlayer, vTestMins, vTestMaxs );
 	}
@@ -5786,7 +5786,7 @@ extern bool UTIL_IsVisibleToTeam( const Vector &spot, int team );
 		{
 			bBombFound = true;
 		}
-		
+
 		return bBombFound;
 	}
 
@@ -5796,7 +5796,7 @@ extern bool UTIL_IsVisibleToTeam( const Vector &spot, int team );
 		{
 			//BroadcastSound( "Event.HostageTouched" );
 			m_flNextHostageAnnouncement = gpGlobals->curtime + 60.0;
-		}		
+		}
 
 		AddHostageRescueTime();
 	}
@@ -5825,17 +5825,17 @@ extern bool UTIL_IsVisibleToTeam( const Vector &spot, int team );
 		m_iRoundTime = m_iRoundTime.Get() + nExtraTime;
 
 		// CS:S has no "#hostagerescuetime" token in its localization files.
-		UTIL_ClientPrintAll( HUD_PRINTTALK, "Hostage reached: extra round time added" );
+		//UTIL_ClientPrintAll( HUD_PRINTTALK, "Hostage reached: extra round time added" );
 	}
 
 	void CCSGameRules::CreateStandardEntities()
 	{
 		// Create the player resource
 		g_pPlayerResource = (CPlayerResource*)CBaseEntity::Create( "cs_player_manager", vec3_origin, vec3_angle );
-	
+
 		// Create the entity that will send our data to the client.
 #ifdef _DEBUG
-		CBaseEntity *pEnt = 
+		CBaseEntity *pEnt =
 #endif
 			CBaseEntity::Create( "cs_gamerules", vec3_origin, vec3_angle );
 		Assert( pEnt );
@@ -5892,17 +5892,17 @@ void CCSGameRules::UploadGameStats( void )
 			stats.header.ipAddr[1] = ( ip >> 16 ) & MY_UCHAR_MAX;
 			stats.header.ipAddr[2] = ( ip >> 8 ) & MY_UCHAR_MAX;
 			stats.header.ipAddr[3] = ( ip ) & MY_UCHAR_MAX;
-		}			
+		}
 
 		ConVar *hostport = cvar->FindVar( "hostip" );
 		if ( hostport )
 		{
 			stats.header.port = hostport->GetInt();
-		}			
+		}
 
 		stats.header.serverid = 0;
 
-		stats.iMinutesPlayed = clamp( (short)( gpGlobals->curtime / 60 ), 0, MY_USHRT_MAX ); 
+		stats.iMinutesPlayed = clamp( (short)( gpGlobals->curtime / 60 ), 0, MY_USHRT_MAX );
 
 		memcpy( stats.iTerroristVictories, g_iTerroristVictories, sizeof( g_iTerroristVictories) );
 		memcpy( stats.iCounterTVictories, g_iCounterTVictories, sizeof( g_iCounterTVictories) );
@@ -5923,7 +5923,7 @@ void CCSGameRules::UploadGameStats( void )
 
 		if ( gamestatsuploader )
 		{
-			gamestatsuploader->UploadGameStats( 
+			gamestatsuploader->UploadGameStats(
 				STRING( gpGlobals->mapname ),
 				CS_STATS_BLOB_VERSION,
 				uBlobSize,
@@ -6021,7 +6021,7 @@ float CCSGameRules::GetMapElapsedTime( void )
 
 float CCSGameRules::GetRoundRemainingTime()
 {
-	return (float) (m_fRoundStartTime + m_iRoundTime) - gpGlobals->curtime; 
+	return (float) (m_fRoundStartTime + m_iRoundTime) - gpGlobals->curtime;
 }
 
 float CCSGameRules::GetRoundStartTime()
@@ -6043,7 +6043,7 @@ bool CCSGameRules::ShouldCollide( int collisionGroup0, int collisionGroup1 )
 		// swap so that lowest is always first
 		swap(collisionGroup0,collisionGroup1);
 	}
-	
+
 	//Don't stand on COLLISION_GROUP_WEAPONs
 	if( collisionGroup0 == COLLISION_GROUP_PLAYER_MOVEMENT &&
 		collisionGroup1 == COLLISION_GROUP_WEAPON )
@@ -6053,7 +6053,7 @@ bool CCSGameRules::ShouldCollide( int collisionGroup0, int collisionGroup1 )
 
 	// TODO: make a CS-SPECIFIC COLLISION GROUP FOR PHYSICS PROPS THAT USE THIS COLLISION BEHAVIOR.
 
-	
+
 	if ( (collisionGroup0 == COLLISION_GROUP_PLAYER || collisionGroup0 == COLLISION_GROUP_PLAYER_MOVEMENT) &&
 		collisionGroup1 == COLLISION_GROUP_PUSHAWAY )
 	{
@@ -6066,7 +6066,7 @@ bool CCSGameRules::ShouldCollide( int collisionGroup0, int collisionGroup1 )
 		return true;
 	}
 
-	return BaseClass::ShouldCollide( collisionGroup0, collisionGroup1 ); 
+	return BaseClass::ShouldCollide( collisionGroup0, collisionGroup1 );
 }
 
 
@@ -6144,7 +6144,7 @@ const CViewVectors* CCSGameRules::GetViewVectors() const
 #define BULLET_MASS_GRAINS_TO_KG(grains)	lbs2kg(BULLET_MASS_GRAINS_TO_LB(grains))
 
 // exaggerate all of the forces, but use real numbers to keep them consistent
-#define BULLET_IMPULSE_EXAGGERATION			1	
+#define BULLET_IMPULSE_EXAGGERATION			1
 
 // convert a velocity in ft/sec and a mass in grains to an impulse in kg in/s
 #define BULLET_IMPULSE(grains, ftpersec)	((ftpersec)*12*BULLET_MASS_GRAINS_TO_KG(grains)*BULLET_IMPULSE_EXAGGERATION)
@@ -6164,7 +6164,7 @@ CAmmoDef* GetAmmoDef()
 	if ( !bInitted )
 	{
 		bInitted = true;
-		
+
 		ammoDef.AddAmmoType( BULLET_PLAYER_50AE,		DMG_BULLET, TRACER_LINE, 0, 0, "ammo_50AE_max",		2400 * BULLET_IMPULSE_EXAGGERATION, 0, 10, 14 );
 		ammoDef.AddAmmoType( BULLET_PLAYER_762MM,		DMG_BULLET, TRACER_LINE, 0, 0, "ammo_762mm_max",	2400 * BULLET_IMPULSE_EXAGGERATION, 0, 10, 14 );
 		ammoDef.AddAmmoType( BULLET_PLAYER_556MM,		DMG_BULLET, TRACER_LINE, 0, 0, "ammo_556mm_max",	2400 * BULLET_IMPULSE_EXAGGERATION, 0, 10, 14 );
@@ -6216,7 +6216,7 @@ const char *CCSGameRules::GetChatPrefix( bool bTeamOnly, CBasePlayer *pPlayer )
 				{
 					pszPrefix = "(Counter-Terrorist)";
 				}
-				else 
+				else
 				{
 					pszPrefix = "*DEAD*(Counter-Terrorist)";
 				}
@@ -6248,7 +6248,7 @@ const char *CCSGameRules::GetChatPrefix( bool bTeamOnly, CBasePlayer *pPlayer )
 			{
 				if ( pPlayer->GetTeamNumber() != TEAM_SPECTATOR )
 				{
-					pszPrefix = "*DEAD*";	
+					pszPrefix = "*DEAD*";
 				}
 				else
 				{
@@ -6308,7 +6308,7 @@ const char *CCSGameRules::GetChatFormat( bool bTeamOnly, CBasePlayer *pPlayer )
 					pszFormat = "Cstrike_Chat_CT";
 				}
 			}
-			else 
+			else
 			{
 				pszFormat = "Cstrike_Chat_CT_Dead";
 			}
@@ -6348,7 +6348,7 @@ const char *CCSGameRules::GetChatFormat( bool bTeamOnly, CBasePlayer *pPlayer )
 		{
 			if ( pPlayer->GetTeamNumber() != TEAM_SPECTATOR )
 			{
-				pszFormat = "Cstrike_Chat_AllDead";	
+				pszFormat = "Cstrike_Chat_AllDead";
 			}
 			else
 			{
@@ -6369,7 +6369,7 @@ void CCSGameRules::ClientSettingsChanged( CBasePlayer *pPlayer )
 	CCSPlayer *pCSPlayer = (CCSPlayer*)pPlayer;
 
 	// first check if new name is really different
-	if (  pszOldName[0] != 0 && 
+	if (  pszOldName[0] != 0 &&
 		  Q_strncmp( pszOldName, pszNewName, MAX_PLAYER_NAME_LENGTH-1 ) )
 	{
 		// ok, player send different name
@@ -6385,7 +6385,7 @@ void CCSGameRules::ClientSettingsChanged( CBasePlayer *pPlayer )
 
 				// remember that name was changed
 				Q_snprintf( pCSPlayer->m_szNewName, sizeof( pCSPlayer->m_szNewName ), "%s", pszNewName );
-			
+
 				// tell client that it's name will be changed next round
 				ClientPrint( pCSPlayer, HUD_PRINTTALK, "#Name_change_at_respawn" );
 			}
@@ -6404,7 +6404,7 @@ void CCSGameRules::ClientSettingsChanged( CBasePlayer *pPlayer )
 			ClientPrint( pCSPlayer, HUD_PRINTTALK, "#Name_change_limit_exceeded" );
 		}
 	}
-	
+
 
 	pCSPlayer->m_bShowHints = true;
 	if ( pCSPlayer->IsNetClient() )
@@ -6629,7 +6629,7 @@ void TestTable( void )
 	int iSize = 0;
 
 	const weeklyprice_t *pPrices = NULL;
-	
+
 	pPrices = (const weeklyprice_t *)(CSGameRules()->m_StringTableBlackMarket)->GetStringUserData( iIndex, &iSize );
 }
 
@@ -6638,6 +6638,3 @@ ConCommand cs_testtable( "cs_testtable", TestTable );
 #endif
 
 #endif
-
-
-

@@ -143,7 +143,7 @@ Source game. For each feature it records:
 | `ammo_grenade_limit_total` | `4` | [24. Grenade carry limits](#24-grenade-carry-limits) | total grenades carried |
 | `mp_roundtime_hostage` | `0` | [25. Objective round times](#25-round-time-per-objective-type-and-hostage-rescue-time) | minutes per hostage round; 0 = use `mp_roundtime` |
 | `mp_roundtime_defuse` | `0` | [25. Objective round times](#25-round-time-per-objective-type-and-hostage-rescue-time) | minutes per defuse round; 0 = use `mp_roundtime` |
-| `mp_hostages_rescuetime` | `1` | [25. Objective round times](#25-round-time-per-objective-type-and-hostage-rescue-time) | extra minutes once a CT reaches a hostage; 0 = never |
+| `mp_hostages_rescuetime` | `0` | [25. Objective round times](#25-round-time-per-objective-type-and-hostage-rescue-time) | extra minutes once a CT reaches a hostage; 0 = never; 0 = stock |
 | `sv_hegrenade_damage_multiplier` | `1` | [26. HE grenade scaling](#26-he-grenade-scaling) | scale on grenade damage |
 | `sv_hegrenade_radius_multiplier` | `1` | [26. HE grenade scaling](#26-he-grenade-scaling) | scale on grenade radius |
 | `sv_falldamage_scale` | `1` | [27. Fall damage](#27-fall-damage) | scale on fall damage (replaces `mp_falldamage`) |
