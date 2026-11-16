@@ -1307,6 +1307,26 @@ ConVar cl_autohelp(
 		true, 0,
 		true, 1 );
 
+	ConVar mp_match_end_restart(
+		"mp_match_end_restart",
+		"0",
+		FCVAR_NOTIFY,
+		"At the end of the match, restart on the same map instead of loading the next map from the cycle." );
+
+	ConVar mp_match_end_changelevel(
+		"mp_match_end_changelevel",
+		"1",
+		FCVAR_NOTIFY,
+		"At the end of the match, reload the map even when the next map is the map just played. 0 restarts the match in place." );
+
+	ConVar mp_match_restart_delay(
+		"mp_match_restart_delay",
+		"0",
+		FCVAR_NOTIFY,
+		"How long the end-of-match scoreboard is shown before the next map loads. 0 = mp_chattime (stock CS:S).",
+		true, 0,
+		false, 0 );
+
 	ConVar mp_freezetime(
 		"mp_freezetime",
 		"6",
@@ -4326,18 +4346,71 @@ ConVar cl_autohelp(
 			// check to see if we should change levels now
 			if ( m_flIntermissionEndTime < gpGlobals->curtime )
 			{
-				if ( nextlevel.GetString() && *nextlevel.GetString() && engine->IsMapValid( nextlevel.GetString() ) )
+				const char *pszCurrentMap = STRING( gpGlobals->mapname );
+
+				// mp_match_end_restart: CS:GO restarts the match on the map it just played instead of
+				// following the map cycle (ref cs_gamerules.cpp:8943). 0 keeps the stock map change.
+				if ( mp_match_end_restart.GetBool() )
 				{
 					g_fGameOver = true;
 
-					Msg( "CHANGE LEVEL: %s\n", nextlevel.GetString() );
+					Msg( "CHANGE LEVEL (match end restart): %s\n", pszCurrentMap );
 
-					engine->ChangeLevel( nextlevel.GetString(), NULL );
+					engine->ChangeLevel( pszCurrentMap, NULL );
+					return true;
 				}
+
+				// Resolve the next map the same way the stock paths did (nextlevel first, then the map
+				// cycle through GetNextLevelName), so both new switches can test it in one place.
+				char szNextMap[32];
+				const char *pszNextMap = NULL;
+
+				if ( nextlevel.GetString() && *nextlevel.GetString() && engine->IsMapValid( nextlevel.GetString() ) )
+					pszNextMap = nextlevel.GetString();
 				else
 				{
-					ChangeLevel(); // intermission is over
+					GetNextLevelName( szNextMap, sizeof( szNextMap ) );
+					pszNextMap = szNextMap;
 				}
+
+				if ( !Q_stricmp( pszNextMap, pszCurrentMap ) )
+				{
+					// mp_match_end_changelevel: CS:GO only reloads the map when this is set (ref
+					// cs_gamerules.cpp:8952). It defaults to 1 here, unlike CS:GO's 0, because a stock
+					// v34 server always changelevels and that is what this port has to preserve.
+					// With 0 the match restarts in place: no engine changelevel, so the players stay
+					// connected and the map is not reloaded.
+					if ( !mp_match_end_changelevel.GetBool() )
+					{
+						Msg( "RESTARTING MATCH ON THE SAME MAP: %s\n", pszCurrentMap );
+
+						g_fGameOver = false;
+						m_flIntermissionEndTime = 0.0f;
+						m_bCompleteReset = true;
+
+						// Reset the match now instead of through m_flRestartRoundTime: Think() runs the
+						// round-limit checks before the restart timer, so the finished match's round count
+						// would send the server straight back to intermission.
+						RestartRound();
+
+						// GoToIntermission() froze every player; RestartRound() does not clear the flag.
+						for ( int i = 1; i <= gpGlobals->maxClients; i++ )
+						{
+							CBasePlayer *pPlayer = UTIL_PlayerByIndex( i );
+
+							if ( pPlayer )
+								pPlayer->RemoveFlag( FL_FROZEN );
+						}
+
+						return true;
+					}
+				}
+
+				g_fGameOver = true;
+
+				Msg( "CHANGE LEVEL: %s\n", pszNextMap );
+
+				engine->ChangeLevel( pszNextMap, NULL );
 			}
 
 			return true;
@@ -4571,6 +4644,11 @@ ConVar cl_autohelp(
 		Msg( "Going to intermission...\n" );
 
 		BaseClass::GoToIntermission();
+
+		// mp_match_restart_delay: CS:GO's end-of-match wait (ref cs_gamerules.cpp:8943). The base class
+		// just set m_flIntermissionEndTime from mp_chattime; 0 leaves that stock wait alone.
+		if ( mp_match_restart_delay.GetFloat() > 0.0f )
+			m_flIntermissionEndTime = gpGlobals->curtime + mp_match_restart_delay.GetFloat();
 
 		// set all players to FL_FROZEN
 		for ( int i = 1; i <= MAX_PLAYERS; i++ )
