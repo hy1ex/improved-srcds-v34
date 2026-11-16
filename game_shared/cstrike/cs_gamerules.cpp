@@ -1279,6 +1279,18 @@ ConVar cl_autohelp(
 		FCVAR_NOTIFY,
 		"The default grenades that the Terrorists will spawn with, separated by spaces" );
 
+	// --------------------------------------------------------------------------------------------------- //
+	// Tier A CS:GO rule ports (see FEATURES.md). Every convar in this block defaults to the value that
+	// reproduces stock Counter-Strike: Source, so an untouched server behaves exactly as before.
+	// --------------------------------------------------------------------------------------------------- //
+	ConVar mp_dm_health_per_kill(
+		"mp_dm_health_per_kill",
+		"0",
+		FCVAR_NOTIFY,
+		"Amount of health the killer gains for an enemy kill in deathmatch. 0 = stock CS:S (no healing).",
+		true, 0,
+		false, 0 );
+
 	ConVar mp_freezetime(
 		"mp_freezetime",
 		"6",
@@ -2451,6 +2463,11 @@ ConVar cl_autohelp(
 				if ( nScore > 1 )
 					pCSScorer->IncrementFragCount( nScore - 1 );
 			}
+
+			// mp_dm_health_per_kill: CS:GO heals the killer on a deathmatch kill. 0 is stock CS:S, which
+			// never heals anybody. TakeHealth() already clamps to GetMaxHealth(), so this cannot overheal.
+			if ( mp_dm_health_per_kill.GetInt() > 0 )
+				pCSScorer->TakeHealth( (float)mp_dm_health_per_kill.GetInt(), DMG_GENERIC );
 		}
 	}
 
