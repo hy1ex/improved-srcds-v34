@@ -1335,6 +1335,22 @@ ConVar cl_autohelp(
 		true, 0,
 		true, 1 );
 
+	ConVar mp_autoteambalance_delay(
+		"mp_autoteambalance_delay",
+		"0",
+		FCVAR_NOTIFY,
+		"Seconds the teams may stay unbalanced before they are auto-balanced. 0 = stock CS:S (balance at the next round restart).",
+		true, 0,
+		false, 0 );
+
+	ConVar mp_autoteambalance_warning_delay(
+		"mp_autoteambalance_warning_delay",
+		"0",
+		FCVAR_NOTIFY,
+		"Seconds before the auto-balance happens that the players are warned. 0 = no warning.",
+		true, 0,
+		false, 0 );
+
 	ConVar mp_freezetime(
 		"mp_freezetime",
 		"6",
@@ -1657,6 +1673,8 @@ ConVar cl_autohelp(
 		m_bBombDefused = false;
 		m_iTotalRoundsPlayed = -1;
 		m_iUnBalancedRounds = 0;
+		m_flAutoBalanceTime = 0.0f;
+		m_bAutoBalanceWarned = false;
 		m_flGameStartTime = 0;
 		m_iHostagesRemaining = 0;
 		m_bLevelInitialized = false;
@@ -3694,8 +3712,10 @@ ConVar cl_autohelp(
 		}
 
 		/*************** AUTO-BALANCE CODE *************/
+		// With mp_autoteambalance_delay set, the mid-round timer in Think() owns the balancing.
 		if ( mp_autoteambalance.GetInt() != 0 &&
-			(m_iUnBalancedRounds >= 1) )
+			(m_iUnBalancedRounds >= 1) &&
+			 mp_autoteambalance_delay.GetFloat() <= 0.0f )
 		{
 			if ( GetHumanTeam() == TEAM_UNASSIGNED )
 			{
@@ -3715,13 +3735,18 @@ ConVar cl_autohelp(
 
 		// Warn the players of an impending auto-balance next round...
 		if ( mp_autoteambalance.GetInt() != 0 &&
-			(m_iUnBalancedRounds == 1)	)
+			(m_iUnBalancedRounds == 1)	&&
+			 mp_autoteambalance_delay.GetFloat() <= 0.0f )
 		{
 			if ( GetHumanTeam() == TEAM_UNASSIGNED )
 			{
 				UTIL_ClientPrintAll( HUD_PRINTCENTER,"#Auto_Team_Balance_Next_Round");
 			}
 		}
+
+		// A new round restarts the mp_autoteambalance_delay clock as well.
+		m_flAutoBalanceTime = 0.0f;
+		m_bAutoBalanceWarned = false;
 
 		/*************** AUTO-BALANCE CODE *************/
 
@@ -4303,6 +4328,67 @@ ConVar cl_autohelp(
 			return;
 		}
 
+
+		// mp_autoteambalance_delay / _warning_delay: CS:GO's mid-round autobalance timers. Both
+		// default to 0, which leaves the stock restart-time balancing in RestartRound() alone.
+		if ( mp_autoteambalance.GetInt() != 0 && mp_autoteambalance_delay.GetFloat() > 0.0f &&
+			 !IsFreezePeriod() && !IsIntermission() )
+		{
+			int iCT = 0;
+			int iT = 0;
+
+			for ( int i = 1; i <= gpGlobals->maxClients; i++ )
+			{
+				CBasePlayer *pPlayer = UTIL_PlayerByIndex( i );
+
+				if ( !pPlayer )
+					continue;
+
+				if ( pPlayer->GetTeamNumber() == TEAM_CT )
+					iCT++;
+				else if ( pPlayer->GetTeamNumber() == TEAM_TERRORIST )
+					iT++;
+			}
+
+			// The same imbalance threshold the stock restart-time check uses.
+			const int iDifference = ( iCT > iT ) ? ( iCT - iT ) : ( iT - iCT );
+
+			if ( iDifference < 2 )
+			{
+				// Even enough again: the clock and the warning start over.
+				m_flAutoBalanceTime = 0.0f;
+				m_bAutoBalanceWarned = false;
+			}
+			else
+			{
+				if ( m_flAutoBalanceTime == 0.0f )
+					m_flAutoBalanceTime = gpGlobals->curtime + mp_autoteambalance_delay.GetFloat();
+
+				if ( !m_bAutoBalanceWarned && mp_autoteambalance_warning_delay.GetFloat() > 0.0f &&
+					 gpGlobals->curtime >= m_flAutoBalanceTime - mp_autoteambalance_warning_delay.GetFloat() )
+				{
+					char szMessage[128];
+					int iSecondsLeft = (int)( m_flAutoBalanceTime - gpGlobals->curtime );
+
+					if ( iSecondsLeft < 1 )
+						iSecondsLeft = 1;
+
+					Q_snprintf( szMessage, sizeof( szMessage ),
+						"Teams are unbalanced: auto-balancing in %d second%s.",
+						iSecondsLeft, ( iSecondsLeft > 1 ) ? "s" : "" );
+
+					UTIL_ClientPrintAll( HUD_PRINTCENTER, szMessage );
+					m_bAutoBalanceWarned = true;
+				}
+
+				if ( gpGlobals->curtime >= m_flAutoBalanceTime )
+				{
+					BalanceTeams();
+					m_flAutoBalanceTime = 0.0f;
+					m_bAutoBalanceWarned = false;
+				}
+			}
+		}
 
 		// Check for the end of the round.
 		if ( IsFreezePeriod() )

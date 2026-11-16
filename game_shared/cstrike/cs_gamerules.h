@@ -332,6 +332,11 @@ public:
 	int m_iRoundWinStatus;		// 1 == CT's won last round, 2 == Terrorists did, 3 == Draw, no winner
 	int m_iTotalRoundsPlayed;
 	int m_iUnBalancedRounds;	// keeps track of the # of consecutive rounds that have gone by where one team outnumbers the other team by more than 2
+
+	// mp_autoteambalance_delay / _warning_delay timers. Plain server-side members: not networked,
+	// not in any datatable. m_flAutoBalanceTime == 0 means no balance is pending.
+	float m_flAutoBalanceTime;
+	bool m_bAutoBalanceWarned;
 	
 	// GAME TIMES
 	int m_iFreezeTime;		// (From mp_freezetime) - How many seconds long the intro round (when players are frozen) is.
