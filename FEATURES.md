@@ -183,6 +183,8 @@ Source game. For each feature it records:
 | `sv_turbophysics_use` | `1` | [48. Turbo-physics +USE gates](#48-turbo-physics-use-gates) | allow the `sv_turbophysics` +USE shove; needs `sv_turbophysics 1` |
 | `sv_turbophysics_weapons` | `1` | [48. Turbo-physics +USE gates](#48-turbo-physics-use-gates) | 1 = +USE can shove dropped `weapon_*` entities |
 | `sv_turbophysics_c4` | `1` | [48. Turbo-physics +USE gates](#48-turbo-physics-use-gates) | 1 = +USE can shove `weapon_c4` / `planted_c4` |
+| `sv_spray_check` | `1` | [49. Spray validation and decal gate](#49-spray-validation-and-decal-gate) | validate and quarantine sprays under `downloads/`; 1 by default, stock CS:S checks nothing |
+| `sv_spray_enable` | `1` | [49. Spray validation and decal gate](#49-spray-validation-and-decal-gate) | 0 = never broadcast a `Player Decal` |
 
 ## Command index
 
@@ -2398,6 +2400,63 @@ is identical to stock; the only extra cost is one classname comparison per use t
 (`CanPlayerUsePushEntity`, `CBasePlayer::PlayerUse`).
 
 
+# 49. Spray validation and decal gate
+
+**Origin:** local server setting, following SilvDev's Spray_Exploit SourceMod plugin. That plugin
+mitigates a client crash from outside the game; this implements the server-side half in the DLL,
+where the spray path already lives.
+
+**What stock CS:S does.** A client with `cl_allowupload 1` uploads its custom spray into the mod's
+`downloads/` tree. Pressing the spray key sends impulse 201, which this DLL handles in
+`CBasePlayer::ImpulseCommands()`: it rate-limits with `decalfrequency`, traces 128 units, spawns a
+`spraycan` entity, and `CSprayCan::Think` calls `UTIL_PlayerDecalTrace()`, which broadcasts the
+`Player Decal` temp entity. Every client then renders the decal by decoding the uploaded VTF. A
+crafted VTF header makes that decode crash the clients.
+
+**What it does here.** Server-side validation and gating, with no client or protocol change:
+
+* `sv_spray_check 1` scans `downloads/` (map start and every client connect, three directory levels
+  deep) and inspects each `.dat` spray's VTF header. A file is rejected when it is not a VTF (missing
+  `VTF\0`), uses a version other than 7.x/7.0-7.5, has a header size outside 16..1024, dimensions
+  outside 1..8192, any of the RENDERTARGET / DEPTHRENDERTARGET / NODEPTHBUFFER / BORDER flag bits,
+  a frame count outside 1..66, a mip count outside 1..16, or image data that disagrees with the file
+  size by more than 5% (skipped for 7.3+ files with resource entries, and for formats whose size
+  model is unknown).
+* Rejected files are renamed to `<name>.dat.bad` rather than deleted, and every quarantine is logged.
+* The scan is spread over frames (32 file reads per frame), so a large `downloads/` tree cannot hitch
+  the server.
+* While a scan is running, and for the rest of the map once a bad file was found, `Player Decal` is
+  never broadcast: clients cannot be asked to decode a spray that was quarantined, and already
+  downloaded copies are never triggered.
+* `sv_spray_enable 0` stops the broadcast unconditionally, without scanning anything (the zero-I/O
+  way to disable sprays).
+
+Only `.dat` files are examined; `.dat.ztmp` and anything else in `downloads/` is ignored. Unreadable
+files are left alone rather than deleted, because the validator only quarantines what it could
+inspect.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `sv_spray_check` | `1` | `0`/`1` | Validate and quarantine invalid sprays under `downloads/`; `1` is a deliberate default change, stock CS:S checks nothing |
+| `sv_spray_enable` | `1` | `0`/`1` | `0` never broadcasts a `Player Decal` (stock is `1`) |
+
+**Client compatibility.** No netprop, entity, usermessage or file is added for clients, and the decal
+temp entity is unchanged when it is allowed. Quarantining a file only affects future downloads; a
+client that already cached it stays connected and simply never sees it rendered.
+
+**Risk:** the validator's size heuristic is the weak point (the SourceMod plugin's changelog shows
+several false positives over the years), so a legitimate spray whose VTF layout does not match the
+size model is renamed to `.bad` and must be restored by an admin. Deleting was rejected for that
+reason. Format/version checks alone are much less likely to misfire.
+
+**Files:** `dlls/spraycheck.cpp` / `dlls/spraycheck.h` (validator, scan system, convars),
+`dlls/player.cpp` (`ImpulseCommands`, impulse 201), `dlls/util.cpp`
+(`UTIL_PlayerDecalTrace`), `dlls/gameinterface.cpp` (game system registration, scan on
+`ClientConnect`), `linux_sdk/Makefile.server_cstrike`.
+
+
 ---
 
 # Next port batch — candidates (not yet implemented)
@@ -2405,7 +2464,7 @@ is identical to stock; the only extra cost is one classname comparison per use t
 This is the shortlist for the next batch, produced the same way as the features above: read the
 CS:GO reference, find the code this tree already contains that the convar would gate, and keep
 every new setting at its stock Counter-Strike: Source value by default. The tier B entries below are not
-implemented yet; new feature numbers continue from 49 when one is approved and ported.
+implemented yet; new feature numbers continue from 50 when one is approved and ported.
 
 What was filtered out of CS:GO's game-rule cvars, and why:
 
@@ -2421,8 +2480,9 @@ What was filtered out of CS:GO's game-rule cvars, and why:
 ## Status
 
 The six tier A candidates from this list are now ported as features 42-47 and have been removed from
-it. Feature 48 is a local addition (turbo-physics +USE gates), not a CS:GO port. What remains is
-tier B, one batch each, and the tier C list of things this game DLL cannot do.
+it. Features 48-49 are local additions (turbo-physics +USE gates, spray validation and decal gate),
+not CS:GO ports. What remains is tier B, one batch each, and the tier C list of things this game DLL
+cannot do.
 
 ## Tier B — larger, one batch each
 
