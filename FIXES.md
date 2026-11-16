@@ -394,25 +394,42 @@ budget accessors (`player.h:644`), members `m_flLastUserCommandTime`
 simulation-tick clamp (`player.cpp:2924`), and the reworked command-assembly
 loop (`player.cpp:3069`, original kept in the `#else` branch).
 
-## 2.5 `sv_shootpositionfix` — shoot position correction (Valve PR #442)
+## 2.5 `se_shootpositionfix` — shoot position correction (pre-move eye latch)
 
-**Files:** `dlls/player_command.cpp:408`, `dlls/player_command.cpp:440`,
-`dlls/player_command.cpp:450`, `dlls/player_command.cpp:465` (cvar defined in
-the block at `dlls/player_command.cpp:25`)
+**Files:** `dlls/player_command.cpp` (`FinishCommand`, `FinishMove`, `RunCommand`),
+`game_shared/baseplayer_shared.cpp` (convar, latch, `Weapon_ShootPosition`),
+`dlls/player.h` / `dlls/player.cpp` (members and constructor init)
 
-**Original:** inside `CPlayerMove::RunCommand`, `moveHelper->ProcessImpacts()`
-and `RunPostThink()` ran *after* movement processing, right before
-`FinishCommand()`.
+**Original:** stock v34 `CBasePlayer::Weapon_ShootPosition()` returns `EyePosition()`, i.e.
+`GetAbsOrigin() + GetViewOffset()` after this command's movement has already been committed. The
+client aimed the command on a frame rendered from the **pre-move** state, so the bullet starts one
+tick of movement ahead of the crosshair — about 3.8 units sideways at 250 u/s and 66 tick, and it is
+vertical too while ducking or standing up, where `Duck()` changes the view offset inside
+`ProcessMovement()`.
 
-**Fixed (default on):** both are moved *before* `RunPreThink`/movement, so
-collision impacts resolve before the player's shoot position (eye position) is
-captured for the shot; with `sv_shootpositionfix 0` the original order is kept.
-This is the backport of
-[ValveSoftware/source-sdk-2013#442](https://github.com/ValveSoftware/source-sdk-2013/pull/442):
-shots no longer originate from a position that misses the tick's collision
-resolution (the classic "shot from the wrong spot" desync at high tickrates).
-The same block also restores the locked aim angles from 2.2 and runs
-`RunPostThink` under the fixed ordering.
+**Fixed:** right after `SetupMove()` and before `ProcessMovement()`,
+`CPlayerMove::RunCommand()` latches the eye position the command starts from:
+`CMoveData::m_vecAbsOrigin + GetViewOffset()`. At that point the view offset is still the one the
+rendered frame used, because only `Duck()` touches it later, inside `ProcessMovement()`.
+`CBasePlayer::Weapon_ShootPosition()` returns the latch while the convar is on, the player is not in
+a vehicle, and `GetAbsOrigin()` still equals the origin `FinishMove()` committed; the 0.1 unit
+tolerance only absorbs float noise, so a teleport (including one from `ProcessImpacts()`) or
+`m_bForceOrigin` falls back to the live `EyePosition()`. The latch is cleared in `FinishCommand()`,
+so everything outside command processing — HUD, bots, console commands, NPCs — sees stock
+`EyePosition()`.
+
+The player's origin is never swapped, saved or restored, and `RunCommand()` keeps the stock v34 order
+(`FinishMove -> aim-hold restore -> ProcessImpacts -> RunPostThink -> FinishCommand`) whether the fix
+is on or off. Grenades and the C4 plant read `GetAbsOrigin()` directly and stay stock (post-move
+origin with post-move velocity), and weapon drops keep their stock placement.
+
+**Off by default.** The convar is `se_shootpositionfix` (`FCVAR_REPLICATED`, default `0`) and the fix
+is enabled with `se_shootpositionfix 1` in `server.cfg` (the repository ships no `server.cfg`). The
+default cannot be `1`: the engine only sends a replicated convar to a connecting client when its
+value differs from the default, so a server default of `1` would leave ClientMod clients at their own
+`0` and predicting hits without the fix. The convar name is the one the ClientMod client reads, so a
+separate `sv_shootpositionfix` toggle must not be reintroduced, and ClientMod-Api's own
+shoot-position fix must not run at the same time.
 
 ## 2.6 Physics follows the server tick interval (100-tick support)
 

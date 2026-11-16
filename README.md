@@ -42,8 +42,8 @@ fixes from newer Source-engine trees is tracked in
   without touching the network protocol — see
   [UPSTREAM-PORT-REPORT.md](UPSTREAM-PORT-REPORT.md) for the analysis and the
   commits that have landed.
-* **Gameplay fixes** — `sv_shootpositionfix` (Valve's shoot-position
-  correction), configurable round flow, bunnyhop speed cap, and the original
+* **Gameplay fixes** — `se_shootpositionfix` (shoot-position
+  correction, off by default), configurable round flow, bunnyhop speed cap, and the original
   list below:
   * Physics fixes for 100 tickrate
   * Fixed some console commands leading to the crash of the server
@@ -60,7 +60,7 @@ fixes from newer Source-engine trees is tracked in
 * `sv_player_usercommand_timeout <3>` — After this many seconds without a usercommand from a player, the server will RunNullCommand as if client sends an empty command
 * `sv_usercmd_custom_random_seed <1>` — When enabled server will populate an additional random seed independent of the client
 * `sv_max_usercmd_move_magnitude <1000>` — Maximum move magnitude that can be requested by client
-* `sv_shootpositionfix <1>` — Fixes shoot position. https://github.com/ValveSoftware/source-sdk-2013/pull/442
+* `se_shootpositionfix <0>` — Fire from the eye position the player aimed from (start of the command) instead of the post-movement one. Off by default; enable it with `se_shootpositionfix 1` in `server.cfg`. The default has to stay `0`: a replicated convar left at its default is not sent to connecting clients, so ClientMod clients would keep their own `0` and predict hits without the fix.
 * `sv_enablebunnyhopping <0>` — Allow player speed to exceed maximum running speed
 
 **Gameplay**
