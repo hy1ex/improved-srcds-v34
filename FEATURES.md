@@ -159,7 +159,6 @@ Source game. For each feature it records:
 | `mp_force_assign_teams` | `0` | [31. Team assignment](#31-team-assignment) | 1 = the server picks the team |
 | `mp_flinch_punch_scale` | `1` | [32. Aim punch scale](#32-aim-punch-scale) | scales aim punch when hit; 1 = stock, CS:GO uses 3 |
 | `sv_showbullethits` | `0` | [33. Bullet hit log](#33-bullet-hit-log-adapted) | 1 = log bullet hits to the server console |
-
 | `mp_suicide_time` | `5` | [35. Suicide delay](#35-suicide-delay) | seconds between suicides |
 | `mp_weapon_self_inflict_amount` | `0` | [36. Self-inflicted miss damage](#36-self-inflicted-miss-damage) | fraction of the shot's damage taken when it hits no enemy |
 | `ff_damage_bullet_penetration` | `-1` | [37. Friendly fire bullet penetration](#37-friendly-fire-bullet-penetration) | -1 = stock, 0 = stop at a teammate, >0 = scale |
