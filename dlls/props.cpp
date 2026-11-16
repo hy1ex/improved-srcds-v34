@@ -76,6 +76,13 @@ ConVar func_breakdmg_explosive( "func_breakdmg_explosive", "1.25" );
 
 ConVar sv_turbophysics( "sv_turbophysics", "0", FCVAR_REPLICATED, "Turns on turbo physics" );
 
+// The sv_turbophysics +USE shove used to act on every physics entity. These three switches split it by
+// entity kind so a server can keep turbo physics but stop players from nudging weapons or the bomb.
+// All default to 1, which is exactly what sv_turbophysics 1 did before.
+ConVar sv_turbophysics_use( "sv_turbophysics_use", "1", FCVAR_NOTIFY, "Allow the +USE shove from sv_turbophysics (requires sv_turbophysics 1)" );
+ConVar sv_turbophysics_weapons( "sv_turbophysics_weapons", "1", FCVAR_NOTIFY, "Allow the sv_turbophysics +USE shove to move dropped weapon entities (requires sv_turbophysics_use 1)" );
+ConVar sv_turbophysics_c4( "sv_turbophysics_c4", "1", FCVAR_NOTIFY, "Allow the sv_turbophysics +USE shove to move the C4 (requires sv_turbophysics_use 1)" );
+
 #ifdef HL2_EPISODIC
 	#define PROP_FLARE_LIFETIME 30.0f
 	#define PROP_FLARE_IGNITE_SUBSTRACT 5.0f

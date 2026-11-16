@@ -46,6 +46,24 @@
 	extern ConVar sv_pushaway_max_force;
 	extern ConVar sv_pushaway_force;
 	extern ConVar sv_turbophysics;
+	extern ConVar sv_turbophysics_use;
+	extern ConVar sv_turbophysics_weapons;
+	extern ConVar sv_turbophysics_c4;
+
+// The sv_turbophysics +USE shove hits whatever the trace finds. These switches decide whether that
+// entity may be shoved at all: the C4 first, then dropped weapon entities, then everything else.
+	static bool CanPlayerUsePushEntity( CBaseEntity *pEntity )
+	{
+		const char *pszClassname = pEntity->GetClassname();
+
+		if ( !V_stricmp( pszClassname, "weapon_c4" ) || !V_stricmp( pszClassname, "planted_c4" ) )
+			return sv_turbophysics_c4.GetBool();
+
+		if ( !V_strnicmp( pszClassname, "weapon_", 7 ) )
+			return sv_turbophysics_weapons.GetBool();
+
+		return true;
+	}
 
 	class CUsePushFilter : public CTraceFilterEntitiesOnly
 	{
@@ -1062,7 +1080,7 @@ void CBasePlayer::PlayerUse ( void )
 
 #if !defined(_XBOX)
 	// push objects in turbo physics mode
-	if ( (m_nButtons & IN_USE) && sv_turbophysics.GetBool() )
+	if ( (m_nButtons & IN_USE) && sv_turbophysics.GetBool() && sv_turbophysics_use.GetBool() )
 	{
 		Vector forward, up;
 		EyeVectors( &forward, NULL, &up );
@@ -1078,7 +1096,7 @@ void CBasePlayer::PlayerUse ( void )
 		// try the hit entity if there is one, or the ground entity if there isn't.
 		CBaseEntity *entity = tr.m_pEnt;
 
-		if ( entity )
+		if ( entity && CanPlayerUsePushEntity( entity ) )
 		{
 			IPhysicsObject *pObj = entity->VPhysicsGetObject();
 
