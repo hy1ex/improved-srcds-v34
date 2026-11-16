@@ -1291,6 +1291,14 @@ ConVar cl_autohelp(
 		true, 0,
 		false, 0 );
 
+	ConVar cash_team_bonus_shorthanded(
+		"cash_team_bonus_shorthanded",
+		"0",
+		FCVAR_NOTIFY,
+		"Bonus money paid to a team that wins a round while outnumbered. 0 = stock CS:S (no bonus).",
+		true, 0,
+		false, 0 );
+
 	ConVar mp_freezetime(
 		"mp_freezetime",
 		"6",
@@ -3906,6 +3914,20 @@ ConVar cl_autohelp(
 				m_iAccountTerrorist += nWinnerStreakBonus;
 			else if ( m_iRoundWinStatus == WINNER_CT && m_iNumConsecutiveTerroristLoses > 1 )
 				m_iAccountCT += nWinnerStreakBonus;
+		}
+
+		// cash_team_bonus_shorthanded: CS:GO pays the winning team when it won while outnumbered
+		// (ref cs_gamerules.cpp:8266). m_iNumCT / m_iNumTerrorist are the round-end counts
+		// InitializePlayerCounts() tabulated at the top of RestartRound(). Default 0 is the stock
+		// CS:S economy.
+		const int nShortHandedBonus = cash_team_bonus_shorthanded.GetInt();
+
+		if ( nShortHandedBonus != 0 )
+		{
+			if ( m_iRoundWinStatus == WINNER_TER && m_iNumTerrorist < m_iNumCT )
+				m_iAccountTerrorist += nShortHandedBonus;
+			else if ( m_iRoundWinStatus == WINNER_CT && m_iNumCT < m_iNumTerrorist )
+				m_iAccountCT += nShortHandedBonus;
 		}
 
 		//Update CT account based on number of hostages rescued
