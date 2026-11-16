@@ -1327,6 +1327,14 @@ ConVar cl_autohelp(
 		true, 0,
 		false, 0 );
 
+	ConVar mp_match_can_clinch(
+		"mp_match_can_clinch",
+		"0",
+		FCVAR_NOTIFY,
+		"End the match as soon as the trailing team can no longer catch up. 0 = stock CS:S (play every round).",
+		true, 0,
+		true, 1 );
+
 	ConVar mp_freezetime(
 		"mp_freezetime",
 		"6",
@@ -4257,6 +4265,31 @@ ConVar cl_autohelp(
 		if ( CheckMaxRounds() )
 		{
 			return;
+		}
+
+		// mp_match_can_clinch: CS:GO ends a match early once the trailing team cannot catch up
+		// (ref cs_gamerules.cpp:8880). Off by default: a stock CS:S match only ends at
+		// mp_maxrounds, mp_winlimit, mp_timelimit or fraglimit.
+		if ( mp_match_can_clinch.GetBool() && mp_maxrounds.GetInt() > 0 &&
+			 m_iRoundWinStatus != WINNER_NONE )
+		{
+			// Rounds still to be played after the one that just finished. Only a decided round is
+			// judged, so a live round is never cut off.
+			int iRoundsLeft = mp_maxrounds.GetInt() - m_iTotalRoundsPlayed;
+
+			if ( iRoundsLeft < 0 )
+				iRoundsLeft = 0;
+
+			const bool bCTClinched = ( (int)m_iNumCTWins > (int)m_iNumTerroristWins + iRoundsLeft );
+			const bool bTClinched  = ( (int)m_iNumTerroristWins > (int)m_iNumCTWins + iRoundsLeft );
+
+			if ( bCTClinched || bTClinched )
+			{
+				UTIL_LogPrintf( "World triggered \"Intermission_Clinch\" (CT %d, T %d, %d rounds left)\n",
+					m_iNumCTWins, m_iNumTerroristWins, iRoundsLeft );
+				GoToIntermission();
+				return;
+			}
 		}
 
 		// did somebaody hit the fraglimit ?
