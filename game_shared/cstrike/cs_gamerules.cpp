@@ -1299,6 +1299,14 @@ ConVar cl_autohelp(
 		true, 0,
 		false, 0 );
 
+	ConVar mp_suicide_penalty(
+		"mp_suicide_penalty",
+		"0",
+		FCVAR_NOTIFY,
+		"Punish a player who kills himself with the team-kill cash penalty. 0 = stock CS:S (no penalty).",
+		true, 0,
+		true, 1 );
+
 	ConVar mp_freezetime(
 		"mp_freezetime",
 		"6",
@@ -2400,6 +2408,15 @@ ConVar cl_autohelp(
 		// equivalent).
 		if ( mp_playercashawards.GetBool() && cash_player_get_killed.GetInt() != 0 )
 			pCSVictim->AddAccount( cash_player_get_killed.GetInt() );
+
+		// mp_suicide_penalty: CS:GO penalises a suicide like a team kill (ref cs_gamerules.cpp:7377).
+		// Without this switch a suicide falls through to the enemy-kill branch below, because
+		// CTTeamplayRules::IPointsForKill( self, self ) returns 1; 0 keeps exactly that stock path.
+		if ( mp_suicide_penalty.GetBool() && pCSScorer == pCSVictim )
+		{
+			pCSScorer->AddAccount( cash_player_killed_teammate.GetInt() );
+			return;
+		}
 
 		if ( IPointsForKill( pScorer, pVictim ) < 0 )
 		{
