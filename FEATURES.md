@@ -180,6 +180,9 @@ Source game. For each feature it records:
 | `mp_match_can_clinch` | `0` | [46. Early match clinch](#46-early-match-clinch) | end the match once the trailing team cannot catch up |
 | `mp_autoteambalance_delay` | `0` | [47. Auto-balance delay and warning](#47-auto-balance-delay-and-warning) | seconds unbalanced before balancing |
 | `mp_autoteambalance_warning_delay` | `0` | [47. Auto-balance delay and warning](#47-auto-balance-delay-and-warning) | seconds before the balance that players are warned |
+| `sv_turbophysics_use` | `1` | [48. Turbo-physics +USE gates](#48-turbo-physics-use-gates) | allow the `sv_turbophysics` +USE shove; needs `sv_turbophysics 1` |
+| `sv_turbophysics_weapons` | `1` | [48. Turbo-physics +USE gates](#48-turbo-physics-use-gates) | 1 = +USE can shove dropped `weapon_*` entities |
+| `sv_turbophysics_c4` | `1` | [48. Turbo-physics +USE gates](#48-turbo-physics-use-gates) | 1 = +USE can shove `weapon_c4` / `planted_c4` |
 
 ## Command index
 
@@ -2352,6 +2355,49 @@ networked and not in any datatable.
 `game_shared/cstrike/cs_gamerules.h` (members).
 
 
+# 48. Turbo-physics +USE gates
+
+**Origin:** local server setting, not from CS:GO. Requested to split the stock `sv_turbophysics`
+`+USE` shove by entity kind.
+
+**What stock CS:S does.** With `sv_turbophysics 1`, `CBasePlayer::PlayerUse()` traces 96 units
+along the eye vector every tick while `+USE` is held, and applies
+`sv_pushaway_force / distance` (capped by `sv_pushaway_max_force`) to the hit entity's physics
+object. Nothing is filtered: a dropped weapon or a dropped C4 is shoved exactly like a barrel.
+
+**What it does here.** Three switches gate that shove. The force values and the rest of
+`sv_turbophysics` (collision groups, push-away) are untouched:
+
+* `sv_turbophysics_use` must be 1 for the shove to run at all, and it still requires
+  `sv_turbophysics 1`, so `sv_turbophysics 0` turns everything off as before.
+* `sv_turbophysics_c4` covers `weapon_c4` and `planted_c4`; `0` means the bomb cannot be nudged.
+* `sv_turbophysics_weapons` covers any entity whose classname starts with `weapon_` (dropped
+  primaries and pistols, grenades while they are still weapon entities); `0` means no shove.
+* Everything else (props, debris, physics clutter) behaves exactly as stock.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `sv_turbophysics_use` | `1` | `0`/`1` | Allow the +USE shove; requires `sv_turbophysics 1` |
+| `sv_turbophysics_weapons` | `1` | `0`/`1` | Allow the shove to move dropped `weapon_*` entities |
+| `sv_turbophysics_c4` | `1` | `0`/`1` | Allow the shove to move `weapon_c4` / `planted_c4` |
+
+All three default to `1`, so `sv_turbophysics 1` keeps its exact stock behaviour until an admin
+opts out.
+
+**Client compatibility.** The shove is server-side force applied to an existing physics object; no
+netprop, entity or usermessage is added, and the client already sees the resulting motion. The new
+convars are `FCVAR_NOTIFY` and not replicated; `sv_turbophysics` keeps its stock
+`FCVAR_REPLICATED`.
+
+**Risk:** low. With the defaults the new check returns true for every entity, so the executed path
+is identical to stock; the only extra cost is one classname comparison per use tick.
+
+**Files:** `dlls/props.cpp` (convars), `game_shared/baseplayer_shared.cpp`
+(`CanPlayerUsePushEntity`, `CBasePlayer::PlayerUse`).
+
+
 ---
 
 # Next port batch — candidates (not yet implemented)
@@ -2359,7 +2405,7 @@ networked and not in any datatable.
 This is the shortlist for the next batch, produced the same way as the features above: read the
 CS:GO reference, find the code this tree already contains that the convar would gate, and keep
 every new setting at its stock Counter-Strike: Source value by default. The tier B entries below are not
-implemented yet; new feature numbers continue from 48 when one is approved and ported.
+implemented yet; new feature numbers continue from 49 when one is approved and ported.
 
 What was filtered out of CS:GO's game-rule cvars, and why:
 
@@ -2375,7 +2421,8 @@ What was filtered out of CS:GO's game-rule cvars, and why:
 ## Status
 
 The six tier A candidates from this list are now ported as features 42-47 and have been removed from
-it. What remains is tier B, one batch each, and the tier C list of things this game DLL cannot do.
+it. Feature 48 is a local addition (turbo-physics +USE gates), not a CS:GO port. What remains is
+tier B, one batch each, and the tier C list of things this game DLL cannot do.
 
 ## Tier B — larger, one batch each
 
