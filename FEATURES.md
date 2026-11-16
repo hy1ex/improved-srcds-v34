@@ -172,6 +172,15 @@ Source game. For each feature it records:
 | `mp_t_default_primary` | `""` | [41. Default loadouts](#41-default-loadouts) | T spawn rifle; empty = none |
 | `mp_t_default_secondary` | `weapon_glock` | [41. Default loadouts](#41-default-loadouts) | T spawn pistol |
 | `mp_t_default_grenades` | `""` | [41. Default loadouts](#41-default-loadouts) | T spawn grenades, space separated |
+| `mp_dm_health_per_kill` | `0` | [42. Deathmatch kill healing](#42-deathmatch-kill-healing) | health gained per enemy kill; 0 = off |
+| `cash_team_bonus_shorthanded` | `0` | [43. Shorthanded win bonus](#43-shorthanded-win-bonus) | bonus for winning while outnumbered |
+| `mp_suicide_penalty` | `0` | [44. Suicide penalty](#44-suicide-penalty) | 0/1, a suicide costs the team-kill penalty |
+| `mp_match_end_restart` | `0` | [45. Match-end behaviour](#45-match-end-behaviour) | restart on the same map instead of the cycle |
+| `mp_match_end_changelevel` | `1` | [45. Match-end behaviour](#45-match-end-behaviour) | 1 = changelevel even for the same map (stock), 0 = in-place restart |
+| `mp_match_restart_delay` | `0` | [45. Match-end behaviour](#45-match-end-behaviour) | end-of-match wait; 0 = `mp_chattime` |
+| `mp_match_can_clinch` | `0` | [46. Early match clinch](#46-early-match-clinch) | end the match once the trailing team cannot catch up |
+| `mp_autoteambalance_delay` | `0` | [47. Auto-balance delay and warning](#47-auto-balance-delay-and-warning) | seconds unbalanced before balancing |
+| `mp_autoteambalance_warning_delay` | `0` | [47. Auto-balance delay and warning](#47-auto-balance-delay-and-warning) | seconds before the balance that players are warned |
 
 ## Command index
 
@@ -2174,3 +2183,264 @@ classnames have to be real CS:S weapons.
 
 **Files:** `dlls/cstrike/cs_player.cpp` (`GiveDefaultItems` and its two helpers),
 `game_shared/cstrike/cs_gamerules.cpp` (convars).
+# 42. Deathmatch kill healing
+
+**Origin:** CS:GO `mp_dm_health_per_kill` (`game/shared/cstrike15/cs_gamerules.cpp`, used from the
+kill path).
+
+**What stock CS:S does.** Nothing heals on a kill, so a deathmatch-style server can only bring a
+player back at full health.
+
+**What it does here.** The enemy-kill branch of `CCSGameRules::PlayerKilled()` heals the scorer with
+`TakeHealth()`, which already clamps to `GetMaxHealth()`. It is independent of `mp_dm_scoring`, so it
+works with stock frag scoring too, and it pairs with the respawn feature 3 for real deathmatch
+servers.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_dm_health_per_kill` | `0` | health points | Health the killer gains per enemy kill; `0` = stock (off) |
+
+**Client compatibility.** Server-side only; the client draws the health the server reports.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (`PlayerKilled`, convar).
+
+
+# 43. Shorthanded win bonus
+
+**Origin:** CS:GO `cash_team_bonus_shorthanded` (`game/shared/cstrike15/cs_gamerules.cpp`, round
+awards).
+
+**What stock CS:S does.** A team that wins while outnumbered is paid the normal winner award only.
+
+**What it does here.** The round-award block of `RestartRound()` compares the round-end counts
+(`m_iNumCT` / `m_iNumTerrorist`, tabulated by `InitializePlayerCounts()` at the top of the function)
+and adds the convar's amount to the winning team's account pool when it was the smaller side. Only
+the team pools are touched, so the stock per-player awards are unchanged.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `cash_team_bonus_shorthanded` | `0` | money | Bonus for the winning team when it won outnumbered; `0` = stock |
+
+**Client compatibility.** Server-side account change; the client draws the money the server sends.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (`RestartRound`, convar).
+
+
+# 44. Suicide penalty
+
+**Origin:** CS:GO `mp_suicide_penalty` (`game/shared/cstrike15/cs_gamerules.cpp`).
+
+**What stock CS:S does.** There is no suicide rule. `CMultiplayRules::PlayerKilled()` already takes
+the frag for a suicide, but `CCSGameRules::PlayerKilled()` then still reaches its enemy-kill branch,
+because `CTeamplayRules::IPointsForKill( self, self )` returns `1` — so a suicide currently earns
+`cash_player_killed_enemy_default` and, with `mp_dm_scoring`, scores as a kill.
+
+**What it does here.** With the switch on, a suicide (`pScorer == pVictim`) is charged
+`cash_player_killed_teammate` and the function returns before either kill branch. The amount stays
+tunable through that existing cash convar. Off, the stock path above runs untouched.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_suicide_penalty` | `0` | `0`/`1` | Charge the team-kill cash penalty for a suicide; `0` = stock |
+
+**Client compatibility.** Server-side account change only.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (`PlayerKilled`, convar).
+
+
+# 45. Match-end behaviour
+
+**Origin:** CS:GO `mp_match_end_restart`, `mp_match_end_changelevel` and `mp_match_restart_delay`.
+
+**What stock CS:S does.** `CMultiplayRules::GoToIntermission()` holds the scoreboard for
+`mp_chattime` (`m_flIntermissionEndTime`), then `CCSGameRules::CheckGameOver()` loads `nextlevel`, or,
+when it is unset, asks the map cycle through `ChangeLevel()`.
+
+**What it does here.** `CCSGameRules::CheckGameOver()` resolves the next map once (nextlevel first,
+then `GetNextLevelName()`) and then:
+
+* `mp_match_restart_delay > 0` replaces the end-of-match wait with its own value;
+  `CCSGameRules::GoToIntermission()` overwrites `m_flIntermissionEndTime` right after the base class
+  armed it. `0` keeps `mp_chattime`.
+* `mp_match_end_restart 1` reloads the map that was just played (`engine->ChangeLevel` on
+  `gpGlobals->mapname`) instead of following the cycle.
+* `mp_match_end_changelevel` only acts when the resolved next map is the current map: `1` performs
+  the ordinary changelevel, `0` restarts the match in place (no map load, players stay connected).
+  That in-place path calls `RestartRound()` directly rather than arming `m_flRestartRoundTime`,
+  because `Think()` evaluates the round-limit checks before the restart timer and the finished
+  match's round count would otherwise send the server straight back to intermission.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_match_end_restart` | `0` | `0`/`1` | Restart on the same map instead of the next map in the cycle |
+| `mp_match_end_changelevel` | `1` | `0`/`1` | Reload the map even when the next map is the same one; `0` restarts the match in place |
+| `mp_match_restart_delay` | `0` | seconds | End-of-match scoreboard time; `0` = `mp_chattime` |
+
+Defaults differ from CS:GO in one place on purpose: CS:GO ships `mp_match_end_changelevel 0`, but a
+stock v34 server always changelevels, so `1` is the stock behaviour here. The other two match their
+CS:GO defaults and are stock as well.
+
+**Client compatibility.** Intermission, map change and round restart are the stock flows; the
+in-place restart keeps every client connected on the map already loaded. No netprop, entity or
+usermessage is involved.
+
+**Risk:** the in-place path is the only new control flow here and it is opt-in
+(`mp_match_end_changelevel 0`); with the defaults the stock map-change path runs unchanged.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (`GoToIntermission`, `CheckGameOver`, convars).
+
+
+# 46. Early match clinch
+
+**Origin:** CS:GO `mp_match_can_clinch`.
+
+**What stock CS:S does.** A match only ends at `mp_maxrounds`, `mp_winlimit`, `mp_timelimit` or
+`fraglimit`; a team that cannot possibly catch up still plays the remaining rounds.
+
+**What it does here.** `CCSGameRules::Think()` runs the check right after `CheckMaxRounds()`, and only
+once a round has been decided (`m_iRoundWinStatus` set), so a live round is never cut off. The rounds
+still to be played are `mp_maxrounds - m_iTotalRoundsPlayed`; if the trailing team's wins plus those
+rounds are below the leader's score, the match goes to intermission and the event is logged as
+`Intermission_Clinch`.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_match_can_clinch` | `0` | `0`/`1` | End the match once the trailing team cannot catch up; `0` = stock (play every round) |
+
+**Client compatibility.** Intermission is the stock match-end flow.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (`Think`, convar).
+
+
+# 47. Auto-balance delay and warning
+
+**Origin:** CS:GO `mp_autoteambalance_delay` and `mp_autoteambalance_warning_delay`.
+
+**What stock CS:S does.** `RestartRound()` swaps players at the next round restart when the previous
+round ended unbalanced (`m_iUnBalancedRounds`), with the `#Auto_Team_Balance_Next_Round` warning one
+round earlier. There is no timer, so a player who joins or leaves mid-round is only moved later.
+
+**What it does here.** When `mp_autoteambalance_delay > 0`, `CCSGameRules::Think()` runs a small state
+machine: it counts players per team, starts a clock when the difference reaches the stock threshold
+of 2, prints a centre warning once `mp_autoteambalance_warning_delay` seconds remain, and calls the
+existing `BalanceTeams()` when the clock expires. The clock and the warning reset whenever the teams
+even out or a round restarts. While the delay is active the stock restart-time swap and its
+"balance next round" warning stand down, so the timer is authoritative; `BalanceTeams()` itself is
+unchanged (bots skipped, `mp_limitteams` and `TeamFull()` still apply).
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_autoteambalance_delay` | `0` | seconds | How long the teams may stay unbalanced before balancing; `0` = stock (restart-time balancing) |
+| `mp_autoteambalance_warning_delay` | `0` | seconds | How long before the balance the players are warned; `0` = no warning |
+
+**Client compatibility.** The warning is a stock centre message; no usermessage or netprop is added.
+`m_flAutoBalanceTime` and `m_bAutoBalanceWarned` are plain server-side members on `CCSGameRules`, not
+networked and not in any datatable.
+
+**Files:** `game_shared/cstrike/cs_gamerules.cpp` (`Think`, `RestartRound`, convars),
+`game_shared/cstrike/cs_gamerules.h` (members).
+
+
+---
+
+# Next port batch — candidates (not yet implemented)
+
+This is the shortlist for the next batch, produced the same way as the features above: read the
+CS:GO reference, find the code this tree already contains that the convar would gate, and keep
+every new setting at its stock Counter-Strike: Source value by default. The tier B entries below are not
+implemented yet; new feature numbers continue from 48 when one is approved and ported.
+
+What was filtered out of CS:GO's game-rule cvars, and why:
+
+* **game rules only** — economy, round flow, spawning, scoring. No rendering, HUD, radar or other
+  client state.
+* **stock entities and sendprops** — the result must be expressible with entity classes and
+  networked fields a stock v34 client already knows (the rules at the top of this file).
+* **no movement or aim constants that the client also simulates** — the client's own prediction copy
+  of the movement code is not this DLL, so a server-only speed/jump rule desynchronises it.
+* **no content v34 CS:S does not ship** — no Zeus, molotov, healthshot, heavy assault suit, gungame
+  or backup/pause match-management system.
+
+## Status
+
+The six tier A candidates from this list are now ported as features 42-47 and have been removed from
+it. What remains is tier B, one batch each, and the tier C list of things this game DLL cannot do.
+
+## Tier B — larger, one batch each
+
+### B1. Overtime
+
+CS:GO: `mp_overtime_enable` (`0`), `mp_overtime_maxrounds` (`6`), `mp_overtime_startmoney`
+(`10000`), `mp_overtime_limit` (`0` = unlimited). `mp_overtime_halftime_pausetimer` is skipped — see
+tier C.
+
+Today a tied match simply ends at `mp_maxrounds`. The port would add an overtime state to
+`CCSGameRules`: on a tie, start another block of `mp_overtime_maxrounds` rounds, reset every
+player's account to `mp_overtime_startmoney` at the start of each overtime half, swap sides at the
+half (`SwapTeamsForHalftime()` already does this for regulation), and keep the running team scores
+the scoreboard shows. New plain members (`m_bInOvertime`, `m_iOvertimeCount`, the overtime round
+base) plus changes in `RestartRound()`, `CheckMaxRounds()` and the halftime block.
+
+**Risk:** medium-high — the only candidate here that changes the match state machine, and it has to
+interact correctly with `mp_halftime`, `mp_maxrounds`, `mp_winlimit`, `mp_timelimit` and the map
+change. Worth its own commit series.
+
+### B2. Warmup
+
+CS:GO: `mp_warmuptime` (`60`), `mp_warmuptime_all_players_connected`, the `mp_warmup_start` /
+`mp_warmup_end` commands. `mp_warmup_pausetimer` is skipped (tier C).
+
+A pre-match state where players spawn with random weapons and unlimited money, deaths respawn
+instantly and no round is won, followed by a clean restart into the first real round. The respawn
+feature 3 already provides most of the machinery; the open questions are the round-state machine and
+keeping objectives from ending the warmup round.
+
+**Risk:** medium-high.
+
+### B3. Deathmatch bonus weapon periods
+
+CS:GO: `mp_dm_bonus_percent` (`50`), `mp_dm_bonus_length_min` / `_max` (`30`),
+`mp_dm_time_between_kills_max` (`30`).
+
+A rotating "bonus weapon" that pays extra deathmatch points, on top of the already-ported
+`mp_dm_scoring` / `mp_dm_kill_base_score`. `GetDeathmatchKillScore()` is the natural gate. A v34
+client has no bonus-weapon HUD panel, so the period would have to be announced with the stock centre
+message instead.
+
+**Risk:** medium (game-mode-ish, but entirely server-side).
+
+## Tier C — checked and rejected / out of reach
+
+| CS:GO feature | Why it cannot be ported into this game DLL |
+| --- | --- |
+| `mp_show_voice_icons` — microphone icon over a speaking player's head | The game DLL never learns who is speaking: `IVoiceServer` (`VoiceServer001`, `public/ivoiceserver.h`) exposes only `GetClientListening`/`SetClientListening`, and voice packets are processed inside `engine.so`. There is no server-side speaking bit, usermessage or callback to gate. The icon would need an engine hook (VoiceHook / ProtectCmds-style), i.e. a different project. |
+| `mp_halftime_pausetimer`, `mp_overtime_halftime_pausetimer`, `mp_pause_match` | They pause the match, and pausing is an engine console feature (`setpause`) with client-side UI, not a game-DLL state this tree owns. |
+| `sv_autobunnyhopping`, `sv_accelerate_use_weapon_speed`, `sv_staminamax`, `sv_staminajumpcost`, `sv_staminalandcost`, `sv_staminarecoveryrate`, `sv_jump_impulse` | Movement is simulated by the stock client as well; changing a speed or jump rule server-side desynchronises prediction. Only rules the client already reads through a replicated convar are safe — that is why `sv_enablebunnyhopping`, which the stock client knows, was portable. |
+| `mp_items_prohibited`, `mp_weapons_allow_zeus`, `mp_taser_recharge_time`, `mp_molotovusedelay`, `mp_heavyassaultsuit_*`, `ammo_item_limit_healthshot` | The weapons and items do not exist in v34 CS:S. |
+| `mp_weapons_glow_on_ground` | Dropped-weapon glow is drawn by the client's item rendering; there is no server-side glow flag in this tree and none in the v34 sendtables. |
+| `mp_team_timeout_*`, `mp_backup_*` | Competitive match management (team timeout menu, round backups) with no game-DLL counterpart here. |
+| `mp_ggprogressive_*`, `mp_ggtr_*` | Gungame is a whole game mode, not a convar gate; it would be a mode implementation of its own. |
+| `mp_logloadouts`, `mp_logdistance_2d`, `mp_logdistance_sec` | Logging only. Trivial to add, but of little value on its own; it can ride along with any approved batch. |
+
+Already present and therefore **not** a candidate: `mp_spawnprotectiontime`. v34 CS:S ships it with
+the same meaning as CS:GO (`5` seconds after a round restart in which a team-kill kicks the player),
+and this tree already reads it that way in `CCSGameRules::PlayerKilled`.
+
+## Suggested order
+
+1. **B1** — overtime, as its own commit series, now that features 45 and 46 have settled the
+   round-flow and match-end code.
+2. **B3** — deathmatch bonus-weapon periods.
+3. **B2** — warmup.
