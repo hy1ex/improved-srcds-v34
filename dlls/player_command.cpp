@@ -24,7 +24,6 @@ extern ConVar sv_noclipduringpause;
 
 static ConVar sv_maxusrcmdprocessticks_warning( "sv_maxusrcmdprocessticks_warning", "-1", FCVAR_NONE, "Print a warning when user commands get dropped due to insufficient usrcmd ticks allocated, number of seconds to throttle, negative disabled" );
 static ConVar sv_maxusrcmdprocessticks_holdaim( "sv_maxusrcmdprocessticks_holdaim", "1", FCVAR_NONE, "Hold client aim for multiple server sim ticks when client-issued usrcmd contains multiple actions (0: off; 1: hold this server tick; 2+: hold multiple ticks)" );
-static ConVar sv_shootpositionfix( "sv_shootpositionfix", "1", FCVAR_NONE, "Fixes shoot position. https://github.com/ValveSoftware/source-sdk-2013/pull/442" );
 
 //-----------------------------------------------------------------------------
 // Purpose:
@@ -81,6 +80,7 @@ void CPlayerMove::FinishCommand( CBasePlayer *player )
 	VPROF( "CPlayerMove::FinishCommand" );
 
 	player->m_pCurrentCommand = NULL;
+	player->ClearShootPosition();
 	CBaseEntity::SetPredictionRandomSeed( NULL );
 	CBaseEntity::SetPredictionPlayer( NULL );
 }
@@ -205,6 +205,7 @@ void CPlayerMove::FinishMove( CBasePlayer *player, CUserCmd *ucmd, CMoveData *mo
 
 	player->m_flMaxspeed			= move->m_flClientMaxSpeed;
 	player->SetAbsOrigin( move->m_vecAbsOrigin );
+	player->SetPreviouslyPredictedOrigin( move->m_vecAbsOrigin );
 	player->SetAbsVelocity( move->m_vecVelocity );
 
 	player->m_Local.m_nOldButtons			= move->m_nButtons;
@@ -404,26 +405,16 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 	// Call standard client pre-think
 	RunPreThink( player );
 
-	// Shoot position fix (sv_shootpositionfix): remember where the player stood
-	// before this command's movement runs; the weapon fires from this origin at
-	// the end of the command instead. The capture point and the swap window below
-	// mirror the two established implementations of this fix - se_shootpositionfix
-	// in Reg1oxeN/ClientMod-Api (built for v34) and XutaxKamay's firebulletsfix
-	// (Source 2013) - both of which leave every other part of the tick on the
-	// stock path and substitute only the fire origin. Real, living players only,
-	// exactly like both plugins (they skip fake clients).
-	Vector vecPreMoveOrigin( 0.0f, 0.0f, 0.0f );
-	bool bShootPositionFix = sv_shootpositionfix.GetBool() && player->IsAlive() && !player->IsBot() && !player->IsHLTV();
-	if ( bShootPositionFix )
-	{
-		vecPreMoveOrigin = player->GetAbsOrigin();
-	}
-
 	// Call Think if one is set
 	RunThink( player, TICK_INTERVAL );
 
 	// Setup input.
 	SetupMove( player, ucmd, moveHelper, g_pMoveData );
+
+	// se_shootpositionfix: the weapon is fired in PostThink(), after the movement below has
+	// been committed, but the player aimed this command on a frame rendered before it. Remember
+	// where they aimed from; Weapon_ShootPosition() hands it to the bullet trace.
+	player->LatchShootPosition( g_pMoveData->m_vecAbsOrigin );
 
 	// Let the game do the movement.
 	if ( !pVehicle )
@@ -451,36 +442,7 @@ void CPlayerMove::RunCommand ( CBasePlayer *player, CUserCmd *ucmd, IMoveHelper 
 	moveHelper->ProcessImpacts();
 	VPROF_SCOPE_END();
 
-	// Fire the weapon from the pre-movement origin: run PostThink (where
-	// ItemPostFrame/FireBullets executes) with the origin swapped back to the
-	// position captured above, then put the post-movement origin back - the same
-	// sequence se_shootpositionfix wraps around PostThink in ClientMod-Api. With
-	// this restructure ProcessImpacts, FinishMove, the aim-hold restore and
-	// everything else in the command stay on the stock v34 path whether the fix
-	// is on or off; sv_shootpositionfix 0 restores stock behaviour exactly.
-	if ( bShootPositionFix )
-	{
-		Vector vecPostMoveOrigin = player->GetAbsOrigin();
-		if ( vecPostMoveOrigin != vecPreMoveOrigin )
-		{
-			player->SetAbsOrigin( vecPreMoveOrigin );
-			RunPostThink( player );
-			// Restore only if PostThink itself did not move the player - the same
-			// guard ClientMod-Api applies (IsValidPosFix).
-			if ( player->GetAbsOrigin() == vecPreMoveOrigin )
-			{
-				player->SetAbsOrigin( vecPostMoveOrigin );
-			}
-		}
-		else
-		{
-			RunPostThink( player );
-		}
-	}
-	else
-	{
-		RunPostThink( player );
-	}
+	RunPostThink( player );
 
 	FinishCommand( player );
 

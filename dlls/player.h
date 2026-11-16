@@ -335,6 +335,13 @@ public:
 
 	// Weapon stuff
 	virtual Vector			Weapon_ShootPosition( );
+
+	// se_shootpositionfix: eye position the current command aimed from, see Weapon_ShootPosition()
+	void					LatchShootPosition( const Vector &vecPreMoveOrigin );
+	void					ClearShootPosition( void );
+
+	void					SetPreviouslyPredictedOrigin( const Vector &vecAbsOrigin ) { m_vecPreviouslyPredictedOrigin = vecAbsOrigin; }
+	const Vector			&GetPreviouslyPredictedOrigin() const { return m_vecPreviouslyPredictedOrigin; }
 	virtual bool			Weapon_CanUse( CBaseCombatWeapon *pWeapon );
 	virtual void			Weapon_Equip( CBaseCombatWeapon *pWeapon );
 	virtual	void			Weapon_Drop( CBaseCombatWeapon *pWeapon, const Vector *pvecTarget /* = NULL */, const Vector *pVelocity /* = NULL */ );
@@ -869,6 +876,10 @@ protected:
 	QAngle					m_qangLockViewangles;
 	
 	float					m_flStepSoundTime;	// time to check for next footstep sound
+
+	Vector					m_vecPreviouslyPredictedOrigin;	// Origin FinishMove() committed for the current command
+	Vector					m_vecShootPositionLatch;		// Eye position ProcessMovement() started this command from
+	bool					m_bShootPositionLatched;		// Valid only while a user command is being run
 
 private:
 

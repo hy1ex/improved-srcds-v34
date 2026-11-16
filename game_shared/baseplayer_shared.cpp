@@ -649,8 +649,53 @@ void CBasePlayer::UpdateButtonState( int nUserCmdButtonMask )
 }
 
 
+// Default MUST stay "0": a replicated convar left at its default is not sent to connecting
+// clients, so a ClientMod client would keep its own default and predict hits without the fix.
+// The fix is enabled with se_shootpositionfix 1 in server.cfg.
+static ConVar se_shootpositionfix( "se_shootpositionfix", "0", FCVAR_REPLICATED, "Fire from the eye position the player aimed from (start of the command) instead of the post-movement one." );
+
+//-----------------------------------------------------------------------------
+// Purpose: Remember the eye position that ProcessMovement() is about to start from.
+//  The frame the player aimed this command on was rendered from that position, but
+//  the weapon is only fired later in PostThink(), after the movement of this very
+//  command has already been committed - so without this the bullet leaves a point
+//  the player never saw, one tick of movement ahead of the crosshair they used.
+//  Called from CPlayerMove::RunCommand() right after SetupMove().
+// Input  : vecPreMoveOrigin - CMoveData::m_vecAbsOrigin, the origin movement starts from
+//-----------------------------------------------------------------------------
+void CBasePlayer::LatchShootPosition( const Vector &vecPreMoveOrigin )
+{
+	// The view offset is only touched by Duck() during ProcessMovement(), so it is still
+	// the one the last rendered frame used at this point. Pairing the pre-move origin with
+	// the post-move view offset would be wrong while ducking or standing up.
+	m_vecShootPositionLatch = vecPreMoveOrigin + GetViewOffset();
+	m_bShootPositionLatched = true;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Drop the latch once the command is done, so everything outside of command
+//  processing (HUD, bots, console commands, NPCs) keeps using the live eye position.
+//-----------------------------------------------------------------------------
+void CBasePlayer::ClearShootPosition( void )
+{
+	m_bShootPositionLatched = false;
+}
+
 Vector CBasePlayer::Weapon_ShootPosition( )
 {
+	if ( m_bShootPositionLatched && se_shootpositionfix.GetBool() )
+	{
+		// A vehicle view is not origin + view offset, so the latch does not model it.
+		// FinishMove() stored the post-movement origin in m_vecPreviouslyPredictedOrigin; if the
+		// player no longer sits there then game code moved them after the move (a teleport out of
+		// ProcessImpacts(), m_bForceOrigin, ...) and the latched point is stale by more than the
+		// one tick this is meant to undo - firing from it would shoot out of the old location.
+		// The tolerance only covers float noise of an abs<->local round trip; any real move is
+		// orders of magnitude larger.
+		if ( GetVehicle() == NULL && VectorsAreEqual( GetPreviouslyPredictedOrigin(), GetAbsOrigin(), 0.1f ) )
+			return m_vecShootPositionLatch;
+	}
+
 	return EyePosition();
 }
 

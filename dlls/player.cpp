@@ -560,6 +560,10 @@ CBasePlayer::CBasePlayer( )
 	
 	m_flLastUserCommandTime = gpGlobals->curtime;
 	m_nMovementTicksForUserCmdProcessingRemaining = 0;
+
+	m_vecPreviouslyPredictedOrigin.Init();
+	m_vecShootPositionLatch.Init();
+	m_bShootPositionLatched = false;
 }
 
 CBasePlayer::~CBasePlayer( )
