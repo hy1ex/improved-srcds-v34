@@ -141,17 +141,15 @@ Source game. For each feature it records:
 | `ammo_grenade_limit_default` | `1` | [24. Grenade carry limits](#24-grenade-carry-limits) | per grenade type, apart from the flashbang |
 | `ammo_grenade_limit_flashbang` | `2` | [24. Grenade carry limits](#24-grenade-carry-limits) | flashbang limit |
 | `ammo_grenade_limit_total` | `4` | [24. Grenade carry limits](#24-grenade-carry-limits) | total grenades carried |
-
 | `mp_roundtime_hostage` | `0` | [25. Objective round times](#25-round-time-per-objective-type-and-hostage-rescue-time) | minutes per hostage round; 0 = use `mp_roundtime` |
 | `mp_roundtime_defuse` | `0` | [25. Objective round times](#25-round-time-per-objective-type-and-hostage-rescue-time) | minutes per defuse round; 0 = use `mp_roundtime` |
-| `mp_hostages_rescuetime` | `1` | [25. Objective round times](#25-round-time-per-objective-type-and-hostage-rescue-time) | extra minutes once a CT reaches a hostage; 0 = never |
+| `mp_hostages_rescuetime` | `0` | [25. Objective round times](#25-round-time-per-objective-type-and-hostage-rescue-time) | extra minutes once a CT reaches a hostage; 0 = never (stock) |
 | `sv_hegrenade_damage_multiplier` | `1` | [26. HE grenade scaling](#26-he-grenade-scaling) | scale on grenade damage |
 | `sv_hegrenade_radius_multiplier` | `1` | [26. HE grenade scaling](#26-he-grenade-scaling) | scale on grenade radius |
 | `sv_falldamage_scale` | `1` | [27. Fall damage](#27-fall-damage) | scale on fall damage (replaces `mp_falldamage`) |
 | `sv_falldamage_to_below_player_ratio` | `0` | [27. Fall damage](#27-fall-damage) | share of a fall given to the player landed on; 0 = off |
 | `sv_falldamage_to_below_player_multiplier` | `1` | [27. Fall damage](#27-fall-damage) | scale on the total when landing on a player |
 | `mp_weapons_max_gun_purchases_per_weapon_per_match` | `-1` | [28. Per-match gun purchase limit](#28-per-match-gun-purchase-limit) | max buys of one gun per match; -1 = unlimited |
-
 | `mp_starting_losses` | `0` | [29. Economy and streak controls](#29-economy-and-streak-controls) | loss streak a new match starts with; 0 = none |
 | `mp_consecutive_loss_max` | `0` | [29. Economy and streak controls](#29-economy-and-streak-controls) | cap on losses counted towards the loser bonus; 0 = no cap |
 | `mp_economy_reset_rounds` | `0` | [29. Economy and streak controls](#29-economy-and-streak-controls) | reset money every N rounds; 0 = never |
@@ -1722,8 +1720,9 @@ The first time a CT reaches a hostage in a round, `CCSGameRules::AddHostageRescu
 `mp_hostages_rescuetime` minutes to `m_iRoundTime`. `m_iRoundTime` is networked and the round timer is
 computed from it every frame, so the clock on the HUD gains the time immediately. The bonus happens at
 most once per round and never once the round is already decided, matching CS:GO's
-`m_bAnyHostageReached` guard. CS:S ships no `#hostagerescuetime` localization token, so the notice is
-a plain chat line instead of CS:GO's translated one.
+`m_bAnyHostageReached` guard. CS:S ships no `#hostagerescuetime` localization token, so nothing is
+announced in chat; only the clock changes. The default is `0`, which is the stock CS:S behaviour of
+never extending the round.
 
 **Convars**
 
@@ -1731,7 +1730,7 @@ a plain chat line instead of CS:GO's translated one.
 | --- | --- | --- | --- |
 | `mp_roundtime_hostage` | `0` | `0`-`60` | Minutes per hostage round; `0` uses `mp_roundtime` |
 | `mp_roundtime_defuse` | `0` | `0`-`60` | Minutes per defuse round; `0` uses `mp_roundtime` |
-| `mp_hostages_rescuetime` | `1` | `0`-`60` | Extra minutes when a CT first reaches a hostage; `0` disables |
+| `mp_hostages_rescuetime` | `0` | `0`-`60` | Extra minutes when a CT first reaches a hostage; `0` = never (stock) |
 
 **Client compatibility.** The server already networks `m_iRoundTime` and the round start time, so the
 stock client's timer picks the change up with no client-side code.
