@@ -759,6 +759,9 @@ private:
 	// match starts, and in the constructor.
 	int				m_iWeaponPurchasesThisMatch[MAX_WEAPON_PURCHASE_RECORDS];
 
+	// mp_force_pick_time: when a player who has not picked a team gets put on one.
+	float			m_flForceTeamTime;
+
 #ifdef CS_SHIELD_ENABLED
 	CNetworkVar( bool, m_bHasShield );
 	CNetworkVar( bool, m_bShieldDrawn );

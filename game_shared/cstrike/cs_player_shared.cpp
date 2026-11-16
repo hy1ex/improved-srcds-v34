@@ -29,6 +29,10 @@
 #include "effect_dispatch_data.h"
 #include "engine/ivdebugoverlay.h"
 #include "obstacle_pushaway.h"
+
+// Defined in game_shared/cstrike/cs_gamerules.cpp.
+extern ConVar mp_weapon_self_inflict_amount;
+extern ConVar ff_damage_bullet_penetration;
 #include "props_shared.h"
 
 ConVar sv_showimpacts("sv_showimpacts", "0", FCVAR_REPLICATED, "Shows client (red) and server (blue) bullet impact point (1=both, 2=client-only, 3=server-only)" );
@@ -368,6 +372,7 @@ void CCSPlayer::FireBullet(
 
 	bool bHitPlayer = false;
 	bool bHitTeammate = false;
+	bool bHitEnemy = false;
 	
 	CBasePlayer *lastPlayerHit = NULL;
 
@@ -406,6 +411,8 @@ void CCSPlayer::FireBullet(
 		{
 			if ( lastPlayerHit->GetTeamNumber() == GetTeamNumber() )
 				bHitTeammate = true;
+			else
+				bHitEnemy = true;
 			
 			bHitPlayer = true;
 		}
@@ -547,6 +554,24 @@ void CCSPlayer::FireBullet(
 		ApplyMultiDamage();
 #endif
 
+#ifndef CLIENT_DLL
+		// ff_damage_bullet_penetration: with friendly fire off, a bullet that hits a teammate stops
+		// there unless the convar lets it through, and then it carries that scale
+		// (ref cs_player_shared.cpp:2544-2557). -1 is the stock CS:S behaviour of penetrating a
+		// player like any other surface.
+		const float flFFPenetration = ff_damage_bullet_penetration.GetFloat();
+
+		if ( flFFPenetration >= 0.0f && tr.m_pEnt && tr.m_pEnt->IsPlayer() && tr.m_pEnt != this &&
+			 tr.m_pEnt->GetTeamNumber() == GetTeamNumber() && !friendlyfire.GetBool() )
+		{
+			if ( flFFPenetration == 0.0f )
+				break;
+
+			flPenetrationModifier = flFFPenetration;
+			flDamageModifier = flFFPenetration;
+		}
+#endif
+
 		// check if bullet can penetarte another entity
 		if ( iPenetration == 0 && !hitGrate )
 			break; // no, stop
@@ -618,6 +643,18 @@ void CCSPlayer::FireBullet(
 		// reduce penetration counter
 		iPenetration--;
 	}
+
+#ifndef CLIENT_DLL
+	// mp_weapon_self_inflict_amount: CS:GO hurts the shooter by this fraction of the shot's damage
+	// when it hits no enemy (ref fx_cs_shared.cpp:593-617). 0, the default, is stock CS:S.
+	const float flSelfInflict = mp_weapon_self_inflict_amount.GetFloat();
+
+	if ( flSelfInflict > 0.0f && !bHitEnemy )
+	{
+		CTakeDamageInfo info( pevAttacker, pevAttacker, iDamage * flSelfInflict, DMG_PREVENT_PHYSICS_FORCE );
+		pevAttacker->TakeDamage( info );
+	}
+#endif
 
 	if ( bHitPlayer && !bHitTeammate )
 	{

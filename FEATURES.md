@@ -162,6 +162,19 @@ Source game. For each feature it records:
 | `mp_flinch_punch_scale` | `1` | [32. Aim punch scale](#32-aim-punch-scale) | scales aim punch when hit; 1 = stock, CS:GO uses 3 |
 | `sv_showbullethits` | `0` | [33. Bullet hit log](#33-bullet-hit-log-adapted) | 1 = log bullet hits to the server console |
 
+| `mp_suicide_time` | `5` | [35. Suicide delay](#35-suicide-delay) | seconds between suicides |
+| `mp_weapon_self_inflict_amount` | `0` | [36. Self-inflicted miss damage](#36-self-inflicted-miss-damage) | fraction of the shot's damage taken when it hits no enemy |
+| `ff_damage_bullet_penetration` | `-1` | [37. Friendly fire bullet penetration](#37-friendly-fire-bullet-penetration) | -1 = stock, 0 = stop at a teammate, >0 = scale |
+| `mp_logmoney` | `0` | [38. Money logging](#38-money-logging) | 1 = log every account change |
+| `mp_spectators_max` | `0` | [39. Spectator cap](#39-spectator-cap) | max spectators; 0 = no limit |
+| `mp_force_pick_time` | `0` | [40. Automatic team pick](#40-automatic-team-pick) | seconds before an unassigned player is put on a team; 0 = never |
+| `mp_ct_default_primary` | `""` | [41. Default loadouts](#41-default-loadouts) | CT spawn rifle; empty = none |
+| `mp_ct_default_secondary` | `weapon_usp` | [41. Default loadouts](#41-default-loadouts) | CT spawn pistol |
+| `mp_ct_default_grenades` | `""` | [41. Default loadouts](#41-default-loadouts) | CT spawn grenades, space separated |
+| `mp_t_default_primary` | `""` | [41. Default loadouts](#41-default-loadouts) | T spawn rifle; empty = none |
+| `mp_t_default_secondary` | `weapon_glock` | [41. Default loadouts](#41-default-loadouts) | T spawn pistol |
+| `mp_t_default_grenades` | `""` | [41. Default loadouts](#41-default-loadouts) | T spawn grenades, space separated |
+
 ## Command index
 
 | Command | Feature | Notes |
@@ -1978,3 +1991,187 @@ A server-only port is possible in principle but not honest: the client predicts 
 stock rules, so a server that refuses the duck would disagree with the prediction every time it fires,
 producing the camera and position snapping that prediction errors cause. Doing it properly needs the
 convar and the check in the client's movement code too, which this project cannot ship. It stays out.
+
+# 35. Suicide delay
+
+**Origin:** CS:GO `mp_suicide_time` (`player.cpp:136`).
+
+**What stock CS:S does.** `CBasePlayer::CommitSuicide` refuses a second suicide for a hardcoded 5
+seconds.
+
+**What it does here.** The same check now reads `mp_suicide_time`. The default of `5` is the value that
+was hardcoded, so nothing changes until an operator edits it; `0` allows suiciding again immediately.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_suicide_time` | `5` | `0`-`60` | Seconds to wait before another suicide is allowed |
+
+**Client compatibility.** The cooldown is checked on the server when the kill command arrives.
+
+**Files:** `dlls/player.cpp` (`CommitSuicide`), `game_shared/cstrike/cs_gamerules.cpp` (convar).
+
+
+# 36. Self-inflicted miss damage
+
+**Origin:** CS:GO `mp_weapon_self_inflict_amount` (`cs_gamerules.cpp:3384`, applied in
+`fx_cs_shared.cpp:593-617`).
+
+**What stock CS:S does.** A missed shot costs nothing.
+
+**What it does here.** `CCSPlayer::FireBullet` already knows whether the shot hit a player and on which
+side. When the convar is above `0` and the shot hit no enemy, the shooter takes that fraction of the
+shot's base damage as a normal damage call (`DMG_PREVENT_PHYSICS_FORCE`, so no ragdoll shove). Firing
+at the floor or at a teammate still counts as missing an enemy, exactly like CS:GO. `0`, the default,
+is the stock behaviour.
+
+The damage is taken per bullet, so a shotgun blast that hits nothing costs the fraction once per
+pellet.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_weapon_self_inflict_amount` | `0` | `0`-`1` | Fraction of the shot's damage taken when it hits no enemy; `0` = off |
+
+**Client compatibility.** Only the server's damage resolution changes; the client sees the health the
+server reports.
+
+**Files:** `game_shared/cstrike/cs_player_shared.cpp` (`FireBullet`),
+`game_shared/cstrike/cs_gamerules.cpp` (convar).
+
+
+# 37. Friendly fire bullet penetration
+
+**Origin:** CS:GO `ff_damage_bullet_penetration` (`cs_player_shared.cpp:83`, used at `:2544-2557`).
+
+**What stock CS:S does.** A bullet passes through a player the same way it passes through any other
+surface: the material rules decide how much power it keeps, whether friendly fire is on or off.
+
+**What it does here.** With friendly fire off, a bullet that hits a teammate now stops there, or keeps
+going with the penetration power and damage the convar names, matching CS:GO. `-1` is the default here
+and leaves the material rules exactly as they are, which is stock CS:S. CS:GO ships `0` (stop at the
+teammate), so a competitive-flavoured server wants `ff_damage_bullet_penetration 0`.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `ff_damage_bullet_penetration` | `-1` | `-1`-`1` | `-1` = stock CS:S, `0` = the bullet stops at a teammate, `>0` = penetration and damage scale after passing through one |
+
+**Client compatibility.** The bullet trace and the damage are resolved on the server. The client's
+predicted decals and impacts can differ for the rounds that stop on a teammate, which is the same
+one-frame cosmetic difference the stock friendly fire rules already produce.
+
+**Files:** `game_shared/cstrike/cs_player_shared.cpp` (`FireBullet`),
+`game_shared/cstrike/cs_gamerules.cpp` (convar).
+
+
+# 38. Money logging
+
+**Origin:** CS:GO `mp_logmoney` (`cs_player.cpp:151`, used at `:7570`).
+
+**What stock CS:S does.** Money changes are not logged; only the per-round summary lines exist.
+
+**What it does here.** With `mp_logmoney 1`, every account change that actually moves the account is
+written to the server log as a `money change` line with the old balance, the delta and the new balance.
+`0` is the default and logs nothing.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_logmoney` | `0` | `0`/`1` | `1` = log every account change |
+
+**Client compatibility.** Server log only.
+
+**Files:** `dlls/cstrike/cs_player.cpp` (`AddAccount`), `game_shared/cstrike/cs_gamerules.cpp`
+(convar).
+
+
+# 39. Spectator cap
+
+**Origin:** CS:GO `mp_spectators_max` (`cs_gamerules.cpp:1791`).
+
+**What stock CS:S does.** `mp_allowspectators` decides whether spectators are allowed at all; nothing
+limits how many there are, beyond the server's slots.
+
+**What it does here.** A player who is not already a spectator and asks to join the spectators is
+refused once the server already has `mp_spectators_max` of them, with a centre message. `0`, the
+default, leaves the count unlimited, which is stock CS:S; CS:GO ships `2`.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_spectators_max` | `0` | `0`-`32` | Maximum spectators; `0` = no limit |
+
+**Client compatibility.** The join is a server command; a refused join is answered the same way as the
+existing "#Cannot_Be_Spectator" case.
+
+**Files:** `dlls/cstrike/cs_player.cpp` (`HandleCommand_JoinTeam`),
+`game_shared/cstrike/cs_gamerules.cpp` (convar).
+
+
+# 40. Automatic team pick
+
+**Origin:** CS:GO `mp_force_pick_time` (`cs_gamerules.cpp:2526`, used at `cs_player.cpp:11992`).
+
+**What stock CS:S does.** A player who never picks a team stays unassigned forever.
+
+**What it does here.** `CCSPlayer::PreThink` starts a timer for every connected player who has not
+picked a team; when it expires `HandleCommand_JoinTeam( TEAM_UNASSIGNED )` runs the same auto-join path
+as the "auto-select" menu entry, which honours the team rules, the limits and
+`mp_force_assign_teams`. `0`, the default, never fires, which is stock CS:S; CS:GO ships `15`.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_force_pick_time` | `0` | `0`-`120` | Seconds an unassigned player gets before being put on a team; `0` = never |
+
+**Client compatibility.** Server-side only: the client learns about the team change the way it always
+does, and the team menu simply closes.
+
+**Files:** `dlls/cstrike/cs_player.cpp` (`PreThink`), `dlls/cstrike/cs_player.h`
+(`m_flForceTeamTime`), `game_shared/cstrike/cs_gamerules.cpp` (convar).
+
+
+# 41. Default loadouts
+
+**Origin:** CS:GO `mp_ct_default_primary` / `_secondary` / `_grenades` and the `mp_t_*` set
+(`cs_gamerules.cpp:2218-2260`, applied at `cs_player.cpp:2402-2415`). CS:GO also has a
+`mp_*_default_melee` convar; Counter-Strike: Source has only the knife as a melee weapon, so this port
+has no melee convar: the knife is always given.
+
+**What stock CS:S does.** `CCSPlayer::GiveDefaultItems` hardcodes the knife plus `weapon_usp` with 24
+rounds for CTs and `weapon_glock` with 40 rounds for Terrorists.
+
+**What it does here.** The same function now reads the six convars. The secondary defaults are the
+stock pistols themselves (`weapon_usp` for CT, `weapon_glock` for T) rather than empty strings, so an
+untouched server behaves exactly as before and the convar shows the operator what is really handed out.
+The primary and grenade defaults are empty, which gives nothing, because stock CS:S spawns nobody with
+a rifle or grenades. Grenades are a space separated list of weapon classnames.
+
+A listed pistol or rifle gets two spare clips of its own ammo type, which reproduces the stock reserve
+for both stock pistols exactly (24 rounds for the USP, 40 for the Glock). A player who already has a
+pistol is left alone, so this only ever runs on a fresh spawn.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `mp_ct_default_primary` | `""` | weapon classname | Rifle every CT spawns with; empty = none |
+| `mp_ct_default_secondary` | `weapon_usp` | weapon classname | Pistol every CT spawns with |
+| `mp_ct_default_grenades` | `""` | space separated classnames | Grenades every CT spawns with |
+| `mp_t_default_primary` | `""` | weapon classname | Rifle every Terrorist spawns with; empty = none |
+| `mp_t_default_secondary` | `weapon_glock` | weapon classname | Pistol every Terrorist spawns with |
+| `mp_t_default_grenades` | `""` | space separated classnames | Grenades every Terrorist spawns with |
+
+**Client compatibility.** Only the server hands out the items; the stock client draws whatever is in the
+player's inventory and needs no change. A weapon the client has no model for cannot be used, so the
+classnames have to be real CS:S weapons.
+
+**Files:** `dlls/cstrike/cs_player.cpp` (`GiveDefaultItems` and its two helpers),
+`game_shared/cstrike/cs_gamerules.cpp` (convars).

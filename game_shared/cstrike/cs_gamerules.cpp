@@ -1183,6 +1183,102 @@ ConVar cl_autohelp(
 		FCVAR_NOTIFY,
 		"Log every bullet hit on a player to the server console" );
 
+	// Tier 1 CS:GO ports: the suicide delay, damage inflicted on yourself for a shot that hits no
+	// enemy, friendly fire bullet penetration, money logging, the spectator cap and the auto team
+	// pick timer. All neutral at their defaults.
+	ConVar mp_suicide_time(
+		"mp_suicide_time",
+		"5",
+		FCVAR_NOTIFY,
+		"Specifies number of seconds required to wait before another suicide.",
+		true, 0,	// min value
+		true, 60	// max value
+		);
+
+	ConVar mp_weapon_self_inflict_amount(
+		"mp_weapon_self_inflict_amount",
+		"0",
+		FCVAR_NOTIFY,
+		"If set to non-0, will hurt the attacker by the specified fraction of max damage if they miss.",
+		true, 0.0f,	// min value
+		true, 1.0f	// max value
+		);
+
+	ConVar ff_damage_bullet_penetration(
+		"ff_damage_bullet_penetration",
+		"-1",
+		FCVAR_NOTIFY,
+		"If friendly fire is off, this will scale the penetration power and damage a bullet does when penetrating another friendly player (-1 = stock CS:S, 0 = stop at the teammate)",
+		true, -1.0f,	// min value
+		true, 1.0f	// max value
+		);
+
+	ConVar mp_logmoney(
+		"mp_logmoney",
+		"0",
+		FCVAR_NOTIFY,
+		"Enables money logging.  Values are: 0=off, 1=on",
+		true, 0.0f,	// min value
+		true, 1.0f	// max value
+		);
+
+	ConVar mp_spectators_max(
+		"mp_spectators_max",
+		"0",
+		FCVAR_NOTIFY,
+		"How many spectators are allowed in a match (0 = no limit, stock)",
+		true, 0,	// min value
+		true, 32	// max value
+		);
+
+	ConVar mp_force_pick_time(
+		"mp_force_pick_time",
+		"0",
+		FCVAR_NOTIFY,
+		"The amount of time a player has on the team screen to make a selection before being auto-teamed (0 = never, stock)",
+		true, 0.0f,	// min value
+		true, 120.0f	// max value
+		);
+
+	// mp_*_default_*: CS:GO's default loadout (ref cs_player.cpp:2218-2260). CS:S has only the knife
+	// as a melee weapon, so there is no melee convar. The pistol defaults are the stock ones, so an
+	// untouched server still spawns every player with exactly the knife and pistol it always did.
+	ConVar mp_ct_default_primary(
+		"mp_ct_default_primary",
+		"",
+		FCVAR_NOTIFY,
+		"The default primary (rifle) weapon that the CTs will spawn with" );
+
+	ConVar mp_ct_default_secondary(
+		"mp_ct_default_secondary",
+		"weapon_usp",
+		FCVAR_NOTIFY,
+		"The default secondary (pistol) weapon that the CTs will spawn with" );
+
+	ConVar mp_ct_default_grenades(
+		"mp_ct_default_grenades",
+		"",
+		FCVAR_NOTIFY,
+		"The default grenades that the CTs will spawn with, separated by spaces" );
+
+	ConVar mp_t_default_primary(
+		"mp_t_default_primary",
+		"",
+		FCVAR_NOTIFY,
+		"The default primary (rifle) weapon that the Terrorists will spawn with" );
+
+	ConVar mp_t_default_secondary(
+		"mp_t_default_secondary",
+		"weapon_glock",
+		FCVAR_NOTIFY,
+		"The default secondary (pistol) weapon that the Terrorists will spawn with" );
+
+	ConVar mp_t_default_grenades(
+		"mp_t_default_grenades",
+		"",
+		FCVAR_NOTIFY,
+		"The default grenades that the Terrorists will spawn with, separated by spaces" );
+
 	ConVar mp_freezetime( 
 		"mp_freezetime",
 		"6",

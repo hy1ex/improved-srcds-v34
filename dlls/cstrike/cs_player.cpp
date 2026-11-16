@@ -66,6 +66,15 @@ extern ConVar mp_force_assign_teams;
 extern ConVar mp_join_grace_time;
 extern ConVar mp_flinch_punch_scale;
 extern ConVar sv_showbullethits;
+extern ConVar mp_logmoney;
+extern ConVar mp_spectators_max;
+extern ConVar mp_force_pick_time;
+extern ConVar mp_ct_default_primary;
+extern ConVar mp_ct_default_secondary;
+extern ConVar mp_ct_default_grenades;
+extern ConVar mp_t_default_primary;
+extern ConVar mp_t_default_secondary;
+extern ConVar mp_t_default_grenades;
 extern ConVar mp_max_armor_ct;
 extern ConVar mp_max_armor_t;
 extern ConVar mp_buy_allow_grenades_ct;
@@ -467,6 +476,8 @@ CCSPlayer::CCSPlayer()
 
 	for ( int i = 0; i < MAX_WEAPON_PURCHASE_RECORDS; i++ )
 		m_iWeaponPurchasesThisMatch[i] = 0;
+
+	m_flForceTeamTime = 0.0f;
 	m_isVIP = false;
 
 	m_bJustKilledTeammate = false;
@@ -911,9 +922,55 @@ void CCSPlayer::ClearFlashbangScreenFade( void )
 	m_blindStartTime = 0.0f;
 }
 
+// Gives one mp_*_default_* entry. An empty string means "nothing", which is how the primary and
+// grenade defaults behave out of the box.
+static void GiveDefaultLoadoutItem( CCSPlayer *pPlayer, const char *pszClassname, bool bGiveAmmo )
+{
+	if ( !pszClassname || !pszClassname[0] )
+		return;
+
+	if ( pPlayer->Weapon_OwnsThisType( pszClassname ) )
+		return;
+
+	pPlayer->GiveNamedItem( pszClassname );
+
+	if ( !bGiveAmmo )
+		return;
+
+	CCSWeaponInfo *pWeaponInfo = GetWeaponInfo( (CSWeaponID)ClassnameToWeaponID( pszClassname ) );
+
+	if ( !pWeaponInfo )
+		return;
+
+	// Two spare clips, which is exactly the reserve stock CS:S hands the USP (24 rounds of 12)
+	// and the Glock (40 rounds of 20), so the default pistols keep their stock ammo.
+	if ( pWeaponInfo->iAmmoType >= 0 && pWeaponInfo->iMaxClip1 > 0 )
+		pPlayer->GiveAmmo( pWeaponInfo->iMaxClip1 * 2, pWeaponInfo->iAmmoType );
+}
+
+static void GiveDefaultLoadoutGrenades( CCSPlayer *pPlayer, const char *pszList )
+{
+	if ( !pszList || !pszList[0] )
+		return;
+
+	char szList[256];
+	Q_strncpy( szList, pszList, sizeof( szList ) );
+
+	char *pszToken = strtok( szList, " " );
+
+	while ( pszToken )
+	{
+		if ( pszToken[0] )
+			pPlayer->GiveNamedItem( pszToken );
+
+		pszToken = strtok( NULL, " " );
+	}
+}
+
 void CCSPlayer::GiveDefaultItems()
 {
-	// Always give the player the knife.
+	// Always give the player the knife. CS:S has only the knife as a melee weapon, which is why
+	// there is no mp_*_default_melee convar here.
 	CBaseCombatWeapon *pistol = Weapon_GetSlot( WEAPON_SLOT_PISTOL );
 	if ( pistol )
 	{
@@ -922,18 +979,20 @@ void CCSPlayer::GiveDefaultItems()
 
 	m_bUsingDefaultPistol = true;
 
-	if ( GetTeamNumber() == TEAM_CT )
-	{
-		GiveNamedItem( "weapon_knife" );
-		GiveNamedItem( "weapon_usp" );
-		GiveAmmo( 24, BULLET_PLAYER_45ACP );
-	}
-	else if ( GetTeamNumber() == TEAM_TERRORIST )
-	{
-		GiveNamedItem( "weapon_knife" );
-		GiveNamedItem( "weapon_glock" );
-		GiveAmmo( 40, BULLET_PLAYER_9MM );
-	}
+	const bool bCT = ( GetTeamNumber() == TEAM_CT );
+	const bool bT = ( GetTeamNumber() == TEAM_TERRORIST );
+
+	if ( !bCT && !bT )
+		return;
+
+	GiveNamedItem( "weapon_knife" );
+
+	// mp_*_default_secondary / _primary / _grenades: CS:GO hands every player the loadout these
+	// convars name (ref cs_player.cpp:2402-2415). The defaults are the stock pistol of each side
+	// and nothing else, so an untouched server still spawns with exactly knife and pistol.
+	GiveDefaultLoadoutItem( this, bCT ? mp_ct_default_secondary.GetString() : mp_t_default_secondary.GetString(), true );
+	GiveDefaultLoadoutItem( this, bCT ? mp_ct_default_primary.GetString() : mp_t_default_primary.GetString(), true );
+	GiveDefaultLoadoutGrenades( this, bCT ? mp_ct_default_grenades.GetString() : mp_t_default_grenades.GetString() );
 }
 
 void CCSPlayer::CreateRagdollEntity()
@@ -2124,12 +2183,27 @@ void CCSPlayer::HintMessage( const char *pMessage, bool bDisplayIfDead, bool bOv
 
 void CCSPlayer::AddAccount( int amount, bool bTrackChange )
 {
+	const int iAccountStarting = m_iAccount;
+
 	m_iAccount += amount;
 
 	if ( m_iAccount < 0 )
 		m_iAccount = 0;
 	else if ( m_iAccount > mp_maxmoney.GetInt() )
 		m_iAccount = mp_maxmoney.GetInt();
+
+	// mp_logmoney: CS:GO writes every account change to the log (ref cs_player.cpp:7570). Off by
+	// default, which is the stock quiet behaviour.
+	if ( mp_logmoney.GetBool() && amount != 0 && m_iAccount.Get() != iAccountStarting )
+	{
+		UTIL_LogPrintf( "\"%s<%i><%s><%s>\" money change %d%s%d = $%d%s\n",
+			GetPlayerName(),
+			entindex(),
+			GetNetworkIDString(),
+			GetTeam() ? GetTeam()->GetName() : "UNASSIGNED",
+			iAccountStarting, ( amount > 0 ) ? "+" : "", amount, m_iAccount.Get(),
+			bTrackChange ? " (tracked)" : "" );
+	}
 }
 
 void CCSPlayer::MarkAsNotReceivingMoneyNextRound()
@@ -2864,6 +2938,26 @@ void CCSPlayer::PreThink()
 
 	UpdateSpawnImmunityRender();
 	UpdateSolidityCollisionGroup();
+
+	// mp_force_pick_time: CS:GO puts a player who has not picked a team on one after this many
+	// seconds (ref cs_player.cpp:11992). 0, the default, never does, which is stock CS:S.
+	if ( mp_force_pick_time.GetFloat() > 0.0f && !IsBot() && !IsHLTV() &&
+		 GetTeamNumber() == TEAM_UNASSIGNED && IsConnected() )
+	{
+		if ( m_flForceTeamTime == 0.0f )
+		{
+			m_flForceTeamTime = gpGlobals->curtime + mp_force_pick_time.GetFloat();
+		}
+		else if ( gpGlobals->curtime >= m_flForceTeamTime )
+		{
+			m_flForceTeamTime = 0.0f;
+			HandleCommand_JoinTeam( TEAM_UNASSIGNED );
+		}
+	}
+	else
+	{
+		m_flForceTeamTime = 0.0f;
+	}
 
 	ResetMaxSpeed();
 	State_PreThink();
@@ -5247,6 +5341,27 @@ bool CCSPlayer::HandleCommand_JoinTeam( int team )
 		{
 			ClientPrint( this, HUD_PRINTCENTER, "#Cannot_Be_Spectator" );
 			return false;
+		}
+
+		// mp_spectators_max: CS:GO caps how many spectators a match takes (ref
+		// cs_gamerules.cpp:1791). 0, the default here, is no cap, which is stock CS:S.
+		if ( mp_spectators_max.GetInt() > 0 && GetTeamNumber() != TEAM_SPECTATOR )
+		{
+			int nSpectators = 0;
+
+			for ( int i = 1; i <= gpGlobals->maxClients; i++ )
+			{
+				CBasePlayer *pOther = UTIL_PlayerByIndex( i );
+
+				if ( pOther && pOther != this && pOther->IsObserver() )
+					nSpectators++;
+			}
+
+			if ( nSpectators >= mp_spectators_max.GetInt() )
+			{
+				ClientPrint( this, HUD_PRINTCENTER, "The server has reached its spectator limit" );
+				return false;
+			}
 		}
 		
 		if ( GetTeamNumber() != TEAM_UNASSIGNED && !IsDead() )

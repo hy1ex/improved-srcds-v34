@@ -4808,11 +4808,14 @@ void CBasePlayer::CommitSuicide()
 		return;
 		
 	// prevent suiciding too often
+	// mp_suicide_time: CS:GO exposes this delay (ref player.cpp:136). 5 is the value this file used
+	// to hardcode, so the default keeps the stock cooldown.
+	extern ConVar mp_suicide_time;
+
 	if ( m_fNextSuicideTime > gpGlobals->curtime )
 		return;
 
-	// don't let them suicide for 5 seconds after suiciding
-	m_fNextSuicideTime = gpGlobals->curtime + 5;  
+	m_fNextSuicideTime = gpGlobals->curtime + mp_suicide_time.GetFloat();  
 
 	// have the player kill themself
 	m_iHealth = 0;
