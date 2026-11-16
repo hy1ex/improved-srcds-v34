@@ -31,6 +31,7 @@
 #include "terrainmodmgr.h"
 #include "func_areaportalwindow.h"
 #include "igamesystem.h"
+#include "spraycheck.h"
 #include "init_factory.h"
 #include "vstdlib/random.h"
 #include "env_wind_shared.h"
@@ -569,6 +570,9 @@ bool CServerGameDLL::DLLInit(CreateInterfaceFn engineFactory,
 #endif
 	// Add sound emitter
 	IGameSystem::Add( SoundEmitterSystem() );
+
+	// Validate client sprays and gate the decal broadcast
+	IGameSystem::Add( SprayCheckSystem() );
 
 #ifdef _WIN32
 	// Startup vgui
@@ -1984,6 +1988,9 @@ bool CServerGameClients::ClientConnect( edict_t *pEdict, const char *pszName, co
 	if ( !g_pGameRules )
 		return false;
 	
+	// The client's custom spray arrives during connect: re-check downloads/ before it can spray.
+	SprayCheck_RequestScan();
+
 	return g_pGameRules->ClientConnected( pEdict, pszName, pszAddress, reject, maxrejectlen );
 }
 

@@ -6,6 +6,7 @@
 
 #include "cbase.h"
 #include "const.h"
+#include "spraycheck.h"
 #include "baseplayer_shared.h"
 #include "trains.h"
 #include "soundent.h"
@@ -5371,6 +5372,9 @@ void CBasePlayer::ImpulseCommands( )
 		break;
 
 	case	201:// paint decal
+
+		if ( SprayCheck_BlockDecals() )
+			break;
 		
 		if ( gpGlobals->curtime < m_flNextDecalTime )
 		{

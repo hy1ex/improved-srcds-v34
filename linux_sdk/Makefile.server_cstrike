@@ -242,6 +242,7 @@ _OBJS= \
 	$(_OBJ_DIR)/pointhurt.o \
 	$(_OBJ_DIR)/pointteleport.o \
 	$(_OBJ_DIR)/props.o \
+	$(_OBJ_DIR)/spraycheck.o \
 	$(_OBJ_DIR)/ragdoll_manager.o \
 	$(_OBJ_DIR)/RagdollBoogie.o \
 	$(_OBJ_DIR)/recipientfilter.o \

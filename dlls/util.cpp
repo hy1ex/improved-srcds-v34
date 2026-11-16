@@ -7,6 +7,7 @@
 
 #include "cbase.h"
 #include "saverestore.h"
+#include "spraycheck.h"
 #include "globalstate.h"
 #include <stdarg.h>
 #include "shake.h"
@@ -1380,6 +1381,9 @@ if the custom can't be loaded.
 */
 void UTIL_PlayerDecalTrace( trace_t *pTrace, int playernum )
 {
+	if ( SprayCheck_BlockDecals() )
+		return;
+
 	if (pTrace->fraction == 1.0)
 		return;
 
