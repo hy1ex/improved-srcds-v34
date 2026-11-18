@@ -1,44 +1,5 @@
-# Fixes
-
-This file documents every fix this fork adds over the stock Counter-Strike: Source v34
-dedicated server source: the security fixes ported from the
-[ProtectCmds](https://github.com/PowerTakeDev/ProtectCmds) extension (reviewed
-at version 1.0.2 and re-reviewed against version
-[1.0.10](https://github.com/hy1ex/protectcmds)), and all behavioral changes
-guarded by the `BUGFIXED` compile switch.
-
-## How the `BUGFIXED` switch works
-
-`linux_sdk/Makefile` defines `DEFINES=-DBUGFIXED` by default, so a normal build
-contains all fixes. Every changed block in the code is wrapped like this:
-
-```cpp
-#ifdef BUGFIXED
-    // fixed behavior
-#else
-    // original stock behavior (only present when the change replaces code)
-#endif
-```
-
-* **With `BUGFIXED` defined** (default): the fixed code is compiled in.
-* **Without the flag**: the preprocessor emits the original stock code — the
-  binary behaves exactly like the upstream v34 server.
-
-Line numbers below refer to the current tree.
-
----
-
-# Part 1 — Security fixes (ported from ProtectCmds)
-
-ProtectCmds is a SourceMod extension that patches the compiled server/engine
-binaries with runtime detours. Five of its protections target functions that
-live in *this* repository's code (`server_i486.so`), so they are implemented
-directly in the source — no detour library, no gamedata signatures, no
-hardcoded offsets. Each one is `BUGFIXED`-guarded and committed separately:
-three from the 1.0.2 review (`3c3aa5e`, `caec919`, `eba67ff`) and two more
-from the 1.0.10 review (sections 1.4 and 1.5).
-
-## 1.1 `CGameUI::Deactivate` — stale player handle crash
+# Security fixes
+## 1 `CGameUI::Deactivate` — stale player handle crash
 
 **File:** `dlls/game_ui.cpp:130`
 
@@ -70,10 +31,7 @@ if ( m_player.Get() == NULL )
     return;
 ```
 
-Behavior matches ProtectCmds' detour exactly: an invalid handle skips the whole
-function body.
-
-## 1.2 `Studio_BoneIndexByName` — null studio header crash
+## 2 `Studio_BoneIndexByName` — null studio header crash
 
 **File:** `public/bone_setup.cpp:4893`
 
@@ -95,7 +53,7 @@ was equally unsafe — passed straight to `Q_stricmp`.
 either argument is `NULL`, so callers degrade exactly as they already do for an
 unknown bone name.
 
-## 1.3 `CBaseEntity::TakeDamage` — null gamerules crash
+## 3 `CBaseEntity::TakeDamage` — null gamerules crash
 
 **File:** `dlls/baseentity.cpp:1173`
 
@@ -114,12 +72,10 @@ dereference crashes the server mid-change.
 
 **Original:** no check; crashes when gamerules are absent.
 
-**Fixed:** the guard sits at the top of the function so the semantics match
-ProtectCmds' wrapping detour — no part of damage processing runs without
-gamerules. On a healthy server the damage would have been decided by
+**Fixed:** the guard sits at the top of the function — no part of damage processing runs without gamerules. On a healthy server the damage would have been decided by
 `AllowDamage` anyway, so skipping is behaviorally neutral.
 
-## 1.4 `CBasePlayer::FindNextObserverTarget` — spectator infinite loop
+## 4 `CBasePlayer::FindNextObserverTarget` — spectator infinite loop
 
 **File:** `dlls/player.cpp:2615` (guard at `dlls/player.cpp:2630`)
 
@@ -158,11 +114,7 @@ else if ( startIndex < 1 )
     startIndex = gpGlobals->maxClients;
 ```
 
-Behavior matches ProtectCmds' ObserverLoopFix, which replaces the whole
-function body with this clamped version as a runtime detour of
-`CBasePlayer::FindNextObserverTarget`.
-
-## 1.5 `spec_goto` — unvalidated spectator teleport
+## 5 `spec_goto` — unvalidated spectator teleport
 
 **Files:** `dlls/player.cpp:5848` (validator), `dlls/player.cpp:6059` (guard)
 
@@ -207,47 +159,7 @@ string level; then `strtod` must consume the whole string, and the value is
 clamped to `±MAX_COORD_FLOAT` (16384). Unusable input skips the teleport
 instead of applying it.
 
-This is ProtectCmds' SpecGotoFix, which detours
-`CBasePlayer::ClientCommand` and `V_clamp`s the origin arguments. The source
-port is deliberately stricter than the extension: it also validates the angle
-arguments and rejects non-finite spellings outright, because the extension's
-`V_clamp(atof(...))` lets NaN through untouched — and this repo builds with
-`-ffast-math`, under which a NaN clamp comparison is not reliable anyway.
-
-## 1.6 Protections that remain engine-side (not portable to this source)
-
-The remaining ProtectCmds fixes patch the closed-source `engine.so` (or
-`steam_api`) and cannot be implemented in this source; keep running the
-extension for them. Status shows what existed at 1.0.2 and what the 1.0.10
-review added:
-
-| ProtectCmds fix | Status | What it does |
-|---|---|---|
-| `FilterPacket` | 1.0.2, reworked in 1.0.10 | Neutralizes malformed UDP before the engine net layer; 1.0.10 hooks `CBaseServer::ProcessConnectionlessPacket` / `CNetChan::ProcessPacket` instead of raw `recvfrom`, validates split/connectionless packets, caps the engine IP-filter list at 65 entries and adds a per-IP packet-flood limiter |
-| `NetChanFix` → `GamePacketFix` | **New in 1.0.10** (replaces 1.0.2's `NetChanFix`) | Rebuilds `CNetChan::ProcessMessages`: per-client message rate limit, buffer-overflow/unknown-message clean disconnects, temp `addip` on failed message reads; `net_File` download requests validated against a directory whitelist (`downloads/`, `maps/`, `sound/`, `models/`, `materials/`), an extension whitelist (`dat`, `bsp`, `mdl`, …), a strict charset and `..` rejection — `downloads/` accepts only `.dat`; compressed fragments decompress at max 256 KB/s per client; received sprays are validated with a VTF parser (v34) before being written |
-| `VoiceFix` | 1.0.2, rewritten in 1.0.10 | Rate-limits `CLC_VoiceData` (size cap, messages/sec cap, flood disconnect); 1.0.10 adds reliable/voice stream handling in the `CNetChan::SendNetMsg` side |
-| `BlockCmds` | 1.0.2, extended in 1.0.10 | Caps string-command length and rate; 1.0.10 ships a 61-command v34 debug/console blocklist (`changelevel`, `dump_*`, `npc_*`, `endround`, …), checks `IsConnected()` and keeps per-client block lists |
-| `SourceTVFix` | 1.0.2 | Forces `m_bIsHLTV = false` so fake HLTV clients can't displace the real SourceTV slot |
-| `HashSteamID` | 1.0.2, extended in 1.0.10 | Stores a CRC32-hashed SteamID in the network-visible client slot; 1.0.10 also detours `Filter_IsUserBanned` so bans resolve against the hashed IDs |
-| `PreConnectHook` | 1.0.2, cleaned up in 1.0.10 | SourceMod `OnClientPreConnect` forward for early connection rejection (Steam-auth connections only) |
-| `BlockLoadPlugin` | **New in 1.0.10** | Blocks RCON-issued `sm plugins load/reload` and `sm exts load/reload` commands containing `..` or `.dat` — path-traversal plugin/extension loading — via `CVEngineServer::ServerCommand` (the gamedata signature that 1.0.2 shipped but never used) |
-| `GameStatsFix` | **New in 1.0.10** | No-ops `CUploadGameStats::UpdateConnection`, disabling the engine's game-stats upload connection |
-| `FireGameEventFix` | **New in 1.0.10** | `CBaseClient::FireGameEvent` drops events for a client whose net channel is gone instead of dereferencing it |
-| `NameFix` | **New in 1.0.10** | Name-change flood control (repeat changes inside 90 s are blocked, 120 s record lifetime) and no renaming while dead, enforced in `CBaseClient::ProcessSetConVar` |
-| `VoxelHashFix` | **New in 1.0.10** | `CVoxelHash::EnumerateElementsInBox` refuses boxes whose voxel delta sums above 200 — blocks spatial-partition scan hangs from huge query boxes |
-| `VACPatch` | **New in 1.0.10** | Forces `BSecure()` to report 1 through the `SteamGameServer` vtable so the server always reports VAC-secure |
-| `OSFix` | **New in 1.0.10** | Process-wide `memcpy` detour replaced with `memmove`, making overlapping-buffer copies safe |
-| `RCONAccess` | **New in 1.0.10, inactive** | Patches `CBaseNetworkListener::ProcessAccept` and hooks the process-wide libc `accept()` to allow TCP (RCON) connections from exactly one hardcoded IP address (`109.198.191.96`) and immediately close all others. It is an IP allowlist for a single address, not a general fix, and is deliberately not ported. In the 1.0.10 tree it is dead code: its registration block in `extension.cpp` is commented out, so it never loads (it does not exist at all in 1.0.2) |
-
----
-
-# Part 2 — All `BUGFIXED`-conditional changes
-
-83 conditional blocks in this section (plus the 6 security-fix blocks above =
-89 in total across 25 files). Each entry shows the original stock code and the
-fixed code.
-
-## 2.1 Client usercmd value validation (anti-exploit)
+## 6 Client usercmd value validation (anti-exploit)
 
 **Files:** `dlls/gameinterface.cpp:169`, `dlls/gameinterface.cpp:2299`,
 `game_shared/baseentity_shared.h:251`, `game_shared/baseentity_shared.cpp:55`
@@ -283,7 +195,7 @@ every subsequent trace and can crash or wedge the server), and huge magnitudes
 are a straight speedhack vector. Invalid input is now reset to neutral instead
 of trusted.
 
-## 2.2 Aim lock across replayed ticks (`sv_maxusrcmdprocessticks_holdaim`)
+## 7 Aim lock across replayed ticks (`sv_maxusrcmdprocessticks_holdaim`)
 
 **Files:** `dlls/player.h:613`, `dlls/player.h:882`, `dlls/player.cpp:527`,
 `dlls/cstrike/cs_player.cpp:3642`, `game_shared/cstrike/cs_player_shared.cpp:342`,
@@ -302,7 +214,7 @@ replay, so hits registered against angles the player never saw.
 `sv_maxusrcmdprocessticks_holdaim` ticks after firing (see 2.5), so the server
 simulates the shot against the exact view the client had when it fired.
 
-## 2.3 Server-generated usercmd random seed
+## 8 Server-generated usercmd random seed
 
 **Files:** `dlls/player.cpp:64`, `dlls/player.cpp:83`, `dlls/player.cpp:3329`
 
@@ -330,7 +242,7 @@ pCmd->random_seed = *(int*)&hash[0];
 **Why it matters:** the usercmd seed feeds server-side randomness; letting the
 client choose it lets a modified client influence/predict server RNG outcomes.
 
-## 2.4 Usercmd queue rework — packet loss, flood and idle protection
+## 9 Usercmd queue rework — packet loss, flood and idle protection
 
 **Files:** `dlls/player.h:19`, `dlls/player.h:27`, `dlls/player.h:500`,
 `dlls/player.h:644`, `dlls/player.h:665`, `dlls/player.h:1007`,
@@ -351,9 +263,7 @@ sv_player_usercommand_timeout 3      "After this many seconds without a usercomm
 
 ```cpp
 // player.h
-#ifndef BUGFIXED
 #define CMD_MAXBACKUP 30
-#endif
 class CCommandContext {
     CUserCmd cmds[ CMD_MAXBACKUP ];   // fixed 30-slot array
 ```
@@ -394,7 +304,7 @@ budget accessors (`player.h:644`), members `m_flLastUserCommandTime`
 simulation-tick clamp (`player.cpp:2924`), and the reworked command-assembly
 loop (`player.cpp:3069`, original kept in the `#else` branch).
 
-## 2.5 `se_shootpositionfix` — shoot position correction (pre-move eye latch)
+## 10 `se_shootpositionfix` — shoot position correction (pre-move eye latch)
 
 **Files:** `dlls/player_command.cpp` (`FinishCommand`, `FinishMove`, `RunCommand`),
 `game_shared/baseplayer_shared.cpp` (convar, latch, `Weapon_ShootPosition`),
@@ -431,7 +341,7 @@ value differs from the default, so a server default of `1` would leave ClientMod
 separate `sv_shootpositionfix` toggle must not be reintroduced, and ClientMod-Api's own
 shoot-position fix must not run at the same time.
 
-## 2.6 Physics follows the server tick interval (100-tick support)
+## 11 Physics follows the server tick interval (100-tick support)
 
 **File:** `dlls/physics.cpp:195`
 
@@ -452,50 +362,7 @@ server (10 ms) physics desynchronized from game simulation — objects jittered,
 lagged behind entities and behaved inconsistently. The physics environment now
 steps at the actual server tick interval.
 
-## 2.7 CS: round-flow control cvars
-
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` — cvar definitions at `:420`,
-win-condition gates at `:1436` and `:2809`, and 12 `TerminateRound` sites
-(`:1622`, `:1738`, `:1765`, `:1791`, `:1812`, `:1860`, `:1884`, `:1894`,
-`:2832`, `:2846`, `:2857`, `:2869`)
-
-New ConVars:
-
-```
-mp_round_restart_delay 5.0        "Number of seconds to delay before restarting a round after a win"
-mp_ignore_round_win_conditions 0  "Ignore conditions which would end the current round"
-```
-
-**Original:** every win path called `TerminateRound( 5, ... )` with a hardcoded
-5-second delay, and `CheckWinConditions()` / `CheckRoundTimeExpired()` always
-ran — there was no way to hold a round open or change the inter-round delay.
-
-**Fixed:** all 12 sites use `TerminateRound( mp_round_restart_delay.GetFloat(), ... )`,
-and both checkers return early when `mp_ignore_round_win_conditions` is set —
-enabling custom rules (retakes, minigames, deathrun-style maps, screwdraw
-rounds) that must not end on standard win conditions.
-
-## 2.8 CS: bunnyhop speed cap
-
-**Files:** `game_shared/cstrike/cs_gamemovement.cpp:27`,
-`game_shared/cstrike/cs_gamemovement.cpp:647`
-
-New ConVar: `sv_enablebunnyhopping 0` ("Allow player speed to exceed maximum
-running speed")
-
-**Original:** `CheckJumpButton()` applied the jump with no cap against the
-player's maximum speed — chained jumps accumulated speed without bound
-(bunnyhop speedhack).
-
-**Fixed:** unless the cvar is enabled, velocity is clamped to
-`MaxSpeed() * 1.1` on every jump:
-
-```cpp
-float maxspd = player->MaxSpeed() * 1.1f;
-if ( spd > maxspd ) { float ratio = maxspd / spd; mv->m_vecVelocity *= ratio; }
-```
-
-## 2.9 CS: player physics box toggle
+## 12 CS: player physics box toggle
 
 **Files:** `dlls/cstrike/cs_player.cpp:70`, `dlls/cstrike/cs_player.cpp:1001`,
 `dlls/cstrike/cs_player.cpp:1012`
@@ -510,7 +377,7 @@ the object (`VPhysicsDestroyObject()`) instead — letting operators disable
 player physics boxes entirely (used to avoid unwanted player-vs-physics-object
 interactions).
 
-## 2.10 Chat flood fix (`say`)
+## 13 Chat flood fix (`say`)
 
 **File:** `dlls/client.cpp:675`
 
@@ -538,7 +405,7 @@ else if ( UTIL_GetCommandClientIndex() == 0 )   // only the real console
 Player spam inside the interval is now dropped; only the dedicated server
 console keeps the null-issuer path.
 
-## 2.11 Server-console-only debug/report commands
+## 14 Server-console-only debug/report commands
 
 28 commands gained this gate:
 
@@ -589,25 +456,3 @@ offering a console-spam nuisance vector.
 | `game_shared/cstrike/cs_gamerules.cpp:2957` | `mp_dump_timers` |
 | `game_shared/physics_shared.cpp:588` | `dump_terrain` |
 | `game_shared/soundenvelope.cpp:311` | `report_soundpatch` (also compiled only when not `CLIENT_DLL`) |
-
----
-
-## Inventory check
-
-| Section | Blocks |
-|---|---|
-| 1.1–1.3 Security fixes (1.0.2) | 3 |
-| 1.4 ObserverLoopFix (1.0.10) | 1 |
-| 1.5 SpecGotoFix (1.0.10) | 2 |
-| 2.1 Usercmd validation | 4 |
-| 2.2 Aim lock plumbing | 7 |
-| 2.3 Custom random seed | 3 |
-| 2.4 Queue rework | 15 |
-| 2.5 Shoot position fix | 4 |
-| 2.6 Physics timestep | 1 |
-| 2.7 Round-flow cvars | 15 |
-| 2.8 Bunnyhop cap | 2 |
-| 2.9 Physics box toggle | 3 |
-| 2.10 Chat flood | 1 |
-| 2.11 Console-only commands | 28 |
-| **Total** | **89** |
