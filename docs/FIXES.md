@@ -410,10 +410,8 @@ console keeps the null-issuer path.
 28 commands gained this gate:
 
 ```cpp
-#ifdef BUGFIXED
-    if ( !UTIL_IsCommandIssuedByServerAdmin() )
-        return;
-#endif
+  if ( !UTIL_IsCommandIssuedByServerAdmin() )
+    return;
 ```
 
 `UTIL_IsCommandIssuedByServerAdmin()` (`dlls/util.cpp:625`) allows the server
