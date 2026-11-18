@@ -1,56 +1,167 @@
 # Improved srcds v34
 
-Open-source dedicated server for **Counter-Strike: Source build v34** — the
-Source SDK Base 2006 / Source Engine 2007 server binary, updated for the
-current game build, hardened against known exploits, and fixed for high
-tickrate play.
+Open-source dedicated server for **Counter-Strike: Source, build v34** — the
+Source SDK Base 2006 / Source Engine 2007 `server_i486.so`, rebuilt and
+maintained for the current game build: hardened against the exploits that have
+accumulated over the years, fixed for high-tickrate play, and extended with the
+server-side game features players and operators expect from newer builds.
 
-## About
+The whole fix set is in the code. There is no "stock behavior" build and no
+runtime toggle: every improvement described below is what this binary does.
 
-This repository contains the server part (`server_i486.so`) of Counter-Strike:
-Source v34. It compiles to a **32-bit i386** shared library and runs on a
-stock v34 dedicated server installation.
+## Contents
 
-Changes are applied directly to the code: the **`BUGFIXED`** compile switch
-was removed (commit `7fdd22f`), so the fixed code is the only code — there is
-no flag to toggle and no “stock behavior” build anymore. The original fix set
-is documented with its original code, fixed code and rationale in
-**[FIXES.md](FIXES.md)** (kept for archive purposes), and the ongoing port of
-fixes from newer Source-engine trees is tracked in
-**[UPSTREAM-PORT-REPORT.md](UPSTREAM-PORT-REPORT.md)**.
+* [Requirements](#requirements)
+* [Installing](#installing)
+* [What is in this build](#what-is-in-this-build)
+* [Documentation](#documentation)
+  * [Feature ports — `docs/FEATURES.md`](#feature-ports--docsfeaturesmd)
+  * [Security and crash fixes — `docs/FIXES.md`](#security-and-crash-fixes--docsfixesmd)
+  * [Landed upstream backports — `docs/BACKPORT-REPORT.md`](#landed-upstream-backports--docsbackport-reportmd)
+* [Core console variables](#core-console-variables)
+* [Building](#building)
+* [Repository layout](#repository-layout)
+* [License](#license)
 
-## What's improved
+## Requirements
 
-* **100-tickrate physics** — the physics environment now simulates at the
-  server's actual tick interval instead of the stock hardwired 15 ms.
-* **Anti-exploit input hardening** — client-supplied usercommands are
-  validated (NaN/INF angles, move magnitudes capped by
-  `sv_max_usercmd_move_magnitude`), replay bursts are budgeted
-  (`sv_maxusrcmdprocessticks`), idle clients time out safely, and the server
-  generates its own usercmd random seed.
-* **Crash fixes** — null-gamerules damage, stale game-UI handles, missing
-  studio headers and other paths that let a client or a map change take the
-  server down (see [FIXES.md](FIXES.md)).
+* A **Counter-Strike: Source v34** dedicated server installation. The engine is
+  expected to provide `tier0_i486.so`, `vstdlib_i486.so` and the usual VGUI /
+  filesystem libraries next to the game DLL.
+* **32-bit i386** Linux. `server_i486.so` is an `ELF 32-bit LSB shared object`
+  and cannot be loaded by a 64-bit engine build (the loader rejects the ELF
+  class, and even a matching class would need an ABI-identical engine and
+  `tier0`/`tier1`/`vstdlib`).
+* A glibc at least as new as the one it was linked against (2.3.6). The
+  `libstdc++`/`libgcc_eh` code is linked statically, so no C++ runtime package
+  is needed on the host.
+
+## Installing
+
+1. Build the binary ([Building](#building)) or take `server_i486.so` from a
+   [release](../../releases) — each release ships `server_i486.so`,
+   `SHA256SUMS.txt` and `build-info.txt`.
+2. Verify the checksum and the file type:
+
+   ```bash
+   sha256sum -c SHA256SUMS.txt
+   file server_i486.so
+   # server_i486.so: ELF 32-bit LSB shared object, Intel 80386, ...
+   ```
+
+3. Replace the game DLL in the server's game directory — the file the engine
+   loads as the server module, normally `cstrike/bin/server_i486.so`. Keep a
+   copy of the original so the change can be reverted.
+4. Restart the server. It should reach `Console initialized.` and load a map
+   exactly as before; if the DLL does not load, the engine logs the failing
+   module and the missing symbol name.
+
+The binary carries debug info and is not stripped, so a crash still produces
+useful backtraces.
+
+## What is in this build
+
+* **100-tickrate physics** — the physics environment simulates at the server's
+  real tick interval instead of the stock hardwired 15 ms, so movement,
+  prediction and lag compensation stay correct at `sv_maxupdaterate 100`.
+* **Anti-exploit input hardening** — client usercommands are validated
+  (NaN/INF view angles, capped move magnitude), replayed tick bursts are
+  budgeted (`sv_maxusrcmdprocessticks`), idle or silent clients fall back to a
+  null command instead of stalling the server, and the server generates its own
+  usercmd random seed.
+* **Crash fixes** — stale game-UI handles, null gamerules on damage, missing
+  studio headers, spectator loops and other paths that let a client or a map
+  change take the whole server down.
 * **Security** — debug and report commands are restricted to the server
-  console; the server-side protections of the
-  [ProtectCmds](https://github.com/PowerTakeDev/ProtectCmds) extension are
-  ported into the source (the engine-level ones still need the extension
-  itself).
-* **Upstream backports** — engine-layer fixes found by diffing this tree
-  against source-sdk-2013, css-community and nillerusr 2017 (guards, bounds
-  checks, trace and lag-compensation fixes) are ported function by function
-  without touching the network protocol — see
-  [UPSTREAM-PORT-REPORT.md](UPSTREAM-PORT-REPORT.md) for the analysis and the
-  commits that have landed.
-* **Gameplay fixes** — `se_shootpositionfix` (shoot-position
-  correction, off by default), configurable round flow, bunnyhop speed cap, and the original
-  list below:
-  * Physics fixes for 100 tickrate
-  * Fixed some console commands leading to the crash of the server
-  * Added new console commands that extend gameplay and fix bugs
-  * Optimization using SSE
+  console, sprays are validated before they are broadcast, and the server-side
+  protections of [ProtectCmds](https://github.com/PowerTakeDev/ProtectCmds)
+  are ported into the source (the engine-level ones still need the extension).
+* **Upstream backports** — fixes found by diffing this tree against
+  source-sdk-2013, css-community and nillerusr 2017 are ported function by
+  function, without touching the network protocol. See
+  [`docs/BACKPORT-REPORT.md`](docs/BACKPORT-REPORT.md).
+* **Game features** — 48 ports from CS:GO and later CS:S builds: respawn and
+  deathmatch modes, economy and purchase control, damage scaling, match flow,
+  team auto-balance and more. See [`docs/FEATURES.md`](docs/FEATURES.md).
+* **SSE math** — built with `-O3 -msse3 -mfpmath=sse` (`-ffast-math`), as the
+  original SDK makefile intends.
 
-## Console variables
+## Documentation
+
+Three documents accompany the code. They are the reference for every change in
+this tree; the summaries below are only an entry point.
+
+| Document | Contents |
+|---|---|
+| [`docs/FEATURES.md`](docs/FEATURES.md) | 48 feature ports, 157 console variables, 1 console command — each with its origin in CS:GO / later CS:S, the reasoning, the code and the files touched |
+| [`docs/FIXES.md`](docs/FIXES.md) | 14 security and crash fixes with the stock code, the fixed code and the exploit each one closes |
+| [`docs/BACKPORT-REPORT.md`](docs/BACKPORT-REPORT.md) | 82 landed upstream backports, oldest first, each mapped to its commit |
+
+### Feature ports — [`docs/FEATURES.md`](docs/FEATURES.md)
+
+Everything ported from CS:GO or from later Counter-Strike: Source builds, one
+section per feature with its convar index and its source. Nothing here changes
+the network protocol, so stock clients keep working.
+
+| | | |
+|---|---|---|
+| [1. Death drop control](docs/FEATURES.md#1-death-drop-control) | [2. Defuse kit allocation](docs/FEATURES.md#2-defuse-kit-allocation) | [3. Respawn on death](docs/FEATURES.md#3-respawn-on-death) |
+| [4. Player, hostage and grenade solidity](docs/FEATURES.md#4-player-hostage-and-grenade-solidity) | [5. Economy control](docs/FEATURES.md#5-economy-control) | [6. Damage scaling](docs/FEATURES.md#6-damage-scaling) |
+| [7. Free armour](docs/FEATURES.md#7-free-armour) | [8. Purchase restrictions](docs/FEATURES.md#8-purchase-restrictions) | [9. Halftime](docs/FEATURES.md#9-halftime) |
+| [10. Random deathmatch spawns](docs/FEATURES.md#10-random-deathmatch-spawns) | [11. Deathmatch kill scoring](docs/FEATURES.md#11-deathmatch-kill-scoring) | [12. Hostage rescue rules](docs/FEATURES.md#12-hostage-rescue-rules) |
+| [13. C4 rules](docs/FEATURES.md#13-c4-rules) | [14. Disconnect kills](docs/FEATURES.md#14-disconnect-kills) | [15. Knife drop](docs/FEATURES.md#15-knife-drop) |
+| [16. Weapon pickup timing](docs/FEATURES.md#16-weapon-pickup-timing) | [17. Grenade drop](docs/FEATURES.md#17-grenade-drop) | [18. Tagging scale](docs/FEATURES.md#18-tagging-scale-adapted) |
+| [19. Friendly fire damage reduction](docs/FEATURES.md#19-friendly-fire-damage-reduction) | [20. Cash awards](docs/FEATURES.md#20-cash-awards) | [21. C4 handout](docs/FEATURES.md#21-c4-handout) |
+| [22. Recoil and accuracy](docs/FEATURES.md#22-recoil-and-accuracy) | [23. +USE weapon pickup](docs/FEATURES.md#23-use-weapon-pickup-adapted) | [24. Grenade carry limits](docs/FEATURES.md#24-grenade-carry-limits) |
+| [25. Round and hostage rescue time](docs/FEATURES.md#25-round-time-per-objective-type-and-hostage-rescue-time) | [26. HE grenade scaling](docs/FEATURES.md#26-he-grenade-scaling) | [27. Fall damage](docs/FEATURES.md#27-fall-damage) |
+| [28. Per-match gun purchase limit](docs/FEATURES.md#28-per-match-gun-purchase-limit) | [29. Economy and streak controls](docs/FEATURES.md#29-economy-and-streak-controls) | [30. Map-placed weapons](docs/FEATURES.md#30-map-placed-weapons) |
+| [31. Team assignment](docs/FEATURES.md#31-team-assignment) | [32. Aim punch scale](docs/FEATURES.md#32-aim-punch-scale) | [33. Bullet hit log](docs/FEATURES.md#33-bullet-hit-log-adapted) |
+| [34. Suicide delay](docs/FEATURES.md#34-suicide-delay) | [35. Self-inflicted miss damage](docs/FEATURES.md#35-self-inflicted-miss-damage) | [36. Friendly fire bullet penetration](docs/FEATURES.md#36-friendly-fire-bullet-penetration) |
+| [37. Money logging](docs/FEATURES.md#37-money-logging) | [38. Spectator cap](docs/FEATURES.md#38-spectator-cap) | [39. Automatic team pick](docs/FEATURES.md#39-automatic-team-pick) |
+| [40. Default loadouts](docs/FEATURES.md#40-default-loadouts) | [41. Deathmatch kill healing](docs/FEATURES.md#41-deathmatch-kill-healing) | [42. Shorthanded win bonus](docs/FEATURES.md#42-shorthanded-win-bonus) |
+| [43. Suicide penalty](docs/FEATURES.md#43-suicide-penalty) | [44. Match-end behaviour](docs/FEATURES.md#44-match-end-behaviour) | [45. Early match clinch](docs/FEATURES.md#45-early-match-clinch) |
+| [46. Auto-balance delay and warning](docs/FEATURES.md#46-auto-balance-delay-and-warning) | [47. Turbo-physics +USE gates](docs/FEATURES.md#47-turbo-physics-use-gates) | [48. Spray validation and decal gate](docs/FEATURES.md#48-spray-validation-and-decal-gate) |
+
+The same file starts with a **convar index** (every convar, its default and the
+feature it belongs to) and a **command index**, so a setting can be looked up
+without knowing which feature introduced it.
+
+### Security and crash fixes — [`docs/FIXES.md`](docs/FIXES.md)
+
+Fourteen fixes, each documented with the vulnerable code, the patched code and
+the failure it prevents:
+
+1. `CGameUI::Deactivate` — stale player handle crash
+2. `Studio_BoneIndexByName` — null studio header crash
+3. `CBaseEntity::TakeDamage` — null gamerules crash
+4. `CBasePlayer::FindNextObserverTarget` — spectator infinite loop
+5. `spec_goto` — unvalidated spectator teleport
+6. Client usercmd value validation (anti-exploit)
+7. Aim lock across replayed ticks (`sv_maxusrcmdprocessticks_holdaim`)
+8. Server-generated usercmd random seed
+9. Usercmd queue rework — packet loss, flood and idle protection
+10. `se_shootpositionfix` — shoot position correction (pre-move eye latch)
+11. Physics follows the server tick interval (100-tick support)
+12. CS: player physics box toggle
+13. Chat flood fix (`say`)
+14. Server-console-only debug/report commands
+
+The document ends with the full list of commands that fix 14 moves behind the
+server console, with the source file and line for each.
+
+### Landed upstream backports — [`docs/BACKPORT-REPORT.md`](docs/BACKPORT-REPORT.md)
+
+82 backports from source-sdk-2013, css-community and nillerusr 2017, each in
+its own commit with the diff, the upstream reference and a compatibility
+rating. The bulk are null-guards, bounds checks and stale-state fixes in the
+physics, animation, entity-I/O and save/restore paths, plus lag-compensation
+corrections (pose parameters restored around a backtrack, `cl_interp` honoured,
+horizontal-only teleport guard).
+
+## Core console variables
+
+The convars below belong to the netcode and physics work in this tree; the
+~150 feature convars live in the [convar index](docs/FEATURES.md#convar-index).
 
 **Netcode / movement**
 
@@ -60,17 +171,14 @@ fixes from newer Source-engine trees is tracked in
 * `sv_player_usercommand_timeout <3>` — After this many seconds without a usercommand from a player, the server will RunNullCommand as if client sends an empty command
 * `sv_usercmd_custom_random_seed <1>` — When enabled server will populate an additional random seed independent of the client
 * `sv_max_usercmd_move_magnitude <1000>` — Maximum move magnitude that can be requested by client
-* `se_shootpositionfix <0>` — Fire from the eye position the player aimed from (start of the command) instead of the post-movement one. Off by default; enable it with `se_shootpositionfix 1` in `server.cfg`. The default has to stay `0`: a replicated convar left at its default is not sent to connecting clients, so ClientMod clients would keep their own `0` and predict hits without the fix.
 * `sv_enablebunnyhopping <0>` — Allow player speed to exceed maximum running speed
+* `se_shootpositionfix <0>` — Fire from the eye position the player aimed from (start of the command) instead of the post-movement one. Off by default; enable it with `se_shootpositionfix 1` in `server.cfg`. The default has to stay `0`: a replicated convar left at its default is not sent to connecting clients, so ClientMod clients would keep their own `0` and predict hits without the fix.
 
 **Gameplay**
 
 * `cs_enable_player_physics_box <1>` — Allow to create physical objects for players
 * `mp_ignore_round_win_conditions <0>` — Ignore conditions which would end the current round
 * `mp_round_restart_delay <5.0>` — Number of seconds to delay before restarting a round after a win
-
-All fixes, including the ConVars above, are documented in
-[FIXES.md](FIXES.md).
 
 ## Building
 
@@ -81,17 +189,30 @@ to build `src/linux_sdk/server_i486.so`:
 
 | Method | Best for |
 |---|---|
-| [Docker](#building-with-docker-step-by-step) | Any machine, no toolchain setup |
+| [Docker](#building-with-docker) | Any machine, no toolchain setup |
 | [Local chroot, no Docker/root](#building-locally-without-docker-or-root) | Cloud runners and locked-down machines |
 | [GitHub Actions](#building-with-github-actions) | No local setup at all |
 | [Native GCC 3.4.6](#building-natively) | Distro maintainers, hacking on the code |
 
-### Building with Docker (step by step)
+The first three all use the same environment: an **i386 Debian Etch** sysroot
+(GCC 3.4.6, glibc 2.3.6) assembled from archive.debian.org and entered through
+a chroot. Every ordinary build produces
 
-The repository's [`Dockerfile`](Dockerfile) builds an image with the
-original-era toolchain — i386 Debian Etch with GCC 3.4.6 and glibc 2.3.6,
-fetched from archive.debian.org — and compiles the code inside a chroot of it.
-This is the same environment the GitHub Actions workflow uses.
+```text
+src/linux_sdk/server_i486.so          the game DLL
+src/linux_sdk/server_i486.so_map.txt  linker map (when linked in this tree)
+```
+
+and `make` verifies the result with `src/linux_sdk/check_undefined.sh`, which
+fails the build when the DLL refers to a symbol the engine does not export —
+the failure mode that otherwise shows up as a segfault right after
+`Console initialized.`
+
+### Building with Docker
+
+The repository's [`Dockerfile`](Dockerfile) builds an image with the original
+toolchain and compiles inside a chroot of it. This is the same environment the
+GitHub Actions workflow uses.
 
 **1. Install [Docker](https://docs.docker.com/get-docker/)** if you don't have it yet.
 
@@ -124,7 +245,7 @@ docker run --rm \
 * Optional: add `-e JOBS=8` to change the build parallelism (default `4`).
 * Running the command again only rebuilds what changed. For a clean rebuild, first delete the outputs (`rm -rf src/linux_sdk/obj src/linux_sdk/server_i486.so`), then run it again.
 
-**5. The result** is `src/linux_sdk/server_i486.so`. Verify it:
+**5. Verify** the result:
 
 ```bash
 file src/linux_sdk/server_i486.so
@@ -133,14 +254,11 @@ file src/linux_sdk/server_i486.so
 
 ### Building locally without Docker or root
 
-The same toolchain as the Docker image — the Debian Etch / GCC 3.4.6
-packages — but unpacked by hand and entered through an **unprivileged user
-namespace** chroot. This needs no root, no `sudo` and no Docker daemon, which
-is why it is the method that works on cloud build runners: the cloud runner
-used for this repository has none of those, and this is exactly how
-`server_i486.so` is built and verified there. It runs on any Linux where
-unprivileged user namespaces are enabled. Host prerequisites: `curl`,
-`dpkg-deb` and `unshare` (util-linux).
+The same toolchain, unpacked by hand and entered through an **unprivileged user
+namespace** chroot. No root, no `sudo`, no Docker daemon — it works on cloud
+build runners and locked-down machines, and this is how the binary is built and
+verified here. Host prerequisites: `curl`, `dpkg-deb` and `unshare`
+(util-linux).
 
 **1. Extract the toolchain** — the same 25 packages the [`Dockerfile`](Dockerfile)
 lists:
@@ -200,7 +318,7 @@ JOBS=$(nproc) unshare --map-root-user chroot "$ETCH" /bin/bash -c '
 
 `make` creates all `obj/` subdirectories itself (the `dirs` target is an
 order-only prerequisite of every compile rule), so no preparation of the
-build tree is needed - not even for `make -j`. The result lands in the chroot
+build tree is needed — not even for `make -j`. The result lands in the chroot
 copy — fetch it and verify:
 
 ```bash
@@ -248,18 +366,33 @@ is ticked.
 
 ### Building natively
 
-To compile, you need to use <b>GCC 3.4.6</b> or lower. First, go to the <b>src/linux_sdk</b> directory and open the <b>Makefile</b>, then edit it for your system. Type <b>make</b> to build. 
-After compilation, the binary file will be located in the working directory.
+To compile, you need to use **GCC 3.4.6** or lower. Go to `src/linux_sdk`, edit
+the compiler paths in the `Makefile` for your system, and run `make`. The
+binary lands in the working directory. `make`, `make -j8`, `make libs` and
+`make clean` are the supported targets.
 
-## Fix documentation
+## Repository layout
 
-* **[UPSTREAM-PORT-REPORT.md](UPSTREAM-PORT-REPORT.md)** — the living
-  analysis document: how this tree diverges from newer Source-engine trees
-  (source-sdk-2013, css-community, nillerusr 2017), why upstream changed
-  each function, which backports have landed, and what is still queued.
-  Every landed batch has its own commit with a detailed explanation.
-* **[FIXES.md](FIXES.md)** — archive of the original fix set: the security
-  fixes ported from ProtectCmds (versions 1.0.2 and 1.0.10), including which
-  ones still require the extension itself, plus the original `BUGFIXED`-
-  guarded changes with their stock and fixed code. Kept for reference only;
-  the `BUGFIXED` switch it describes no longer exists in this tree.
+```text
+src/
+  linux_sdk/        makefiles, the prebuilt tier1/mathlib/choreoobjects
+                    archives, the engine libraries it links against, and
+                    check_undefined.sh with its symbol allowlist
+  game/server/      game DLL sources (entities, physics, AI, players)
+  game/shared/      code shared with the client: rule sets, weapons, movement
+  public/           SDK headers and the interfaces the engine calls
+  common/, tier1/, mathlib/
+docs/
+  FEATURES.md       the 48 feature ports and their convars
+  FIXES.md          the 14 security and crash fixes, with code
+  BACKPORT-REPORT.md the 82 landed upstream backports
+Dockerfile          the GCC 3.4.6 / glibc 2.3.6 build environment
+.github/workflows/  CI: build on push/PR, optional release
+```
+
+## License
+
+The source is covered by the [Source 1 SDK license](LICENSE) (`LICENSE`) and,
+where applicable, Valve's terms for the Source SDK. Bundled third-party
+components and their notices are listed in
+[`thirdpartylegalnotices.txt`](thirdpartylegalnotices.txt).

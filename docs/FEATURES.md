@@ -134,32 +134,32 @@
 | `mp_force_assign_teams` | `0` | [31. Team assignment](#31-team-assignment) | 1 = the server picks the team |
 | `mp_flinch_punch_scale` | `1` | [32. Aim punch scale](#32-aim-punch-scale) | scales aim punch when hit; 1 = stock, CS:GO uses 3 |
 | `sv_showbullethits` | `0` | [33. Bullet hit log](#33-bullet-hit-log-adapted) | 1 = log bullet hits to the server console |
-| `mp_suicide_time` | `5` | [35. Suicide delay](#35-suicide-delay) | seconds between suicides |
-| `mp_weapon_self_inflict_amount` | `0` | [36. Self-inflicted miss damage](#36-self-inflicted-miss-damage) | fraction of the shot's damage taken when it hits no enemy |
-| `ff_damage_bullet_penetration` | `-1` | [37. Friendly fire bullet penetration](#37-friendly-fire-bullet-penetration) | -1 = stock, 0 = stop at a teammate, >0 = scale |
-| `mp_logmoney` | `0` | [38. Money logging](#38-money-logging) | 1 = log every account change |
-| `mp_spectators_max` | `0` | [39. Spectator cap](#39-spectator-cap) | max spectators; 0 = no limit |
-| `mp_force_pick_time` | `0` | [40. Automatic team pick](#40-automatic-team-pick) | seconds before an unassigned player is put on a team; 0 = never |
-| `mp_ct_default_primary` | `""` | [41. Default loadouts](#41-default-loadouts) | CT spawn rifle; empty = none |
-| `mp_ct_default_secondary` | `weapon_usp` | [41. Default loadouts](#41-default-loadouts) | CT spawn pistol |
-| `mp_ct_default_grenades` | `""` | [41. Default loadouts](#41-default-loadouts) | CT spawn grenades, space separated |
-| `mp_t_default_primary` | `""` | [41. Default loadouts](#41-default-loadouts) | T spawn rifle; empty = none |
-| `mp_t_default_secondary` | `weapon_glock` | [41. Default loadouts](#41-default-loadouts) | T spawn pistol |
-| `mp_t_default_grenades` | `""` | [41. Default loadouts](#41-default-loadouts) | T spawn grenades, space separated |
-| `mp_dm_health_per_kill` | `0` | [42. Deathmatch kill healing](#42-deathmatch-kill-healing) | health gained per enemy kill; 0 = off |
-| `cash_team_bonus_shorthanded` | `0` | [43. Shorthanded win bonus](#43-shorthanded-win-bonus) | bonus for winning while outnumbered |
-| `mp_suicide_penalty` | `0` | [44. Suicide penalty](#44-suicide-penalty) | 0/1, a suicide costs the team-kill penalty |
-| `mp_match_end_restart` | `0` | [45. Match-end behaviour](#45-match-end-behaviour) | restart on the same map instead of the cycle |
-| `mp_match_end_changelevel` | `1` | [45. Match-end behaviour](#45-match-end-behaviour) | 1 = changelevel even for the same map (stock), 0 = in-place restart |
-| `mp_match_restart_delay` | `0` | [45. Match-end behaviour](#45-match-end-behaviour) | end-of-match wait; 0 = `mp_chattime` |
-| `mp_match_can_clinch` | `0` | [46. Early match clinch](#46-early-match-clinch) | end the match once the trailing team cannot catch up |
-| `mp_autoteambalance_delay` | `0` | [47. Auto-balance delay and warning](#47-auto-balance-delay-and-warning) | seconds unbalanced before balancing |
-| `mp_autoteambalance_warning_delay` | `0` | [47. Auto-balance delay and warning](#47-auto-balance-delay-and-warning) | seconds before the balance that players are warned |
-| `sv_turbophysics_use` | `1` | [48. Turbo-physics +USE gates](#48-turbo-physics-use-gates) | allow the `sv_turbophysics` +USE shove; needs `sv_turbophysics 1` |
-| `sv_turbophysics_weapons` | `1` | [48. Turbo-physics +USE gates](#48-turbo-physics-use-gates) | 1 = +USE can shove dropped `weapon_*` entities |
-| `sv_turbophysics_c4` | `1` | [48. Turbo-physics +USE gates](#48-turbo-physics-use-gates) | 1 = +USE can shove `weapon_c4` / `planted_c4` |
-| `sv_spray_check` | `1` | [49. Spray validation and decal gate](#49-spray-validation-and-decal-gate) | validate and quarantine sprays under `downloads/`; 1 by default, stock CS:S checks nothing |
-| `sv_spray_enable` | `1` | [49. Spray validation and decal gate](#49-spray-validation-and-decal-gate) | 0 = never broadcast a `Player Decal` |
+| `mp_suicide_time` | `5` | [34. Suicide delay](#34-suicide-delay) | seconds between suicides |
+| `mp_weapon_self_inflict_amount` | `0` | [35. Self-inflicted miss damage](#35-self-inflicted-miss-damage) | fraction of the shot's damage taken when it hits no enemy |
+| `ff_damage_bullet_penetration` | `-1` | [36. Friendly fire bullet penetration](#36-friendly-fire-bullet-penetration) | -1 = stock, 0 = stop at a teammate, >0 = scale |
+| `mp_logmoney` | `0` | [37. Money logging](#37-money-logging) | 1 = log every account change |
+| `mp_spectators_max` | `0` | [38. Spectator cap](#38-spectator-cap) | max spectators; 0 = no limit |
+| `mp_force_pick_time` | `0` | [39. Automatic team pick](#39-automatic-team-pick) | seconds before an unassigned player is put on a team; 0 = never |
+| `mp_ct_default_primary` | `""` | [40. Default loadouts](#40-default-loadouts) | CT spawn rifle; empty = none |
+| `mp_ct_default_secondary` | `weapon_usp` | [40. Default loadouts](#40-default-loadouts) | CT spawn pistol |
+| `mp_ct_default_grenades` | `""` | [40. Default loadouts](#40-default-loadouts) | CT spawn grenades, space separated |
+| `mp_t_default_primary` | `""` | [40. Default loadouts](#40-default-loadouts) | T spawn rifle; empty = none |
+| `mp_t_default_secondary` | `weapon_glock` | [40. Default loadouts](#40-default-loadouts) | T spawn pistol |
+| `mp_t_default_grenades` | `""` | [40. Default loadouts](#40-default-loadouts) | T spawn grenades, space separated |
+| `mp_dm_health_per_kill` | `0` | [41. Deathmatch kill healing](#41-deathmatch-kill-healing) | health gained per enemy kill; 0 = off |
+| `cash_team_bonus_shorthanded` | `0` | [42. Shorthanded win bonus](#42-shorthanded-win-bonus) | bonus for winning while outnumbered |
+| `mp_suicide_penalty` | `0` | [43. Suicide penalty](#43-suicide-penalty) | 0/1, a suicide costs the team-kill penalty |
+| `mp_match_end_restart` | `0` | [44. Match-end behaviour](#44-match-end-behaviour) | restart on the same map instead of the cycle |
+| `mp_match_end_changelevel` | `1` | [44. Match-end behaviour](#44-match-end-behaviour) | 1 = changelevel even for the same map (stock), 0 = in-place restart |
+| `mp_match_restart_delay` | `0` | [44. Match-end behaviour](#44-match-end-behaviour) | end-of-match wait; 0 = `mp_chattime` |
+| `mp_match_can_clinch` | `0` | [45. Early match clinch](#45-early-match-clinch) | end the match once the trailing team cannot catch up |
+| `mp_autoteambalance_delay` | `0` | [46. Auto-balance delay and warning](#46-auto-balance-delay-and-warning) | seconds unbalanced before balancing |
+| `mp_autoteambalance_warning_delay` | `0` | [46. Auto-balance delay and warning](#46-auto-balance-delay-and-warning) | seconds before the balance that players are warned |
+| `sv_turbophysics_use` | `1` | [47. Turbo-physics +USE gates](#47-turbo-physics-use-gates) | allow the `sv_turbophysics` +USE shove; needs `sv_turbophysics 1` |
+| `sv_turbophysics_weapons` | `1` | [47. Turbo-physics +USE gates](#47-turbo-physics-use-gates) | 1 = +USE can shove dropped `weapon_*` entities |
+| `sv_turbophysics_c4` | `1` | [47. Turbo-physics +USE gates](#47-turbo-physics-use-gates) | 1 = +USE can shove `weapon_c4` / `planted_c4` |
+| `sv_spray_check` | `1` | [48. Spray validation and decal gate](#48-spray-validation-and-decal-gate) | validate and quarantine sprays under `downloads/`; 1 by default, stock CS:S checks nothing |
+| `sv_spray_enable` | `1` | [48. Spray validation and decal gate](#48-spray-validation-and-decal-gate) | 0 = never broadcast a `Player Decal` |
 
 ## Command index
 
@@ -1967,19 +1967,7 @@ makes it a testing aid for `sv_hegrenade_damage_multiplier`, the damage scale co
 **Files:** `src/game/server/cstrike/cs_player.cpp` (`TraceAttack`), `src/game/shared/cstrike/cs_gamerules.cpp` (convar).
 
 
-# 34. Considered and not ported: sv_timebetweenducks
-
-CS:GO's `sv_timebetweenducks` (`cs_gamemovement.cpp:36`, used in `CCSGameMovement::DuckingEnabled`) adds
-a minimum time between ducks. CS:S v34 has no equivalent: ducking there is the plain HL2 duck model
-with no re-duck timer, and the value is checked inside the shared game movement code, which the stock
-client also runs for prediction.
-
-A server-only port is possible in principle but not honest: the client predicts its own duck with the
-stock rules, so a server that refuses the duck would disagree with the prediction every time it fires,
-producing the camera and position snapping that prediction errors cause. Doing it properly needs the
-convar and the check in the client's movement code too, which this project cannot ship. It stays out.
-
-# 35. Suicide delay
+# 34. Suicide delay
 
 **Origin:** CS:GO `mp_suicide_time` (`player.cpp:136`).
 
@@ -2000,7 +1988,7 @@ was hardcoded, so nothing changes until an operator edits it; `0` allows suicidi
 **Files:** `src/game/server/player.cpp` (`CommitSuicide`), `src/game/shared/cstrike/cs_gamerules.cpp` (convar).
 
 
-# 36. Self-inflicted miss damage
+# 35. Self-inflicted miss damage
 
 **Origin:** CS:GO `mp_weapon_self_inflict_amount` (`cs_gamerules.cpp:3384`, applied in
 `fx_cs_shared.cpp:593-617`).
@@ -2029,7 +2017,7 @@ server reports.
 `src/game/shared/cstrike/cs_gamerules.cpp` (convar).
 
 
-# 37. Friendly fire bullet penetration
+# 36. Friendly fire bullet penetration
 
 **Origin:** CS:GO `ff_damage_bullet_penetration` (`cs_player_shared.cpp:83`, used at `:2544-2557`).
 
@@ -2055,7 +2043,7 @@ one-frame cosmetic difference the stock friendly fire rules already produce.
 `src/game/shared/cstrike/cs_gamerules.cpp` (convar).
 
 
-# 38. Money logging
+# 37. Money logging
 
 **Origin:** CS:GO `mp_logmoney` (`cs_player.cpp:151`, used at `:7570`).
 
@@ -2077,7 +2065,7 @@ written to the server log as a `money change` line with the old balance, the del
 (convar).
 
 
-# 39. Spectator cap
+# 38. Spectator cap
 
 **Origin:** CS:GO `mp_spectators_max` (`cs_gamerules.cpp:1791`).
 
@@ -2101,7 +2089,7 @@ existing "#Cannot_Be_Spectator" case.
 `src/game/shared/cstrike/cs_gamerules.cpp` (convar).
 
 
-# 40. Automatic team pick
+# 39. Automatic team pick
 
 **Origin:** CS:GO `mp_force_pick_time` (`cs_gamerules.cpp:2526`, used at `cs_player.cpp:11992`).
 
@@ -2125,7 +2113,7 @@ does, and the team menu simply closes.
 (`m_flForceTeamTime`), `src/game/shared/cstrike/cs_gamerules.cpp` (convar).
 
 
-# 41. Default loadouts
+# 40. Default loadouts
 
 **Origin:** CS:GO `mp_ct_default_primary` / `_secondary` / `_grenades` and the `mp_t_*` set
 (`cs_gamerules.cpp:2218-2260`, applied at `cs_player.cpp:2402-2415`). CS:GO also has a
@@ -2162,7 +2150,7 @@ classnames have to be real CS:S weapons.
 
 **Files:** `src/game/server/cstrike/cs_player.cpp` (`GiveDefaultItems` and its two helpers),
 `src/game/shared/cstrike/cs_gamerules.cpp` (convars).
-# 42. Deathmatch kill healing
+# 41. Deathmatch kill healing
 
 **Origin:** CS:GO `mp_dm_health_per_kill` (`game/shared/cstrike15/cs_gamerules.cpp`, used from the
 kill path).
@@ -2186,7 +2174,7 @@ servers.
 **Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (`PlayerKilled`, convar).
 
 
-# 43. Shorthanded win bonus
+# 42. Shorthanded win bonus
 
 **Origin:** CS:GO `cash_team_bonus_shorthanded` (`game/shared/cstrike15/cs_gamerules.cpp`, round
 awards).
@@ -2209,7 +2197,7 @@ the team pools are touched, so the stock per-player awards are unchanged.
 **Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (`RestartRound`, convar).
 
 
-# 44. Suicide penalty
+# 43. Suicide penalty
 
 **Origin:** CS:GO `mp_suicide_penalty` (`game/shared/cstrike15/cs_gamerules.cpp`).
 
@@ -2233,7 +2221,7 @@ tunable through that existing cash convar. Off, the stock path above runs untouc
 **Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (`PlayerKilled`, convar).
 
 
-# 45. Match-end behaviour
+# 44. Match-end behaviour
 
 **Origin:** CS:GO `mp_match_end_restart`, `mp_match_end_changelevel` and `mp_match_restart_delay`.
 
@@ -2277,7 +2265,7 @@ usermessage is involved.
 **Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (`GoToIntermission`, `CheckGameOver`, convars).
 
 
-# 46. Early match clinch
+# 45. Early match clinch
 
 **Origin:** CS:GO `mp_match_can_clinch`.
 
@@ -2301,7 +2289,7 @@ rounds are below the leader's score, the match goes to intermission and the even
 **Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (`Think`, convar).
 
 
-# 47. Auto-balance delay and warning
+# 46. Auto-balance delay and warning
 
 **Origin:** CS:GO `mp_autoteambalance_delay` and `mp_autoteambalance_warning_delay`.
 
@@ -2332,7 +2320,7 @@ networked and not in any datatable.
 `src/game/shared/cstrike/cs_gamerules.h` (members).
 
 
-# 48. Turbo-physics +USE gates
+# 47. Turbo-physics +USE gates
 
 **Origin:** local server setting, not from CS:GO. Requested to split the stock `sv_turbophysics`
 `+USE` shove by entity kind.
@@ -2375,7 +2363,7 @@ is identical to stock; the only extra cost is one classname comparison per use t
 (`CanPlayerUsePushEntity`, `CBasePlayer::PlayerUse`).
 
 
-# 49. Spray validation and decal gate
+# 48. Spray validation and decal gate
 
 **Origin:** local server setting, following SilvDev's Spray_Exploit SourceMod plugin. That plugin
 mitigates a client crash from outside the game; this implements the server-side half in the DLL,
