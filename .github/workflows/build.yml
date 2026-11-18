@@ -5,19 +5,19 @@ name: Build and Release
 # A release is only ever created by a manual run with "Publish release"
 # ticked, so normal builds never publish anything.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'Dockerfile'
-      - '.github/workflows/build.yml'
-      - 'FIXES.md'
-      - 'README.md'
-  pull_request:
-    paths:
-      - 'src/**'
-      - 'Dockerfile'
-      - '.github/workflows/build.yml'
+#  push:
+#    branches: [main]
+#    paths:
+#      - 'src/**'
+#      - 'Dockerfile'
+#      - '.github/workflows/build.yml'
+#      - 'FIXES.md'
+#      - 'README.md'
+#  pull_request:
+#    paths:
+#      - 'src/**'
+#      - 'Dockerfile'
+#      - '.github/workflows/build.yml'
   workflow_dispatch:
     inputs:
       publish:
