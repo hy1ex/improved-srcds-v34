@@ -85,18 +85,6 @@ jobs:
           set -eux
           export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           cd /build/src/linux_sdk
-          # The sub-makefile does not order its 'dirs' target before
-          # compilation, so with a parallel build the object directories must
-          # already exist.
-          mkdir -p \
-            obj/server_i486 obj/server_i486/common obj/server_i486/game/shared \
-            obj/server_i486/game/shared/cstrike obj/server_i486/game/shared/cstrike/bot \
-            obj/server_i486/game/shared/hl2 obj/server_i486/game/shared/portal \
-            obj/server_i486/public obj/server_i486/public/haptics \
-            obj/server_i486/public/keyframe obj/server_i486/public/tier0 \
-            obj/server_i486/public/vgui_controls obj/server_i486/cstrike \
-            obj/server_i486/cstrike/bot obj/server_i486/cstrike/bot/states \
-            obj/server_i486/cstrike/hostage obj/server_i486/hl2
           # The Makefile's stock compiler names point at a crosstool install we
           # do not have; override them for the Etch toolchain. CPP_LIB keeps the
           # original behavior of statically linking libstdc++/libgcc_eh so the

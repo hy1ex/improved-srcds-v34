@@ -18,7 +18,7 @@ CFLAGS=$(BASE_CFLAGS) $(ARCH_CFLAGS)
 
 INCLUDEDIRS=-I$(COMMON_SRC_DIR) -I$(PUBLIC_SRC_DIR) -I$(TIER1_PUBLIC_SRC_DIR) -D_LIB -DTIER1_STATIC_LIB
 
-DO_CC=$(CPLUS) -w $(INCLUDEDIRS) $(CFLAGS) -DARCH=$(ARCH) -o $@ -c $<
+DO_CC=$(CPLUS) -w $(INCLUDEDIRS) $(CFLAGS) $(DEPFLAGS) -DARCH=$(ARCH) -o $@ -c $<
 
 #####################################################################
 
@@ -55,13 +55,15 @@ all: dirs tier1_$(ARCH).$(SHLIBEXT)
 dirs:
 	-mkdir -p $(BUILD_OBJ_DIR)
 	-mkdir -p $(TIER1_OBJ_DIR)
-	$(CHECK_DSP) $(SOURCE_DSP)
 
 tier1_$(ARCH).$(SHLIBEXT): $(TIER1_OBJS)
 	$(AR) $(BUILD_DIR)/$@ $(TIER1_OBJS)
 
-$(TIER1_OBJ_DIR)/%.o: $(TIER1_SRC_DIR)/%.cpp
+$(TIER1_OBJ_DIR)/%.o: $(TIER1_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
 clean:
 	-rm -rf $(TIER1_OBJ_DIR)
+
+# Header dependencies written by -MMD (see DEPFLAGS in the top-level Makefile).
+-include $(TIER1_OBJS:.o=.d)

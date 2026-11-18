@@ -76,7 +76,7 @@ All fixes, including the ConVars above, are documented in
 
 The build needs a **GCC 3.4.6-or-older** toolchain (the code includes
 pre-C++11 headers such as `<new.h>`) and must produce a **32-bit i386** binary
-to match the game's `tier0_i486.so` / `vstdlib_i486.so`. There are three ways
+to match the game's `tier0_i486.so` / `vstdlib_i486.so`. There are four ways
 to build `src/linux_sdk/server_i486.so`:
 
 | Method | Best for |
@@ -198,8 +198,9 @@ JOBS=$(nproc) unshare --map-root-user chroot "$ETCH" /bin/bash -c '
 '
 ```
 
-`make` creates all `obj/` subdirectories itself (its `-mkdir -p` rules), so
-no preparation of the build tree is needed. The result lands in the chroot
+`make` creates all `obj/` subdirectories itself (the `dirs` target is an
+order-only prerequisite of every compile rule), so no preparation of the
+build tree is needed - not even for `make -j`. The result lands in the chroot
 copy — fetch it and verify:
 
 ```bash
@@ -215,7 +216,12 @@ Notes:
 * `JOBS` is passed through the environment as shown because Etch's
   `coreutils` is too old to provide `nproc` *inside* the chroot.
 * A full clean build takes a few minutes at `-j4`; rebuilds only recompile
-  changed files.
+  changed files and the files that include a changed header (`-MMD -MP`
+  dependency files, kept under `src/linux_sdk/obj/`).
+* `make` links the prebuilt `tier1_i486.a`, `mathlib_i486.a` and
+  `choreoobjects_i486.a` archives that ship with the tree. Run `make libs` to
+  rebuild them from source after editing `tier1/`, `mathlib/` or
+  `game/shared/` (that needs the `i686-unknown-linux-gnu-ar` symlink).
 
 ### Building with GitHub Actions
 

@@ -35,7 +35,7 @@ HL2_OBJ_DIR=obj/$(NAME)_$(ARCH)/hl2
 
 INCLUDES=-I./.. -I./../common -I./../game/server -I./../game/server/cstrike -I./../game/server/cstrike/bot -I./../game/server/cstrike/bot/states -I./../game/server/cstrike/hostage -I./../game/shared -I./../game/shared/cstrike -I./../game/shared/cstrike/bot -I./../public -I./../public/tier0 -I./../public/tier1 -DGAME_DLL -DVECTOR -DBOTS -DCSTRIKE_DLL
 
-DO_CC=$(CPLUS) -w $(INCLUDES) $(CFLAGS) -o $@ -c $<
+DO_CC=$(CPLUS) -w $(INCLUDES) $(CFLAGS) $(DEPFLAGS) -o $@ -c $<
 
 SERVER_OBJS= \
 	$(SERVER_OBJ_DIR)/ai_activity.o \
@@ -585,6 +585,14 @@ HL2_OBJS= \
 	$(HL2_OBJ_DIR)/ai_behavior_operator.o \
 	$(HL2_OBJ_DIR)/WaterLODControl.o \
 
+# Every object that goes into the DLL. Declared once so the link line, the
+# dependency graph and the header dependency list cannot drift apart.
+ALL_OBJS=$(SERVER_OBJS) $(COMMON_OBJS) $(GAME_SHARED_OBJS) \
+	$(GAME_SHARED_CSTRIKE_OBJS) $(GAME_SHARED_CSTRIKE_BOT_OBJS) $(GAME_SHARED_HL2_OBJS) \
+	$(GAME_SHARED_PORTAL_OBJS) $(PUBLIC_OBJS) $(PUBLIC_HAPTICS_OBJS) $(PUBLIC_KEYFRAME_OBJS) \
+	$(PUBLIC_TIER0_OBJS) $(PUBLIC_VGUI_CONTROLS_OBJS) $(CSTRIKE_OBJS) $(CSTRIKE_BOT_OBJS) \
+	$(CSTRIKE_BOT_STATES_OBJS) $(CSTRIKE_HOSTAGE_OBJS) $(HL2_OBJS)
+
 all: dirs $(NAME)_$(ARCH).$(SHLIBEXT) undefinedcheck
 
 # The engine supplies a fixed set of exports to the game DLL at load time, so the link cannot
@@ -621,61 +629,68 @@ dirs:
 	-mkdir -p $(CSTRIKE_HOSTAGE_OBJ_DIR)
 	-mkdir -p $(HL2_OBJ_DIR)
 
-$(NAME)_$(ARCH).$(SHLIBEXT): $(SERVER_OBJS) $(COMMON_OBJS) $(GAME_SHARED_OBJS) $(GAME_SHARED_CSTRIKE_OBJS) $(GAME_SHARED_CSTRIKE_BOT_OBJS) $(GAME_SHARED_HL2_OBJS) $(GAME_SHARED_PORTAL_OBJS) $(PUBLIC_OBJS) $(PUBLIC_HAPTICS_OBJS) $(PUBLIC_KEYFRAME_OBJS) $(PUBLIC_TIER0_OBJS) $(PUBLIC_VGUI_CONTROLS_OBJS) $(CSTRIKE_OBJS) $(CSTRIKE_BOT_OBJS) $(CSTRIKE_BOT_STATES_OBJS) $(CSTRIKE_HOSTAGE_OBJS) $(HL2_OBJS)
-	$(CLINK) $(SHLIBLDFLAGS) $(DEBUG) -o $(BUILD_DIR)/$@ $(SERVER_OBJS) $(COMMON_OBJS) $(GAME_SHARED_OBJS) $(GAME_SHARED_CSTRIKE_OBJS) $(GAME_SHARED_CSTRIKE_BOT_OBJS) $(GAME_SHARED_HL2_OBJS) $(GAME_SHARED_PORTAL_OBJS) $(PUBLIC_OBJS) $(PUBLIC_HAPTICS_OBJS) $(PUBLIC_KEYFRAME_OBJS) $(PUBLIC_TIER0_OBJS) $(PUBLIC_VGUI_CONTROLS_OBJS) $(CSTRIKE_OBJS) $(CSTRIKE_BOT_OBJS) $(CSTRIKE_BOT_STATES_OBJS) $(CSTRIKE_HOSTAGE_OBJS) $(HL2_OBJS) $(LDFLAGS) $(CPP_LIB)
+# Static archives the link pulls in (see LDFLAGS in the top-level Makefile).
+# Listed as prerequisites so rebuilding them with `make libs` relinks the DLL
+# instead of leaving a stale binary behind.
+SERVER_LIBS=tier1_$(ARCH).a mathlib_$(ARCH).a choreoobjects_$(ARCH).a
 
-$(SERVER_OBJ_DIR)/%.o: $(SERVER_SRC_DIR)/%.cpp
+$(NAME)_$(ARCH).$(SHLIBEXT): $(ALL_OBJS) $(SERVER_LIBS)
+	$(CLINK) $(SHLIBLDFLAGS) -Wl,-Map,$@_map.txt -o $(BUILD_DIR)/$@ $(ALL_OBJS) $(LDFLAGS) $(CPP_LIB)
+
+$(SERVER_OBJ_DIR)/%.o: $(SERVER_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(COMMON_OBJ_DIR)/%.o: $(COMMON_SRC_DIR)/%.cpp
+$(COMMON_OBJ_DIR)/%.o: $(COMMON_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(GAME_SHARED_OBJ_DIR)/%.o: $(GAME_SHARED_SRC_DIR)/%.cpp
+$(GAME_SHARED_OBJ_DIR)/%.o: $(GAME_SHARED_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(GAME_SHARED_CSTRIKE_OBJ_DIR)/%.o: $(GAME_SHARED_CSTRIKE_SRC_DIR)/%.cpp
+$(GAME_SHARED_CSTRIKE_OBJ_DIR)/%.o: $(GAME_SHARED_CSTRIKE_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(GAME_SHARED_CSTRIKE_BOT_OBJ_DIR)/%.o: $(GAME_SHARED_CSTRIKE_BOT_SRC_DIR)/%.cpp
+$(GAME_SHARED_CSTRIKE_BOT_OBJ_DIR)/%.o: $(GAME_SHARED_CSTRIKE_BOT_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(GAME_SHARED_HL2_OBJ_DIR)/%.o: $(GAME_SHARED_HL2_SRC_DIR)/%.cpp
+$(GAME_SHARED_HL2_OBJ_DIR)/%.o: $(GAME_SHARED_HL2_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(GAME_SHARED_PORTAL_OBJ_DIR)/%.o: $(GAME_SHARED_PORTAL_SRC_DIR)/%.cpp
+$(GAME_SHARED_PORTAL_OBJ_DIR)/%.o: $(GAME_SHARED_PORTAL_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(PUBLIC_OBJ_DIR)/%.o: $(PUBLIC_SRC_DIR)/%.cpp
+$(PUBLIC_OBJ_DIR)/%.o: $(PUBLIC_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(PUBLIC_HAPTICS_OBJ_DIR)/%.o: $(PUBLIC_HAPTICS_SRC_DIR)/%.cpp
+$(PUBLIC_HAPTICS_OBJ_DIR)/%.o: $(PUBLIC_HAPTICS_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(PUBLIC_KEYFRAME_OBJ_DIR)/%.o: $(PUBLIC_KEYFRAME_SRC_DIR)/%.cpp
+$(PUBLIC_KEYFRAME_OBJ_DIR)/%.o: $(PUBLIC_KEYFRAME_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(PUBLIC_TIER0_OBJ_DIR)/%.o: $(PUBLIC_TIER0_SRC_DIR)/%.cpp
+$(PUBLIC_TIER0_OBJ_DIR)/%.o: $(PUBLIC_TIER0_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(PUBLIC_VGUI_CONTROLS_OBJ_DIR)/%.o: $(PUBLIC_VGUI_CONTROLS_SRC_DIR)/%.cpp
+$(PUBLIC_VGUI_CONTROLS_OBJ_DIR)/%.o: $(PUBLIC_VGUI_CONTROLS_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(CSTRIKE_OBJ_DIR)/%.o: $(CSTRIKE_SRC_DIR)/%.cpp
+$(CSTRIKE_OBJ_DIR)/%.o: $(CSTRIKE_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(CSTRIKE_BOT_OBJ_DIR)/%.o: $(CSTRIKE_BOT_SRC_DIR)/%.cpp
+$(CSTRIKE_BOT_OBJ_DIR)/%.o: $(CSTRIKE_BOT_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(CSTRIKE_BOT_STATES_OBJ_DIR)/%.o: $(CSTRIKE_BOT_STATES_SRC_DIR)/%.cpp
+$(CSTRIKE_BOT_STATES_OBJ_DIR)/%.o: $(CSTRIKE_BOT_STATES_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(CSTRIKE_HOSTAGE_OBJ_DIR)/%.o: $(CSTRIKE_HOSTAGE_SRC_DIR)/%.cpp
+$(CSTRIKE_HOSTAGE_OBJ_DIR)/%.o: $(CSTRIKE_HOSTAGE_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
-$(HL2_OBJ_DIR)/%.o: $(HL2_SRC_DIR)/%.cpp
+$(HL2_OBJ_DIR)/%.o: $(HL2_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
 clean:
 	rm -rf obj/$(NAME)_$(ARCH)
-	rm -f $(NAME)_$(ARCH).$(SHLIBEXT)
+	rm -f $(NAME)_$(ARCH).$(SHLIBEXT) $(NAME)_$(ARCH).$(SHLIBEXT)_map.txt
 
+# Header dependencies written by -MMD (see DEPFLAGS in the top-level Makefile).
+-include $(ALL_OBJS:.o=.d)

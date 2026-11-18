@@ -1,6 +1,11 @@
 #
 # SDK Makefile for x86 Linux
 #
+# Targets:
+#   make              build server_i486.so from the game sources
+#   make -j8          the same, in parallel (recommended)
+#   make libs         rebuild the tier1/mathlib/choreoobjects archives
+#   make clean        delete all objects, the map file and the binaries
 #
 
 #############################################################################
@@ -10,7 +15,7 @@
 # the name of the mod binary (_i486.so is appended to the end)
 NAME=server
 
-# compiler options (gcc 3.4.1 or above is required)
+# compiler options (gcc 3.4.x or above is required)
 CC=i686-unknown-linux-gnu-gcc
 CPLUS=i686-unknown-linux-gnu-g++
 CLINK=i686-unknown-linux-gnu-gcc
@@ -26,7 +31,7 @@ LDFLAGS="-lm -ldl tier1_i486.a mathlib_i486.a choreoobjects_i486.a tier0_i486.so
 #############################################################################
 # Things below here shouldn't need to be altered
 #############################################################################
-MAKE=make
+
 AR="i686-unknown-linux-gnu-ar rvs"
 
 # the dir we want to put binaries we build into
@@ -45,17 +50,22 @@ ARCH_CFLAGS=-mtune=i686 -march=prescott -mfpmath=sse -mmmx -msse -msse2 -msse3 -
 BASE_CFLAGS=-fpermissive -D_LINUX -DNDEBUG -Dstricmp=strcasecmp -D_stricmp=strcasecmp -D_strnicmp=strncasecmp -Dstrnicmp=strncasecmp -D_vsnprintf=vsnprintf -D_alloca=alloca -Dstrcmpi=strcasecmp
 SHLIBEXT=so
 SHLIBCFLAGS=-fPIC
-SHLIBLDFLAGS=-shared -Wl,-Map,$@_map.txt -Wl
+SHLIBLDFLAGS=-shared
+
+# -MMD -MP writes a .d file next to every object listing the headers it used,
+# so a rebuild only recompiles the files whose headers actually changed.
+# -pipe avoids temporary files between the preprocessor and the compiler.
+DEPFLAGS=-MMD -MP
 
 #flags passed to the c compiler
-CFLAGS="$(USER_CFLAGS) $(DEFINES) $(ARCH_CFLAGS) $(BASE_CFLAGS) -Usprintf -Ustrncpy -UPROTECTED_THINGS_ENABLE"
+CFLAGS="$(USER_CFLAGS) $(DEFINES) $(ARCH_CFLAGS) $(BASE_CFLAGS) -pipe -Usprintf -Ustrncpy -UPROTECTED_THINGS_ENABLE"
 
 # define list passed to make for the sub makefile
-BASE_DEFINES=CC=$(CC) CPLUS=$(CPLUS) CPP_LIB=$(CPP_LIB) MAKE=$(MAKE) AR=$(AR) \
+BASE_DEFINES=CC=$(CC) CPLUS=$(CPLUS) CPP_LIB=$(CPP_LIB) AR=$(AR) \
 	BUILD_DIR=$(BUILD_DIR) BUILD_OBJ_DIR=$(BUILD_OBJ_DIR) \
 	SOURCE_DIR=$(SOURCE_DIR) SHLIBLDFLAGS=$(SHLIBLDFLAGS) SHLIBEXT=$(SHLIBEXT) \
 	CLINK=$(CLINK) CFLAGS=$(CFLAGS) LDFLAGS=$(LDFLAGS) \
-	ARCH=$(ARCH) NAME=$(NAME)
+	DEPFLAGS="$(DEPFLAGS)" ARCH=$(ARCH) NAME=$(NAME)
 
 # Project Makefile
 MAKE_SERVER_CSTRIKE=Makefile.server_cstrike
@@ -63,15 +73,18 @@ MAKE_TIER1=Makefile.tier1
 MAKE_MATH=Makefile.mathlib
 MAKE_CHOREO=Makefile.choreoobjects
 
-all: check server_cstrike
+.PHONY: all server_cstrike libs tier1 mathlib choreoobjects clean
 
-check:
-	if [ -z "$(CC)" ]; then echo "Compiler not defined."; exit; fi
-	if [ ! -d $(BUILD_DIR) ];then mkdir $(BUILD_DIR);fi
-	cd $(BUILD_DIR)
+all: server_cstrike
 
+# The DLL is linked against the prebuilt tier1/mathlib/choreoobjects archives
+# that ship with the tree, so a plain build only compiles the game sources.
 server_cstrike:
 	$(MAKE) -f $(MAKE_SERVER_CSTRIKE) $(BASE_DEFINES)
+
+# Rebuild those archives from source. Needed only after editing tier1, mathlib
+# or game/shared (choreo) sources, or when switching toolchains.
+libs: tier1 mathlib choreoobjects
 
 tier1:
 	$(MAKE) -f $(MAKE_TIER1) $(BASE_DEFINES)
@@ -81,7 +94,7 @@ mathlib:
 
 choreoobjects:
 	$(MAKE) -f $(MAKE_CHOREO) $(BASE_DEFINES)
-	
+
 clean:
 	$(MAKE) -f $(MAKE_SERVER_CSTRIKE) $(BASE_DEFINES) clean
 	$(MAKE) -f $(MAKE_TIER1) $(BASE_DEFINES) clean

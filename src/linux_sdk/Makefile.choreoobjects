@@ -17,7 +17,7 @@ CFLAGS=$(BASE_CFLAGS) $(ARCH_CFLAGS)
 
 INCLUDEDIRS=-I$(CHOREOOBJECTS_SRC_DIR) -I$(PUBLIC_SRC_DIR) -I$(TIER1_PUBLIC_SRC_DIR) -D_LIB -DCHOREOOBJECTS_STATIC_LIB
 
-DO_CC=$(CPLUS) -w $(INCLUDEDIRS) $(CFLAGS) -DARCH=$(ARCH) -o $@ -c $<
+DO_CC=$(CPLUS) -w $(INCLUDEDIRS) $(CFLAGS) $(DEPFLAGS) -DARCH=$(ARCH) -o $@ -c $<
 
 #####################################################################
 
@@ -32,13 +32,15 @@ all: dirs choreoobjects_$(ARCH).$(SHLIBEXT)
 dirs:
 	-mkdir -p $(BUILD_OBJ_DIR)
 	-mkdir -p $(CHOREOOBJECTS_OBJ_DIR)
-	$(CHECK_DSP) $(SOURCE_DSP)
 
 choreoobjects_$(ARCH).$(SHLIBEXT): $(CHOREOOBJECTS_OBJS)
 	$(AR) $(BUILD_DIR)/$@ $(CHOREOOBJECTS_OBJS)
 
-$(CHOREOOBJECTS_OBJ_DIR)/%.o: $(CHOREOOBJECTS_SRC_DIR)/%.cpp
+$(CHOREOOBJECTS_OBJ_DIR)/%.o: $(CHOREOOBJECTS_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
 clean:
 	-rm -rf $(CHOREOOBJECTS_OBJ_DIR)
+
+# Header dependencies written by -MMD (see DEPFLAGS in the top-level Makefile).
+-include $(CHOREOOBJECTS_OBJS:.o=.d)

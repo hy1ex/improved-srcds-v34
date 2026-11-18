@@ -62,7 +62,6 @@ RUN printf '%s\n' \
       'set -eux' \
       'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
       'cd /build/src/linux_sdk' \
-      'mkdir -p obj/server_i486 obj/server_i486/common obj/server_i486/game/shared obj/server_i486/game/shared/cstrike obj/server_i486/game/shared/cstrike/bot obj/server_i486/game/shared/hl2 obj/server_i486/game/shared/portal obj/server_i486/public obj/server_i486/public/haptics obj/server_i486/public/keyframe obj/server_i486/public/tier0 obj/server_i486/public/vgui_controls obj/server_i486/cstrike obj/server_i486/cstrike/bot obj/server_i486/cstrike/bot/states obj/server_i486/cstrike/hostage obj/server_i486/hl2' \
       'make -j"${JOBS:-4}"' \
       'if [ -n "${HOST_UID:-}" ] && [ -n "${HOST_GID:-}" ]; then chown -R "$HOST_UID:$HOST_GID" /build/src/linux_sdk/obj /build/src/linux_sdk/server_i486.so || echo "warning: could not set ownership of build outputs"; fi' \
     > /opt/etch/usr/local/bin/build \
