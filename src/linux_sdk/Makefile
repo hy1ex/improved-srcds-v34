@@ -10,16 +10,6 @@
 # the name of the mod binary (_i486.so is appended to the end)
 NAME=server
 
-# the location of the vcproj that builds the mod
-MOD_PROJ=../dlls/server_scratch-2003.vcproj
-# the name of the mod configuration (typically <proj name>_<build type><build target>)
-MOD_CONFIG=server_sdk_ReleaseSDKWin32
-
-# the directory the base binaries (tier0_i486.so, etc) are located
-#GAME_DIR=../../
-#GAME_DIR=~/valve/hl2bin/
-GAME_DIR=~/valve/steam
-
 # compiler options (gcc 3.4.1 or above is required)
 CC=i686-unknown-linux-gnu-gcc
 CPLUS=i686-unknown-linux-gnu-g++
@@ -32,15 +22,6 @@ DEFINES=
 
 # link flags for your mod, make sure to include any special libraries here
 LDFLAGS="-lm -ldl tier1_i486.a mathlib_i486.a choreoobjects_i486.a tier0_i486.so vstdlib_i486.so"
-
-# XERCES 2.6.0 or above ( http://xml.apache.org/xerces-c/ ) is used by the vcproj to makefile converter
-# it must be installed before being able to run this makefile
-XERCES_INC_DIR=/home/alfred/tmp/xerces-c-src_2_6_0/include
-XERCES_LIB_DIR=/home/alfred/tmp/xerces-c-src_2_6_0/lib
-# if you have xerces installed already you should be able to use the two lines below
-#XERCES_INC_DIR=/usr/include
-#XERCES_LIB_DIR=/usr/lib
-
 
 #############################################################################
 # Things below here shouldn't need to be altered
@@ -74,8 +55,7 @@ BASE_DEFINES=CC=$(CC) CPLUS=$(CPLUS) CPP_LIB=$(CPP_LIB) MAKE=$(MAKE) AR=$(AR) \
 	BUILD_DIR=$(BUILD_DIR) BUILD_OBJ_DIR=$(BUILD_OBJ_DIR) \
 	SOURCE_DIR=$(SOURCE_DIR) SHLIBLDFLAGS=$(SHLIBLDFLAGS) SHLIBEXT=$(SHLIBEXT) \
 	CLINK=$(CLINK) CFLAGS=$(CFLAGS) LDFLAGS=$(LDFLAGS) \
-	ARCH=$(ARCH) GAME_DIR=$(GAME_DIR) MOD_CONFIG=$(MOD_CONFIG) NAME=$(NAME) \
-	XERCES_INC_DIR=$(XERCES_INC_DIR) XERCES_LIB_DIR=$(XERCES_LIB_DIR)
+	ARCH=$(ARCH) NAME=$(NAME)
 
 # Project Makefile
 MAKE_SERVER_CSTRIKE=Makefile.server_cstrike

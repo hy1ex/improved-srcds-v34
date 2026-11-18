@@ -5804,7 +5804,7 @@ ConVar cl_autohelp(
 	}
 
 
-	// UTIL_IsVisibleToTeam() lives in game_shared/cstrike/bot/bot_util.cpp
+	// UTIL_IsVisibleToTeam() lives in game/shared/cstrike/bot/bot_util.cpp
 extern bool UTIL_IsVisibleToTeam( const Vector &spot, int team );
 
 	// Return false only if every living member of the given team is closer to the spot than

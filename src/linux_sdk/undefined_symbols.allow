@@ -1,6 +1,6 @@
 # Symbols the engine provides to the game DLL at load time.
 # Captured from a server_i486.so that was verified to boot in a dedicated server.
-# Regenerate only after booting a build; see linux_sdk/check_undefined.sh.
+# Regenerate only after booting a build; see src/linux_sdk/check_undefined.sh.
 AssertValidStringPtr
 CommandLine_Tier0
 DevMsg

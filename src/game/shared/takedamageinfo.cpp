@@ -124,7 +124,7 @@ const char *CTakeDamageInfo::GetAmmoName() const
 	{
 		pszAmmoType = m_hInflictor->GetClassname();
 
-		// check for physgun ammo.  unfortunate that this is in game_shared.
+		// check for physgun ammo.  unfortunate that this is in game/shared.
 		if ( Q_strcmp( pszAmmoType, "prop_physics" ) == 0 )
 		{
 			pszAmmoType = STRING( m_hInflictor->GetModelName() );

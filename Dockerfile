@@ -40,7 +40,7 @@ RUN mkdir -p /opt/etch /tmp/debs \
     && for d in *.deb; do dpkg-deb -x "$d" /opt/etch; done \
     && rm -rf /tmp/debs
 
-# 3. The stock linux_sdk/Makefile expects Valve's historical crosstool
+# 3. The stock src/linux_sdk/Makefile expects Valve's historical crosstool
 #    (i686-unknown-linux-gnu-gcc etc. and static libs under /opt/crosstool/...).
 #    Point those names at the extracted GCC 3.4.6 via symlinks so that the
 #    Makefile works unmodified.
@@ -61,10 +61,10 @@ RUN printf '%s\n' \
       '#!/bin/bash' \
       'set -eux' \
       'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
-      'cd /build/linux_sdk' \
-      'mkdir -p obj/server_i486 obj/server_i486/common obj/server_i486/game_shared obj/server_i486/game_shared/cstrike obj/server_i486/game_shared/cstrike/bot obj/server_i486/game_shared/hl2 obj/server_i486/game_shared/portal obj/server_i486/public obj/server_i486/public/haptics obj/server_i486/public/keyframe obj/server_i486/public/tier0 obj/server_i486/public/vgui_controls obj/server_i486/cstrike obj/server_i486/cstrike/bot obj/server_i486/cstrike/bot/states obj/server_i486/cstrike/hostage obj/server_i486/hl2_dll' \
+      'cd /build/src/linux_sdk' \
+      'mkdir -p obj/server_i486 obj/server_i486/common obj/server_i486/game/shared obj/server_i486/game/shared/cstrike obj/server_i486/game/shared/cstrike/bot obj/server_i486/game/shared/hl2 obj/server_i486/game/shared/portal obj/server_i486/public obj/server_i486/public/haptics obj/server_i486/public/keyframe obj/server_i486/public/tier0 obj/server_i486/public/vgui_controls obj/server_i486/cstrike obj/server_i486/cstrike/bot obj/server_i486/cstrike/bot/states obj/server_i486/cstrike/hostage obj/server_i486/hl2' \
       'make -j"${JOBS:-4}"' \
-      'if [ -n "${HOST_UID:-}" ] && [ -n "${HOST_GID:-}" ]; then chown -R "$HOST_UID:$HOST_GID" /build/linux_sdk/obj /build/linux_sdk/server_i486.so || echo "warning: could not set ownership of build outputs"; fi' \
+      'if [ -n "${HOST_UID:-}" ] && [ -n "${HOST_GID:-}" ]; then chown -R "$HOST_UID:$HOST_GID" /build/src/linux_sdk/obj /build/src/linux_sdk/server_i486.so || echo "warning: could not set ownership of build outputs"; fi' \
     > /opt/etch/usr/local/bin/build \
     && chmod +x /opt/etch/usr/local/bin/build
 

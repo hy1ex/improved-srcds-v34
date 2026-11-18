@@ -32,9 +32,9 @@ void CAI_BaseNPC::AddActivityToSR(const char *actName, int actID)
 
 	// NOTE: This assertion generally means that the activity enums are out of order or that new enums were not added to all
 	//		 relevant tables.  Make sure that you have included all new enums in:
-	//			game_shared/ai_activity.h
-	//			game_shared/activitylist.cpp
-	//			dlls/ai_activity.cpp
+	//			game/shared/ai_activity.h
+	//			game/shared/activitylist.cpp
+	//			game/server/ai_activity.cpp
 	MEM_ALLOC_CREDIT();
 
 	static int lastActID = -2;

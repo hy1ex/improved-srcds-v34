@@ -84,19 +84,19 @@ jobs:
           sudo chroot /opt/etch /bin/bash -s <<'CHROOT'
           set -eux
           export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-          cd /build/linux_sdk
+          cd /build/src/linux_sdk
           # The sub-makefile does not order its 'dirs' target before
           # compilation, so with a parallel build the object directories must
           # already exist.
           mkdir -p \
-            obj/server_i486 obj/server_i486/common obj/server_i486/game_shared \
-            obj/server_i486/game_shared/cstrike obj/server_i486/game_shared/cstrike/bot \
-            obj/server_i486/game_shared/hl2 obj/server_i486/game_shared/portal \
+            obj/server_i486 obj/server_i486/common obj/server_i486/game/shared \
+            obj/server_i486/game/shared/cstrike obj/server_i486/game/shared/cstrike/bot \
+            obj/server_i486/game/shared/hl2 obj/server_i486/game/shared/portal \
             obj/server_i486/public obj/server_i486/public/haptics \
             obj/server_i486/public/keyframe obj/server_i486/public/tier0 \
             obj/server_i486/public/vgui_controls obj/server_i486/cstrike \
             obj/server_i486/cstrike/bot obj/server_i486/cstrike/bot/states \
-            obj/server_i486/cstrike/hostage obj/server_i486/hl2_dll
+            obj/server_i486/cstrike/hostage obj/server_i486/hl2
           # The Makefile's stock compiler names point at a crosstool install we
           # do not have; override them for the Etch toolchain. CPP_LIB keeps the
           # original behavior of statically linking libstdc++/libgcc_eh so the
@@ -107,15 +107,15 @@ jobs:
             CC=gcc-3.4 CPLUS=g++-3.4 CLINK=gcc-3.4 \
             'CPP_LIB="/usr/lib/gcc/i486-linux-gnu/3.4.6/libstdc++.a /usr/lib/gcc/i486-linux-gnu/3.4.6/libgcc_eh.a"'
           CHROOT
-          sudo chown "$(id -u):$(id -g)" linux_sdk/server_i486.so
-          file linux_sdk/server_i486.so
-          file linux_sdk/server_i486.so | grep -q 'ELF 32-bit.*Intel 80386'
+          sudo chown "$(id -u):$(id -g)" src/linux_sdk/server_i486.so
+          file src/linux_sdk/server_i486.so
+          file src/linux_sdk/server_i486.so | grep -q 'ELF 32-bit.*Intel 80386'
 
       - name: Collect artifacts
         run: |
           set -eu
           mkdir -p dist
-          cp linux_sdk/server_i486.so dist/
+          cp src/linux_sdk/server_i486.so dist/
           (cd dist && sha256sum server_i486.so > SHA256SUMS.txt)
           cat dist/SHA256SUMS.txt
           ls -la dist

@@ -344,7 +344,7 @@ void CMoveHelperServer::Con_NPrintf( int idx, char const* pFormat, ...)
 // Output : Returns true if the player survived the fall, false if they died.
 //-----------------------------------------------------------------------------
 // CS:GO's sv_falldamage_to_below_player_* convars (ref movehelper_server.cpp:382-417). Defined in
-// game_shared/cstrike/cs_gamerules.cpp.
+// game/shared/cstrike/cs_gamerules.cpp.
 extern ConVar sv_falldamage_to_below_player_ratio;
 extern ConVar sv_falldamage_to_below_player_multiplier;
 

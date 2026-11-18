@@ -97,7 +97,7 @@ static CountdownTimer announceTimer;		// used to stop "hostage rescued" announce
 
 
 //-----------------------------------------------------------------------------------------------------
-// cash_* awards, defined in game_shared/cstrike/cs_gamerules.cpp.
+// cash_* awards, defined in game/shared/cstrike/cs_gamerules.cpp.
 extern ConVar cash_player_damage_hostage;
 extern ConVar cash_player_killed_hostage;
 extern ConVar mp_cash_hostage_kill_flat;

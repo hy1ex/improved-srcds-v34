@@ -13,7 +13,7 @@
 #include "soundent.h"
 #include "ndebugoverlay.h"
 #include "npcevent.h"
-#include "hl2_dll/hl2_player.h"
+#include "hl2/hl2_player.h"
 #include "game.h"
 #include "ammodef.h"
 #include "explode.h"

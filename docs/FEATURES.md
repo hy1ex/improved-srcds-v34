@@ -181,7 +181,7 @@ whole drop policy as convars, and the drop code in this tree already performs ev
 operations unconditionally, so the port is a set of gates on existing code instead of new logic.
 
 **What it does.** When a player dies, `CCSPlayer::Event_Killed` calls `CCSPlayer::DropWeapons()`
-(`dlls/cstrike/cs_player.cpp`). That function drops, in order:
+(`src/game/server/cstrike/cs_player.cpp`). That function drops, in order:
 
 1. the bomb (`weapon_c4`), if the player was carrying it,
 2. the defuse kit (`item_defuser`), if the player owned one,
@@ -228,8 +228,8 @@ both of which already exist and already produce entities the v34 client renders.
 here is replicated, so the client is never asked to know about them. No network protocol, sendtable
 or ABI surface changed.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar definitions),
-`dlls/cstrike/cs_player.cpp` (`DropWeapons`).
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convar definitions),
+`src/game/server/cstrike/cs_player.cpp` (`DropWeapons`).
 
 ---
 
@@ -241,7 +241,7 @@ or ABI surface changed.
 **Why:** in stock Counter-Strike: Source a defuse kit only ever exists if a CT buys one. Public
 servers that want every CT equipped, or that want the classic "one kit per round" role without a
 buy menu, have no way to do it. Everything the feature needs already exists in this tree: the
-`item_defuser` entity is precached (`dlls/cstrike/cs_player.cpp`), `CCSPlayer::GiveDefuser()` /
+`item_defuser` entity is precached (`src/game/server/cstrike/cs_player.cpp`), `CCSPlayer::GiveDefuser()` /
 `RemoveDefuser()` / `HasDefuser()` are implemented, and `m_bHasDefuser` is already a networked
 `SendPropBool`, so the stock HUD and scoreboard already draw the kit.
 
@@ -271,8 +271,8 @@ client; the new convar is not replicated. `m_iDefuserCarrier` is a plain, non-ne
 is not added to the network table or to `BEGIN_DATADESC`, so no sendtable or datatable layout
 changes. Server-side ABI is internal to this DLL only.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar, `AllocateDefuserForRound()`,
-`PlayerSpawn`), `game_shared/cstrike/cs_gamerules.h` (`m_iDefuserCarrier`).
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convar, `AllocateDefuserForRound()`,
+`PlayerSpawn`), `src/game/shared/cstrike/cs_gamerules.h` (`m_iDefuserCarrier`).
 
 ---
 
@@ -450,13 +450,13 @@ on `CCSGameRules`: not in `BEGIN_DATADESC`, not in the sendtable. The convars ar
   gates the menu on something else, `mp_buy_anywhere` keeps working for the console commands but the
   VGUI menu cannot be opened without a client DLL change, which the stock-client rule forbids.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars, `CheckRespawnWaves`,
-`GetRespawnWaveMaxLength`, `TeamExterminationCheck`), `game_shared/cstrike/cs_gamerules.h`
-(`m_flNextRespawnWave`), `dlls/cstrike/cs_player.cpp`
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convars, `CheckRespawnWaves`,
+`GetRespawnWaveMaxLength`, `TeamExterminationCheck`), `src/game/shared/cstrike/cs_gamerules.h`
+(`m_flNextRespawnWave`), `src/game/server/cstrike/cs_player.cpp`
 (`DoRespawn`, `RememberLoadoutForRespawn`, `RestoreLoadoutForRespawn`,
 `UpdateSpawnImmunityRender`, `ResetSpawnImmunityRender`, `PreThink`, `OnTakeDamage`, `IsInBuyZone`,
-`CanPlayerBuy`, `Event_Killed`, `Spawn`), `dlls/cstrike/cs_playermove.cpp` (`StartCommand`),
-`dlls/cstrike/cs_player.h` (members and declarations).
+`CanPlayerBuy`, `Event_Killed`, `Spawn`), `src/game/server/cstrike/cs_playermove.cpp` (`StartCommand`),
+`src/game/server/cstrike/cs_player.h` (members and declarations).
 
 ---
 
@@ -595,11 +595,11 @@ replicated. `m_flLastSpawnTime` is a plain server-side member.
   but if the projectile's own bounce off a player is still visible that is the projectile's flight
   trace, not player solidity.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars, `IsFriendlyFireOn`,
-`PlayerRelationship`), `game_shared/cstrike/cs_gamerules.h`, `dlls/cstrike/cs_player.cpp`
-(`UpdateSolidityCollisionGroup`, `PreThink`, `Spawn`), `dlls/cstrike/cs_player.h`,
-`dlls/cstrike/hostage/cs_simple_hostage.cpp/.h`,
-`game_shared/cstrike/basecsgrenade_projectile.cpp/.h`.
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convars, `IsFriendlyFireOn`,
+`PlayerRelationship`), `src/game/shared/cstrike/cs_gamerules.h`, `src/game/server/cstrike/cs_player.cpp`
+(`UpdateSolidityCollisionGroup`, `PreThink`, `Spawn`), `src/game/server/cstrike/cs_player.h`,
+`src/game/server/cstrike/hostage/cs_simple_hostage.cpp/.h`,
+`src/game/shared/cstrike/basecsgrenade_projectile.cpp/.h`.
 
 ---
 
@@ -652,8 +652,8 @@ changed, to the ones CS:GO uses.
 HUD, so any value these convars produce is displayed correctly by a stock client. No convars are
 replicated, no netprops, no protocol change.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars, `mp_startmoney` bounds, kill awards,
-round-start cash), `dlls/cstrike/cs_player.cpp` (`AddAccount` cap).
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convars, `mp_startmoney` bounds, kill awards,
+round-start cash), `src/game/server/cstrike/cs_player.cpp` (`AddAccount` cap).
 
 ---
 
@@ -716,7 +716,7 @@ With `mp_damage_headshot_only 1` a body hit still shows the stock flinch and imp
 blood: the damage is zeroed before the bleed dispatch, and `g_pEffects->Sparks()` marks the hit the
 way CS:GO does.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars), `dlls/cstrike/cs_player.cpp`
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convars), `src/game/server/cstrike/cs_player.cpp`
 (`TraceAttack`: per-hitgroup scaling and the headshot-only rule).
 
 ---
@@ -764,7 +764,7 @@ added.
 Bots decide to buy armour on their own, and the refusal above catches that too: they get the armour
 at spawn instead of paying for it, and keep the money.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar, grant in `PlayerSpawn`).
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convar, grant in `PlayerSpawn`).
 
 ---
 
@@ -877,7 +877,7 @@ A refused purchase prints "This item cannot be bought on this server" in the cen
 replicated. The stock client sends its usual `buy` command, receives the usual `BuyResult` handling
 (account and weapon state, or a centre-screen refusal), and needs no knowledge of the rules.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars), `dlls/cstrike/cs_player.cpp`
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convars), `src/game/server/cstrike/cs_player.cpp`
 (`IsWeaponAllowedForTeam` and `IsBuyDisallowedByRules`, called from `HandleCommand_Buy`).
 
 # 9. Halftime
@@ -941,8 +941,8 @@ the stock `player_team` game event, the score comes from the replicated team sco
 model follows the re-mapped class at respawn. No convar is replicated, no netprop and no usermessage
 is added, so a v34 client needs no knowledge of halftime.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar, `SwapTeamsForHalftime`, the trigger in
-`RestartRound`), `game_shared/cstrike/cs_gamerules.h` (declaration).
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convar, `SwapTeamsForHalftime`, the trigger in
+`RestartRound`), `src/game/shared/cstrike/cs_gamerules.h` (declaration).
 
 
 # 10. Random deathmatch spawns
@@ -962,7 +962,7 @@ enemy team is looking at and spots an enemy is standing next to. This port bring
 logic over as three opt-in convars.
 
 **What it does.** With `mp_randomspawn` set to `1` (both teams), `2` (Terrorists only) or `3`
-(Counter-Terrorists only), `CCSPlayer::EntSelectSpawnPoint()` (`dlls/cstrike/cs_player.cpp`) takes the
+(Counter-Terrorists only), `CCSPlayer::EntSelectSpawnPoint()` (`src/game/server/cstrike/cs_player.cpp`) takes the
 CS:GO branch instead of the per-team branch:
 
 * A start point is picked by walking `info_deathmatch_spawn` entities a random number of times
@@ -986,7 +986,7 @@ CS:GO branch instead of the per-team branch:
 **Where the spawn points come from.** Maps that were never built for deathmatch have no
 `info_deathmatch_spawn` entities, so the port generates them from the nav mesh the same way CS:GO
 does (`server/cstrike15/cs_nav_mesh.cpp:280`, `CSNavMesh::MaintainDMSpawnPopulation`). Once per second,
-while `mp_randomspawn` is not `0`, `MaintainDMSpawnPopulation()` in `game_shared/cstrike/cs_gamerules.cpp`
+while `mp_randomspawn` is not `0`, `MaintainDMSpawnPopulation()` in `src/game/shared/cstrike/cs_gamerules.cpp`
 (stepped from `CCSGameRules::Think()`) tries to fill the population up to 50 points:
 
 * A random nav area is taken from the mesh (`GetNavAreaByID`, 1 to `GetNavAreaCount()`). Areas smaller
@@ -1066,13 +1066,13 @@ server-only `CPointEntity` (like the stock `info_player_terrorist`), it sends no
 created by a stock map, and none of the three convars is replicated. The client only sees the
 `player_spawn` event it already handles, at whatever origin the server chose.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars, `IsSpawnPointHiddenFromOtherPlayers`,
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convars, `IsSpawnPointHiddenFromOtherPlayers`,
 `UTIL_IsRandomSpawnFarEnoughAwayFromTeam`, `MaxNumPlayersOn*Team`, `TeamFull`),
-`game_shared/cstrike/cs_gamerules.h` (declarations), `game_shared/cstrike/bot/bot_util.h`
+`src/game/shared/cstrike/cs_gamerules.h` (declarations), `src/game/shared/cstrike/bot/bot_util.h`
 (`UTIL_IsRandomSpawnFarEnoughAwayFromTeam` declaration, next to the existing `UTIL_IsVisibleToTeam`),
-`dlls/cstrike/cs_player.cpp` (`EntSelectSpawnPoint`, `SelectSpawnSpot`), `dlls/cstrike/mapinfo.cpp`
+`src/game/server/cstrike/cs_player.cpp` (`EntSelectSpawnPoint`, `SelectSpawnSpot`), `src/game/server/cstrike/mapinfo.cpp`
 and `mapinfo.h` (`usenormalspawnsfordm` and `disableautogenerateddmspawns` keys on
-`info_map_parameters`), and the generator in `game_shared/cstrike/cs_gamerules.cpp`
+`info_map_parameters`), and the generator in `src/game/shared/cstrike/cs_gamerules.cpp`
 (`MaintainDMSpawnPopulation`, `IsDMSpawnBlockedByWorld`, `IsDMSpawnAreaReachable`,
 `ResetDMSpawnState`, `dm_reset_spawns`).
 
@@ -1132,8 +1132,8 @@ already render, so nothing new is sent. `mp_dm_kill_base_score` is `FCVAR_REPLIC
 its client shows the value in the deathmatch HUD; here it is server-only, like every other ported
 convar.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (both convars, `GetDeathmatchKillScore`, the award in
-`PlayerKilled`), `game_shared/cstrike/cs_gamerules.h` (declaration).
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (both convars, `GetDeathmatchKillScore`, the award in
+`PlayerKilled`), `src/game/shared/cstrike/cs_gamerules.h` (declaration).
 
 # 12. Hostage rescue rules
 
@@ -1220,9 +1220,9 @@ speed is already an engine-side force, the rescue check runs in the game rules, 
 `#Only_CT_Can_Move_Hostages` is an existing string in a v34 client's string tables, so the refusal
 still appears when the switch is on.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (all eight convars,
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (all eight convars,
 `HostageRescueRoundEndCheck`, `SelectMapHostages`, `SelectFarthestHostages`, `SelectRandomHostages`,
-`ApplyHostageSpawnSelection`), `dlls/cstrike/hostage/cs_simple_hostage.cpp` (`OnTakeDamage_Alive`,
+`ApplyHostageSpawnSelection`), `src/game/server/cstrike/hostage/cs_simple_hostage.cpp` (`OnTakeDamage_Alive`,
 `HostageUse`, `TrackPath`).
 
 # 13. C4 rules
@@ -1275,9 +1275,9 @@ the beeping stay correct; with `mp_c4_cannot_be_defused` the defuse countdown is
 started, and with `mp_plant_c4_anywhere` the plant animation, beeps and `bomb_planted` event all run
 from the same code that runs inside a zone.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (all three convars),
-`game_shared/cstrike/weapon_c4.cpp` (`CC4::PrimaryAttack`, `CPlantedC4::Use`),
-`dlls/cstrike/cs_player.cpp` (`Weapon_CanUse`), `dlls/cstrike/cs_playermove.cpp`
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (all three convars),
+`src/game/shared/cstrike/weapon_c4.cpp` (`CC4::PrimaryAttack`, `CPlantedC4::Use`),
+`src/game/server/cstrike/cs_player.cpp` (`Weapon_CanUse`), `src/game/server/cstrike/cs_playermove.cpp`
 (`CCSPlayerMove::StartCommand`, where `m_bInBombZone` is pinned for `mp_plant_c4_anywhere`).
 
 
@@ -1318,7 +1318,7 @@ kill on disconnect (rule 3). A server that wants CS:GO's behaviour sets
 **Client compatibility.** Server-side only: the death is an ordinary one, so the client's existing
 death camera, ragdoll, kill feed and scoreboard need no new message.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (both convars,
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (both convars,
 `CCSGameRules::ClientDisconnected`).
 
 
@@ -1347,7 +1347,7 @@ with his pistol and primary until he picks the knife back up, which is also CS:G
 **Client compatibility.** Server-side: the knife already has a world model and the ordinary weapon
 pickup path handles a dropped one; nothing is networked.
 
-**Files:** `dlls/cstrike/cs_player.cpp` (convar and the `drop` branch of `ClientCommand`).
+**Files:** `src/game/server/cstrike/cs_player.cpp` (convar and the `drop` branch of `ClientCommand`).
 
 
 # 16. Weapon pickup timing
@@ -1381,8 +1381,8 @@ with a stale world model.
 **Client compatibility.** Server-side: both values are read only on the server's drop and touch path,
 and a dropped weapon is still an ordinary networked weapon.
 
-**Files:** `game_shared/cstrike/weapon_csbase.cpp` (both convars, `CWeaponCSBase::Drop`,
-`CWeaponCSBase::DefaultTouch`), `game_shared/cstrike/weapon_csbase.h` (`m_nextOwnerTouchTime`).
+**Files:** `src/game/shared/cstrike/weapon_csbase.cpp` (both convars, `CWeaponCSBase::Drop`,
+`CWeaponCSBase::DefaultTouch`), `src/game/shared/cstrike/weapon_csbase.h` (`m_nextOwnerTouchTime`).
 
 
 # 17. Grenade drop
@@ -1415,7 +1415,7 @@ rounds left and is ignored.
 model, and the ordinary pickup path (which the death drop already feeds) handles it. Nothing new is
 sent.
 
-**Files:** `dlls/cstrike/cs_player.cpp` (convar and the `drop` branch of `ClientCommand`).
+**Files:** `src/game/server/cstrike/cs_player.cpp` (convar and the `drop` branch of `ClientCommand`).
 
 
 # 18. Tagging scale (adapted)
@@ -1452,7 +1452,7 @@ CS:GO's tagging.
 client's movement prediction already reads, so a scaled value predicts exactly like the stock one and
 nothing new is sent.
 
-**Files:** `dlls/cstrike/cs_player.cpp` (convar and the two assignments in
+**Files:** `src/game/server/cstrike/cs_player.cpp` (convar and the two assignments in
 `CCSPlayer::OnTakeDamage_Alive`).
 
 
@@ -1485,7 +1485,7 @@ defaults the result is identical because both start at `1.0`.
 
 **Client compatibility.** Damage is resolved on the server only, so nothing is sent to the client.
 
-**Files:** `dlls/cstrike/cs_player.cpp` (convars and the friendly fire block of
+**Files:** `src/game/server/cstrike/cs_player.cpp` (convars and the friendly fire block of
 `CCSPlayer::OnTakeDamage_Alive`).
 
 
@@ -1557,10 +1557,10 @@ which keeps the stock flat `300`.
 server's account bookkeeping. Money is networked through the stock `m_iAccount`, so no client change
 is needed.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar block, `GetWeaponCashAward`,
-`CCSGameRules::PlayerKilled`, round end checks, `RestartRound`), `dlls/cstrike/cs_player.cpp`
-(`cash_player_respawn_amount` in `CCSPlayer::Spawn`), `dlls/cstrike/hostage/cs_simple_hostage.cpp`
-(hostage damage, kill, rescue and interaction awards), `game_shared/cstrike/weapon_c4.cpp` (plant and
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convar block, `GetWeaponCashAward`,
+`CCSGameRules::PlayerKilled`, round end checks, `RestartRound`), `src/game/server/cstrike/cs_player.cpp`
+(`cash_player_respawn_amount` in `CCSPlayer::Spawn`), `src/game/server/cstrike/hostage/cs_simple_hostage.cpp`
+(hostage damage, kill, rescue and interaction awards), `src/game/shared/cstrike/weapon_c4.cpp` (plant and
 defuse player awards).
 
 
@@ -1582,7 +1582,7 @@ the map can be played without the objective.
 **Client compatibility.** Only the server's handout is switched off; the C4 entity and its networked
 state are unchanged.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar and `CCSGameRules::GiveC4`).
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convar and `CCSGameRules::GiveC4`).
 
 
 # 22. Recoil and accuracy
@@ -1627,9 +1627,9 @@ implemented as server-side values because CS:S resolves bullet spread on the ser
 bullet trace is server-side. Clients keep predicting with their own stock values, which only affects
 visual prediction, never the authoritative hit.
 
-**Files:** `game_shared/cstrike/cs_player_shared.cpp` (recoil convars and `CCSPlayer::KickBack`),
-`game_shared/cstrike/weapon_csbasegun.cpp` (accuracy convars and `CWeaponCSBaseGun::CSBaseGunFire`),
-`dlls/cstrike/cs_player.h` and `dlls/cstrike/cs_player.cpp` (previous-shot state).
+**Files:** `src/game/shared/cstrike/cs_player_shared.cpp` (recoil convars and `CCSPlayer::KickBack`),
+`src/game/shared/cstrike/weapon_csbasegun.cpp` (accuracy convars and `CWeaponCSBaseGun::CSBaseGunFire`),
+`src/game/server/cstrike/cs_player.h` and `src/game/server/cstrike/cs_player.cpp` (previous-shot state).
 
 
 # 23. +USE weapon pickup (adapted)
@@ -1656,7 +1656,7 @@ never throws a weapon the player just received onto the floor; only weapons lyin
 **Client compatibility.** `m_nButtons` is the stock usercmd button state the client already sends, so
 the server sees +USE without any client change.
 
-**Files:** `game_shared/cstrike/weapon_csbase.cpp` (convar and `CWeaponCSBase::DefaultTouch`).
+**Files:** `src/game/shared/cstrike/weapon_csbase.cpp` (convar and `CWeaponCSBase::DefaultTouch`).
 
 
 # 24. Grenade carry limits
@@ -1688,7 +1688,7 @@ HUD still draws its own stock maximum for a grenade slot, which a server cannot 
 already validates, so the client needs no change and a rejected buy is answered exactly like the stock
 "cannot carry anymore" case.
 
-**Files:** `dlls/cstrike/cs_player.cpp` (convars and the grenade branch of `CCSPlayer::BuyWeapon`).
+**Files:** `src/game/server/cstrike/cs_player.cpp` (convars and the grenade branch of `CCSPlayer::BuyWeapon`).
 
 # 25. Round time per objective type and hostage rescue time
 
@@ -1723,8 +1723,8 @@ never extending the round.
 **Client compatibility.** The server already networks `m_iRoundTime` and the round start time, so the
 stock client's timer picks the change up with no client-side code.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars, `ReadMultiplayCvars`,
-`AddHostageRescueTime`, the map-type checks in `RestartRound`), `game_shared/cstrike/cs_gamerules.h`.
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convars, `ReadMultiplayCvars`,
+`AddHostageRescueTime`, the map-type checks in `RestartRound`), `src/game/shared/cstrike/cs_gamerules.h`.
 
 
 # 26. HE grenade scaling
@@ -1749,7 +1749,7 @@ explosion.
 **Client compatibility.** The throw, the detonation and all damage resolution are server side; the
 client only plays the effects it is sent, so nothing changes on it.
 
-**Files:** `game_shared/cstrike/hegrenade_projectile.cpp`.
+**Files:** `src/game/shared/cstrike/hegrenade_projectile.cpp`.
 
 
 # 27. Fall damage
@@ -1769,7 +1769,7 @@ player the faller landed on and leaves the rest on the faller, the way CS:GO spl
 defaults to `0`, so not landing on players behaves exactly like stock.
 
 **`mp_falldamage` is removed.** It could never fire in Counter-Strike, so it is gone from
-`dlls/game.cpp` instead of being quietly kept as a knob that does nothing; `CMultiplayRules` keeps the
+`src/game/server/game.cpp` instead of being quietly kept as a knob that does nothing; `CMultiplayRules` keeps the
 velocity-based formula it used to select with the convar. A configuration file that still contains
 `mp_falldamage 1` now only prints an unknown-command line at startup. Use `sv_falldamage_scale` to
 tune fall damage, and `sv_falldamage_scale 0` to turn it off entirely.
@@ -1785,9 +1785,9 @@ tune fall damage, and `sv_falldamage_scale 0` to turn it off entirely.
 **Client compatibility.** Fall damage is decided by the server's move helper and applied with a normal
 damage call, so the stock client needs no change; it just shows the health the server reports.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars and `FlPlayerFallDamage`),
-`dlls/movehelper_server.cpp` (`PlayerFallingDamage`), `dlls/game.cpp` and `dlls/game.h`
-(`mp_falldamage` removal), `game_shared/multiplay_gamerules.cpp`.
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convars and `FlPlayerFallDamage`),
+`src/game/server/movehelper_server.cpp` (`PlayerFallingDamage`), `src/game/server/game.cpp` and `src/game/server/game.h`
+(`mp_falldamage` removal), `src/game/shared/multiplay_gamerules.cpp`.
 
 
 # 28. Per-match gun purchase limit
@@ -1819,8 +1819,8 @@ all of them obey the limit.
 answered like any other refused purchase and the client needs no change. The client cannot see the
 remaining count before it asks.
 
-**Files:** `dlls/cstrike/cs_player.cpp` (convar extern, the check and the counter),
-`dlls/cstrike/cs_player.h` (`m_iWeaponPurchasesThisMatch`).
+**Files:** `src/game/server/cstrike/cs_player.cpp` (convar extern, the check and the counter),
+`src/game/server/cstrike/cs_player.h` (`m_iWeaponPurchasesThisMatch`).
 
 # 29. Economy and streak controls
 
@@ -1857,7 +1857,7 @@ cap at 4 would change the stock CS:S ladder, so here `0` means "no cap".
 **Client compatibility.** Money, equipment and the losing bonus are server state; the client only shows
 what it is told, so nothing changes on it.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convars, the ladder caps, the match start seed and
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convars, the ladder caps, the match start seed and
 `PlayerSpawn`).
 
 
@@ -1881,7 +1881,7 @@ keeps the map's weapons and is stock CS:S behaviour; CS:GO's own default is `0`.
 **Client compatibility.** The weapon entities exist on both sides but the server owns them; deleting
 them server side removes them from the stock client with no client change.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (convar and `LevelInitPostEntity`).
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (convar and `LevelInitPostEntity`).
 
 
 # 31. Team assignment
@@ -1914,8 +1914,8 @@ Both default to off (`0`), which is the stock behaviour of joining any team at a
 message and the team menu, exactly like the stock "#CTs_Full" case. The stock client's menu still
 offers both teams, it just gets assigned a side.
 
-**Files:** `dlls/cstrike/cs_player.cpp` (`HandleCommand_JoinTeam`), `game_shared/cstrike/cs_gamerules.cpp`
-(convars), `game_shared/cstrike/cs_gamerules.h` (`GetRoundStartTime`).
+**Files:** `src/game/server/cstrike/cs_player.cpp` (`HandleCommand_JoinTeam`), `src/game/shared/cstrike/cs_gamerules.cpp`
+(convars), `src/game/shared/cstrike/cs_gamerules.h` (`GetRoundStartTime`).
 
 
 # 32. Aim punch scale
@@ -1941,8 +1941,8 @@ like CS:GO's scalar: `punchAngle.x = scale * damage * -0.1`, clamped at `scale *
 already applies it to the view (that is how the stock punch works), so the convar needs no client
 change.
 
-**Files:** `dlls/cstrike/cs_player.cpp` (convar extern and `TraceAttack`),
-`game_shared/cstrike/cs_gamerules.cpp` (convar).
+**Files:** `src/game/server/cstrike/cs_player.cpp` (convar extern and `TraceAttack`),
+`src/game/shared/cstrike/cs_gamerules.cpp` (convar).
 
 
 # 33. Bullet hit log (adapted)
@@ -1964,7 +1964,7 @@ makes it a testing aid for `sv_hegrenade_damage_multiplier`, the damage scale co
 
 **Client compatibility.** Server console only; nothing is sent to the client.
 
-**Files:** `dlls/cstrike/cs_player.cpp` (`TraceAttack`), `game_shared/cstrike/cs_gamerules.cpp` (convar).
+**Files:** `src/game/server/cstrike/cs_player.cpp` (`TraceAttack`), `src/game/shared/cstrike/cs_gamerules.cpp` (convar).
 
 
 # 34. Considered and not ported: sv_timebetweenducks
@@ -1997,7 +1997,7 @@ was hardcoded, so nothing changes until an operator edits it; `0` allows suicidi
 
 **Client compatibility.** The cooldown is checked on the server when the kill command arrives.
 
-**Files:** `dlls/player.cpp` (`CommitSuicide`), `game_shared/cstrike/cs_gamerules.cpp` (convar).
+**Files:** `src/game/server/player.cpp` (`CommitSuicide`), `src/game/shared/cstrike/cs_gamerules.cpp` (convar).
 
 
 # 36. Self-inflicted miss damage
@@ -2025,8 +2025,8 @@ pellet.
 **Client compatibility.** Only the server's damage resolution changes; the client sees the health the
 server reports.
 
-**Files:** `game_shared/cstrike/cs_player_shared.cpp` (`FireBullet`),
-`game_shared/cstrike/cs_gamerules.cpp` (convar).
+**Files:** `src/game/shared/cstrike/cs_player_shared.cpp` (`FireBullet`),
+`src/game/shared/cstrike/cs_gamerules.cpp` (convar).
 
 
 # 37. Friendly fire bullet penetration
@@ -2051,8 +2051,8 @@ teammate), so a competitive-flavoured server wants `ff_damage_bullet_penetration
 predicted decals and impacts can differ for the rounds that stop on a teammate, which is the same
 one-frame cosmetic difference the stock friendly fire rules already produce.
 
-**Files:** `game_shared/cstrike/cs_player_shared.cpp` (`FireBullet`),
-`game_shared/cstrike/cs_gamerules.cpp` (convar).
+**Files:** `src/game/shared/cstrike/cs_player_shared.cpp` (`FireBullet`),
+`src/game/shared/cstrike/cs_gamerules.cpp` (convar).
 
 
 # 38. Money logging
@@ -2073,7 +2073,7 @@ written to the server log as a `money change` line with the old balance, the del
 
 **Client compatibility.** Server log only.
 
-**Files:** `dlls/cstrike/cs_player.cpp` (`AddAccount`), `game_shared/cstrike/cs_gamerules.cpp`
+**Files:** `src/game/server/cstrike/cs_player.cpp` (`AddAccount`), `src/game/shared/cstrike/cs_gamerules.cpp`
 (convar).
 
 
@@ -2097,8 +2097,8 @@ default, leaves the count unlimited, which is stock CS:S; CS:GO ships `2`.
 **Client compatibility.** The join is a server command; a refused join is answered the same way as the
 existing "#Cannot_Be_Spectator" case.
 
-**Files:** `dlls/cstrike/cs_player.cpp` (`HandleCommand_JoinTeam`),
-`game_shared/cstrike/cs_gamerules.cpp` (convar).
+**Files:** `src/game/server/cstrike/cs_player.cpp` (`HandleCommand_JoinTeam`),
+`src/game/shared/cstrike/cs_gamerules.cpp` (convar).
 
 
 # 40. Automatic team pick
@@ -2121,8 +2121,8 @@ as the "auto-select" menu entry, which honours the team rules, the limits and
 **Client compatibility.** Server-side only: the client learns about the team change the way it always
 does, and the team menu simply closes.
 
-**Files:** `dlls/cstrike/cs_player.cpp` (`PreThink`), `dlls/cstrike/cs_player.h`
-(`m_flForceTeamTime`), `game_shared/cstrike/cs_gamerules.cpp` (convar).
+**Files:** `src/game/server/cstrike/cs_player.cpp` (`PreThink`), `src/game/server/cstrike/cs_player.h`
+(`m_flForceTeamTime`), `src/game/shared/cstrike/cs_gamerules.cpp` (convar).
 
 
 # 41. Default loadouts
@@ -2160,8 +2160,8 @@ pistol is left alone, so this only ever runs on a fresh spawn.
 player's inventory and needs no change. A weapon the client has no model for cannot be used, so the
 classnames have to be real CS:S weapons.
 
-**Files:** `dlls/cstrike/cs_player.cpp` (`GiveDefaultItems` and its two helpers),
-`game_shared/cstrike/cs_gamerules.cpp` (convars).
+**Files:** `src/game/server/cstrike/cs_player.cpp` (`GiveDefaultItems` and its two helpers),
+`src/game/shared/cstrike/cs_gamerules.cpp` (convars).
 # 42. Deathmatch kill healing
 
 **Origin:** CS:GO `mp_dm_health_per_kill` (`game/shared/cstrike15/cs_gamerules.cpp`, used from the
@@ -2183,7 +2183,7 @@ servers.
 
 **Client compatibility.** Server-side only; the client draws the health the server reports.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (`PlayerKilled`, convar).
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (`PlayerKilled`, convar).
 
 
 # 43. Shorthanded win bonus
@@ -2206,7 +2206,7 @@ the team pools are touched, so the stock per-player awards are unchanged.
 
 **Client compatibility.** Server-side account change; the client draws the money the server sends.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (`RestartRound`, convar).
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (`RestartRound`, convar).
 
 
 # 44. Suicide penalty
@@ -2230,7 +2230,7 @@ tunable through that existing cash convar. Off, the stock path above runs untouc
 
 **Client compatibility.** Server-side account change only.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (`PlayerKilled`, convar).
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (`PlayerKilled`, convar).
 
 
 # 45. Match-end behaviour
@@ -2274,7 +2274,7 @@ usermessage is involved.
 **Risk:** the in-place path is the only new control flow here and it is opt-in
 (`mp_match_end_changelevel 0`); with the defaults the stock map-change path runs unchanged.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (`GoToIntermission`, `CheckGameOver`, convars).
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (`GoToIntermission`, `CheckGameOver`, convars).
 
 
 # 46. Early match clinch
@@ -2298,7 +2298,7 @@ rounds are below the leader's score, the match goes to intermission and the even
 
 **Client compatibility.** Intermission is the stock match-end flow.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (`Think`, convar).
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (`Think`, convar).
 
 
 # 47. Auto-balance delay and warning
@@ -2328,8 +2328,8 @@ unchanged (bots skipped, `mp_limitteams` and `TeamFull()` still apply).
 `m_flAutoBalanceTime` and `m_bAutoBalanceWarned` are plain server-side members on `CCSGameRules`, not
 networked and not in any datatable.
 
-**Files:** `game_shared/cstrike/cs_gamerules.cpp` (`Think`, `RestartRound`, convars),
-`game_shared/cstrike/cs_gamerules.h` (members).
+**Files:** `src/game/shared/cstrike/cs_gamerules.cpp` (`Think`, `RestartRound`, convars),
+`src/game/shared/cstrike/cs_gamerules.h` (members).
 
 
 # 48. Turbo-physics +USE gates
@@ -2371,7 +2371,7 @@ convars are `FCVAR_NOTIFY` and not replicated; `sv_turbophysics` keeps its stock
 **Risk:** low. With the defaults the new check returns true for every entity, so the executed path
 is identical to stock; the only extra cost is one classname comparison per use tick.
 
-**Files:** `dlls/props.cpp` (convars), `game_shared/baseplayer_shared.cpp`
+**Files:** `src/game/server/props.cpp` (convars), `src/game/shared/baseplayer_shared.cpp`
 (`CanPlayerUsePushEntity`, `CBasePlayer::PlayerUse`).
 
 
@@ -2426,7 +2426,7 @@ several false positives over the years), so a legitimate spray whose VTF layout 
 size model is renamed to `.bad` and must be restored by an admin. Deleting was rejected for that
 reason. Format/version checks alone are much less likely to misfire.
 
-**Files:** `dlls/spraycheck.cpp` / `dlls/spraycheck.h` (validator, scan system, convars),
-`dlls/player.cpp` (`ImpulseCommands`, impulse 201), `dlls/util.cpp`
-(`UTIL_PlayerDecalTrace`), `dlls/gameinterface.cpp` (game system registration, scan on
-`ClientConnect`), `linux_sdk/Makefile.server_cstrike`.
+**Files:** `src/game/server/spraycheck.cpp` / `src/game/server/spraycheck.h` (validator, scan system, convars),
+`src/game/server/player.cpp` (`ImpulseCommands`, impulse 201), `src/game/server/util.cpp`
+(`UTIL_PlayerDecalTrace`), `src/game/server/gameinterface.cpp` (game system registration, scan on
+`ClientConnect`), `src/linux_sdk/Makefile.server_cstrike`.

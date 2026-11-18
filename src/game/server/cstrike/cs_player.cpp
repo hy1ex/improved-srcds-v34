@@ -34,7 +34,7 @@
 #include "te_effect_dispatch.h"
 #include "vphysics/player_controller.h"
 
-// Death drop control (see FEATURES.md). Defined in game_shared/cstrike/cs_gamerules.cpp.
+// Death drop control (see FEATURES.md). Defined in game/shared/cstrike/cs_gamerules.cpp.
 extern ConVar mp_death_drop_gun;
 extern ConVar mp_death_drop_c4;
 extern ConVar mp_death_drop_defuser;
@@ -91,7 +91,7 @@ extern ConVar mp_buy_allow_snipers_ct;
 extern ConVar mp_buy_allow_snipers_t;
 extern ConVar mp_buy_allow_machine_guns_ct;
 extern ConVar mp_buy_allow_machine_guns_t;
-// Random deathmatch spawning (see FEATURES.md). Defined in game_shared/cstrike/cs_gamerules.cpp.
+// Random deathmatch spawning (see FEATURES.md). Defined in game/shared/cstrike/cs_gamerules.cpp.
 extern ConVar mp_randomspawn;
 extern ConVar mp_randomspawn_los;
 extern ConVar mp_randomspawn_dist;

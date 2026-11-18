@@ -1,7 +1,7 @@
 # Security fixes
 ## 1 `CGameUI::Deactivate` — stale player handle crash
 
-**File:** `dlls/game_ui.cpp:130`
+**File:** `src/game/server/game_ui.cpp:130`
 
 **The bug.** `CGameUI::Deactivate()` read the `m_player` entity handle and
 immediately dereferenced it:
@@ -55,7 +55,7 @@ unknown bone name.
 
 ## 3 `CBaseEntity::TakeDamage` — null gamerules crash
 
-**File:** `dlls/baseentity.cpp:1173`
+**File:** `src/game/server/baseentity.cpp:1173`
 
 **The bug.** `TakeDamage()` calls into the gamerules object without checking it
 exists:
@@ -77,7 +77,7 @@ dereference crashes the server mid-change.
 
 ## 4 `CBasePlayer::FindNextObserverTarget` — spectator infinite loop
 
-**File:** `dlls/player.cpp:2615` (guard at `dlls/player.cpp:2630`)
+**File:** `src/game/server/player.cpp:2615` (guard at `src/game/server/player.cpp:2630`)
 
 **The bug.** The function picks the next observer target with a `do..while`
 loop whose termination condition is `currentIndex != startIndex`:
@@ -116,7 +116,7 @@ else if ( startIndex < 1 )
 
 ## 5 `spec_goto` — unvalidated spectator teleport
 
-**Files:** `dlls/player.cpp:5848` (validator), `dlls/player.cpp:6059` (guard)
+**Files:** `src/game/server/player.cpp:5848` (validator), `src/game/server/player.cpp:6059` (guard)
 
 **The bug.** `spec_goto` takes five floats straight from a client command and
 teleports the roaming/fixed spectator with them:
@@ -161,8 +161,8 @@ instead of applying it.
 
 ## 6 Client usercmd value validation (anti-exploit)
 
-**Files:** `dlls/gameinterface.cpp:169`, `dlls/gameinterface.cpp:2299`,
-`game_shared/baseentity_shared.h:251`, `game_shared/baseentity_shared.cpp:55`
+**Files:** `src/game/server/gameinterface.cpp:169`, `src/game/server/gameinterface.cpp:2299`,
+`src/game/shared/baseentity_shared.h:251`, `src/game/shared/baseentity_shared.cpp:55`
 
 New ConVar:
 
@@ -197,9 +197,9 @@ of trusted.
 
 ## 7 Aim lock across replayed ticks (`sv_maxusrcmdprocessticks_holdaim`)
 
-**Files:** `dlls/player.h:613`, `dlls/player.h:882`, `dlls/player.cpp:527`,
-`dlls/cstrike/cs_player.cpp:3642`, `game_shared/cstrike/cs_player_shared.cpp:342`,
-`game_shared/cstrike/cs_player_shared.cpp:380`, `game_shared/cstrike/cs_player_shared.cpp:599`
+**Files:** `src/game/server/player.h:613`, `src/game/server/player.h:882`, `src/game/server/player.cpp:527`,
+`src/game/server/cstrike/cs_player.cpp:3642`, `src/game/shared/cstrike/cs_player_shared.cpp:342`,
+`src/game/shared/cstrike/cs_player_shared.cpp:380`, `src/game/shared/cstrike/cs_player_shared.cpp:599`
 
 New state: `m_iLockViewanglesTickNumber` + `m_qangLockViewangles`, latched in
 `CCSPlayer::NoteWeaponFired()` (when the weapon fires) and in the bullet-trace
@@ -216,7 +216,7 @@ simulates the shot against the exact view the client had when it fired.
 
 ## 8 Server-generated usercmd random seed
 
-**Files:** `dlls/player.cpp:64`, `dlls/player.cpp:83`, `dlls/player.cpp:3329`
+**Files:** `src/game/server/player.cpp:64`, `src/game/server/player.cpp:83`, `src/game/server/player.cpp:3329`
 
 New ConVar:
 
@@ -244,12 +244,12 @@ client choose it lets a modified client influence/predict server RNG outcomes.
 
 ## 9 Usercmd queue rework — packet loss, flood and idle protection
 
-**Files:** `dlls/player.h:19`, `dlls/player.h:27`, `dlls/player.h:500`,
-`dlls/player.h:644`, `dlls/player.h:665`, `dlls/player.h:1007`,
-`dlls/player.cpp:566`, `dlls/player.cpp:2924`, `dlls/player.cpp:3040`,
-`dlls/player.cpp:3069`, `dlls/player.cpp:3234`, `dlls/player.cpp:3355`,
-`dlls/player_command.cpp:25`, `dlls/player_command.cpp:315`,
-`dlls/gameinterface.cpp:2250`
+**Files:** `src/game/server/player.h:19`, `src/game/server/player.h:27`, `src/game/server/player.h:500`,
+`src/game/server/player.h:644`, `src/game/server/player.h:665`, `src/game/server/player.h:1007`,
+`src/game/server/player.cpp:566`, `src/game/server/player.cpp:2924`, `src/game/server/player.cpp:3040`,
+`src/game/server/player.cpp:3069`, `src/game/server/player.cpp:3234`, `src/game/server/player.cpp:3355`,
+`src/game/server/player_command.cpp:25`, `src/game/server/player_command.cpp:315`,
+`src/game/server/gameinterface.cpp:2250`
 
 New ConVars:
 
@@ -278,7 +278,7 @@ happened at execution time, inside the replay loop.
 **Fixed:**
 
 * `CCommandContext::cmds` becomes a growable `CUtlVector<CUserCmd>` and
-  `CMD_MAXBACKUP` rises 30 → 64 (`dlls/gameinterface.cpp:2251`), so deep
+  `CMD_MAXBACKUP` rises 30 → 64 (`src/game/server/gameinterface.cpp:2251`), so deep
   packet-loss backlogs queue and validate instead of overflowing a fixed array.
 * A per-player **movement-tick budget**
   (`m_nMovementTicksForUserCmdProcessingRemaining`, +1 per simulation tick in
@@ -306,9 +306,9 @@ loop (`player.cpp:3069`, original kept in the `#else` branch).
 
 ## 10 `se_shootpositionfix` — shoot position correction (pre-move eye latch)
 
-**Files:** `dlls/player_command.cpp` (`FinishCommand`, `FinishMove`, `RunCommand`),
-`game_shared/baseplayer_shared.cpp` (convar, latch, `Weapon_ShootPosition`),
-`dlls/player.h` / `dlls/player.cpp` (members and constructor init)
+**Files:** `src/game/server/player_command.cpp` (`FinishCommand`, `FinishMove`, `RunCommand`),
+`src/game/shared/baseplayer_shared.cpp` (convar, latch, `Weapon_ShootPosition`),
+`src/game/server/player.h` / `src/game/server/player.cpp` (members and constructor init)
 
 **Original:** stock v34 `CBasePlayer::Weapon_ShootPosition()` returns `EyePosition()`, i.e.
 `GetAbsOrigin() + GetViewOffset()` after this command's movement has already been committed. The
@@ -343,7 +343,7 @@ shoot-position fix must not run at the same time.
 
 ## 11 Physics follows the server tick interval (100-tick support)
 
-**File:** `dlls/physics.cpp:195`
+**File:** `src/game/server/physics.cpp:195`
 
 **Original:**
 
@@ -364,8 +364,8 @@ steps at the actual server tick interval.
 
 ## 12 CS: player physics box toggle
 
-**Files:** `dlls/cstrike/cs_player.cpp:70`, `dlls/cstrike/cs_player.cpp:1001`,
-`dlls/cstrike/cs_player.cpp:1012`
+**Files:** `src/game/server/cstrike/cs_player.cpp:70`, `src/game/server/cstrike/cs_player.cpp:1001`,
+`src/game/server/cstrike/cs_player.cpp:1012`
 
 New ConVar: `cs_enable_player_physics_box 1`
 
@@ -379,7 +379,7 @@ interactions).
 
 ## 13 Chat flood fix (`say`)
 
-**File:** `dlls/client.cpp:675`
+**File:** `src/game/server/client.cpp:675`
 
 **Original:**
 
@@ -414,7 +414,7 @@ console keeps the null-issuer path.
     return;
 ```
 
-`UTIL_IsCommandIssuedByServerAdmin()` (`dlls/util.cpp:625`) allows the server
+`UTIL_IsCommandIssuedByServerAdmin()` (`src/game/server/util.cpp:625`) allows the server
 console (and the host of a listen server) and refuses any player-issued
 invocation on a dedicated server.
 
@@ -426,31 +426,31 @@ offering a console-spam nuisance vector.
 
 | File:line | Command |
 |---|---|
-| `dlls/ai_concommands.cpp:536` | `npc_thinknow` |
-| `dlls/ai_concommands.cpp:743` | `npc_heal` |
-| `dlls/ai_concommands.cpp:761` | `npc_ammo_deplete` |
-| `dlls/ai_concommands.cpp:779` | `ai_clear_bad_links` |
-| `dlls/ai_concommands.cpp:800` | `ainet_generate_report` |
-| `dlls/ai_concommands.cpp:810` | `ainet_generate_report_only` |
-| `dlls/ai_hint.cpp:1465` | `ai_dump_hints` |
-| `dlls/ai_moveprobe.cpp:51` | `ai_set_move_height_epsilon` |
-| `dlls/ai_speech.cpp:898` | `npc_speakall` |
-| `dlls/client.cpp:1223` | `groundlist` |
-| `dlls/entitylist.cpp:1580` | `report_entities` |
-| `dlls/entitylist.cpp:1598` | `report_touchlinks` |
-| `dlls/entitylist.cpp:1624` | `report_simthinklist` |
-| `dlls/gameinterface.cpp:1256` | `ListServerUserMessages` |
-| `dlls/ndebugoverlay.cpp:250` | `clear_debug_overlays` |
-| `dlls/physics.cpp:989` | `physics_highlight_active` |
-| `dlls/physics.cpp:999` | `physics_report_active` |
-| `dlls/physics.cpp:1093` | `physics_debug_entity` |
-| `dlls/physics.cpp:1103` | `physics_select` |
-| `dlls/physics.cpp:1113` | `physics_budget` |
-| `dlls/sceneentity.cpp:4212` | `scene_flush` |
-| `dlls/sceneentity.cpp:4255` | `scene_mem` |
-| `dlls/sceneentity.cpp:5130` | `listRecentNPCSpeech` (gate inside its handler) |
-| `dlls/wcedit.cpp:690` | `wc_update_entity` |
-| `dlls/wcedit.cpp:724` | `wc_update_safe_entities` |
-| `game_shared/cstrike/cs_gamerules.cpp:2957` | `mp_dump_timers` |
-| `game_shared/physics_shared.cpp:588` | `dump_terrain` |
-| `game_shared/soundenvelope.cpp:311` | `report_soundpatch` (also compiled only when not `CLIENT_DLL`) |
+| `src/game/server/ai_concommands.cpp:536` | `npc_thinknow` |
+| `src/game/server/ai_concommands.cpp:743` | `npc_heal` |
+| `src/game/server/ai_concommands.cpp:761` | `npc_ammo_deplete` |
+| `src/game/server/ai_concommands.cpp:779` | `ai_clear_bad_links` |
+| `src/game/server/ai_concommands.cpp:800` | `ainet_generate_report` |
+| `src/game/server/ai_concommands.cpp:810` | `ainet_generate_report_only` |
+| `src/game/server/ai_hint.cpp:1465` | `ai_dump_hints` |
+| `src/game/server/ai_moveprobe.cpp:51` | `ai_set_move_height_epsilon` |
+| `src/game/server/ai_speech.cpp:898` | `npc_speakall` |
+| `src/game/server/client.cpp:1223` | `groundlist` |
+| `src/game/server/entitylist.cpp:1580` | `report_entities` |
+| `src/game/server/entitylist.cpp:1598` | `report_touchlinks` |
+| `src/game/server/entitylist.cpp:1624` | `report_simthinklist` |
+| `src/game/server/gameinterface.cpp:1256` | `ListServerUserMessages` |
+| `src/game/server/ndebugoverlay.cpp:250` | `clear_debug_overlays` |
+| `src/game/server/physics.cpp:989` | `physics_highlight_active` |
+| `src/game/server/physics.cpp:999` | `physics_report_active` |
+| `src/game/server/physics.cpp:1093` | `physics_debug_entity` |
+| `src/game/server/physics.cpp:1103` | `physics_select` |
+| `src/game/server/physics.cpp:1113` | `physics_budget` |
+| `src/game/server/sceneentity.cpp:4212` | `scene_flush` |
+| `src/game/server/sceneentity.cpp:4255` | `scene_mem` |
+| `src/game/server/sceneentity.cpp:5130` | `listRecentNPCSpeech` (gate inside its handler) |
+| `src/game/server/wcedit.cpp:690` | `wc_update_entity` |
+| `src/game/server/wcedit.cpp:724` | `wc_update_safe_entities` |
+| `src/game/shared/cstrike/cs_gamerules.cpp:2957` | `mp_dump_timers` |
+| `src/game/shared/physics_shared.cpp:588` | `dump_terrain` |
+| `src/game/shared/soundenvelope.cpp:311` | `report_soundpatch` (also compiled only when not `CLIENT_DLL`) |

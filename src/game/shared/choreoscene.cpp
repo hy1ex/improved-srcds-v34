@@ -35,7 +35,7 @@ extern IFileSystem *SceneFileSystem();
 // Let scene linger for 1/4 second so blends can finish
 #define SCENE_LINGER_TIME 0.25f
 
-// The engine turns this to true in dlls/sceneentity.cpp at bool SceneCacheInit()!!!
+// The engine turns this to true in game/server/sceneentity.cpp at bool SceneCacheInit()!!!
 bool	CChoreoScene::s_bEditingDisabled = false;
 
 //-----------------------------------------------------------------------------

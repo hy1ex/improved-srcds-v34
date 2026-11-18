@@ -16,7 +16,7 @@
 #
 # Regenerate the allowlist only after booting the build:
 #   nm -D -u server_i486.so | sed -n 's/^ *U //p' | sed 's/@.*//' | sort -u \
-#     > linux_sdk/undefined_symbols.allow
+#     > src/linux_sdk/undefined_symbols.allow
 #
 # Set UNDEFCHECK_SKIP=1 to bypass the check for a one-off build.
 # Only sed, sort, comm and nm are used: the build chroot has no awk or grep.
@@ -58,7 +58,7 @@ if [ -s "$NEW" ]; then
 	echo "The linker accepts these because a shared object may keep symbols unresolved," >&2
 	echo "but the engine cannot dlopen such a DLL and dies right after \"Console initialized.\"." >&2
 	echo "Declare the function where it belongs (a definition is missing in this tree), or," >&2
-	echo "if the engine really exports it, add the name to linux_sdk/undefined_symbols.allow." >&2
+	echo "if the engine really exports it, add the name to src/linux_sdk/undefined_symbols.allow." >&2
 	echo "" >&2
 	exit 1
 fi

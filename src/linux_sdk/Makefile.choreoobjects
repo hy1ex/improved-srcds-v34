@@ -2,7 +2,7 @@
 # Choreoobjects Static Library Makefile
 #
 
-CHOREOOBJECTS_SRC_DIR=$(SOURCE_DIR)/game_shared
+CHOREOOBJECTS_SRC_DIR=$(SOURCE_DIR)/game/shared
 PUBLIC_SRC_DIR=$(SOURCE_DIR)/public
 TIER1_PUBLIC_SRC_DIR=$(SOURCE_DIR)/public/tier1
 

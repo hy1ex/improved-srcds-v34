@@ -77,7 +77,7 @@ All fixes, including the ConVars above, are documented in
 The build needs a **GCC 3.4.6-or-older** toolchain (the code includes
 pre-C++11 headers such as `<new.h>`) and must produce a **32-bit i386** binary
 to match the game's `tier0_i486.so` / `vstdlib_i486.so`. There are three ways
-to build `linux_sdk/server_i486.so`:
+to build `src/linux_sdk/server_i486.so`:
 
 | Method | Best for |
 |---|---|
@@ -122,13 +122,13 @@ docker run --rm \
 * `HOST_UID`/`HOST_GID` fix ownership of the build output on Linux; on macOS/Windows Docker Desktop they can be omitted (`id -u` does not exist in PowerShell either).
 * The `--platform linux/amd64` flag makes sure the x86_64 image is used even on ARM Macs.
 * Optional: add `-e JOBS=8` to change the build parallelism (default `4`).
-* Running the command again only rebuilds what changed. For a clean rebuild, first delete the outputs (`rm -rf linux_sdk/obj linux_sdk/server_i486.so`), then run it again.
+* Running the command again only rebuilds what changed. For a clean rebuild, first delete the outputs (`rm -rf src/linux_sdk/obj src/linux_sdk/server_i486.so`), then run it again.
 
-**5. The result** is `linux_sdk/server_i486.so`. Verify it:
+**5. The result** is `src/linux_sdk/server_i486.so`. Verify it:
 
 ```bash
-file linux_sdk/server_i486.so
-# linux_sdk/server_i486.so: ELF 32-bit LSB shared object, Intel 80386, ...
+file src/linux_sdk/server_i486.so
+# src/linux_sdk/server_i486.so: ELF 32-bit LSB shared object, Intel 80386, ...
 ```
 
 ### Building locally without Docker or root
@@ -156,7 +156,7 @@ for d in "$ETCH"/tmp/debs/*.deb; do dpkg-deb -x "$d" "$ETCH"; done
 rm -rf "$ETCH/tmp/debs"
 ```
 
-**2. Create the toolchain symlinks** the stock `linux_sdk/Makefile` expects
+**2. Create the toolchain symlinks** the stock `src/linux_sdk/Makefile` expects
 (Valve's historical crosstool names pointing at the extracted GCC 3.4.6):
 
 ```bash
@@ -179,8 +179,8 @@ ln -sf /usr/lib/gcc/i486-linux-gnu/3.4.6/libgcc_eh.a \
 
 ```bash
 mkdir -p "$ETCH/build"
-tar -C . --exclude=.git --exclude=./linux_sdk/obj \
-    --exclude=./linux_sdk/server_i486.so -cf - . | tar -C "$ETCH/build" -xf -
+tar -C . --exclude=.git --exclude=./src/linux_sdk/obj \
+    --exclude=./src/linux_sdk/server_i486.so -cf - . | tar -C "$ETCH/build" -xf -
 
 unshare --map-root-user chroot "$ETCH" /usr/bin/gcc-3.4 --version
 ```
@@ -193,7 +193,7 @@ on the host:
 JOBS=$(nproc) unshare --map-root-user chroot "$ETCH" /bin/bash -c '
   set -eux
   export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-  cd /build/linux_sdk
+  cd /build/src/linux_sdk
   make -j"$JOBS"
 '
 ```
@@ -203,9 +203,9 @@ no preparation of the build tree is needed. The result lands in the chroot
 copy — fetch it and verify:
 
 ```bash
-cp "$ETCH/build/linux_sdk/server_i486.so" linux_sdk/
-file linux_sdk/server_i486.so
-# linux_sdk/server_i486.so: ELF 32-bit LSB shared object, Intel 80386, ...
+cp "$ETCH/build/src/linux_sdk/server_i486.so" src/linux_sdk/
+file src/linux_sdk/server_i486.so
+# src/linux_sdk/server_i486.so: ELF 32-bit LSB shared object, Intel 80386, ...
 ```
 
 Notes:
@@ -226,7 +226,7 @@ enter a release tag (otherwise one is generated) and tick the prerelease box.
 
 ### Building natively
 
-To compile, you need to use <b>GCC 3.4.6</b> or lower. First, go to the <b>linux_sdk</b> directory and open the <b>Makefile</b>, then edit it for your system. Type <b>make</b> to build. 
+To compile, you need to use <b>GCC 3.4.6</b> or lower. First, go to the <b>src/linux_sdk</b> directory and open the <b>Makefile</b>, then edit it for your system. Type <b>make</b> to build. 
 After compilation, the binary file will be located in the working directory.
 
 ## Fix documentation

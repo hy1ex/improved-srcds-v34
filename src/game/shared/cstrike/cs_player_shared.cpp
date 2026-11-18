@@ -30,7 +30,7 @@
 #include "engine/ivdebugoverlay.h"
 #include "obstacle_pushaway.h"
 
-// Defined in game_shared/cstrike/cs_gamerules.cpp.
+// Defined in game/shared/cstrike/cs_gamerules.cpp.
 extern ConVar mp_weapon_self_inflict_amount;
 extern ConVar ff_damage_bullet_penetration;
 #include "props_shared.h"
