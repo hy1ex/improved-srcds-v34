@@ -1,8 +1,29 @@
 name: Build and Release
 
+# Compiles src/linux_sdk/server_i486.so on every push to main and on pull
+# requests, and optionally publishes a GitHub release from a manual run.
+# A release is only ever created by a manual run with "Publish release"
+# ticked, so normal builds never publish anything.
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'Dockerfile'
+      - '.github/workflows/build.yml'
+      - 'FIXES.md'
+      - 'README.md'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'Dockerfile'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
     inputs:
+      publish:
+        description: 'Publish a GitHub release with the built binary'
+        type: boolean
+        default: false
       tag:
         description: 'Release tag (leave empty to auto-generate)'
         required: false
@@ -11,127 +32,259 @@ on:
         description: 'Mark the release as a pre-release'
         type: boolean
         default: false
+      jobs:
+        description: 'Parallel compile jobs'
+        required: false
+        default: '4'
+      libs:
+        description: 'Rebuild tier1/mathlib/choreoobjects from source instead of using the shipped archives'
+        type: boolean
+        default: false
+      extra_cflags:
+        description: 'Extra compiler flags for the build (e.g. -g)'
+        required: false
+        default: ''
 
 permissions:
-  contents: write
+  contents: read
+
+# A newer push to the same branch/PR supersedes the running build. Release
+# builds are never cancelled, so a manual run always finishes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # The i386 Debian Etch package set: GCC 3.4.6 with glibc 2.3.6, the same era
+  # toolchain the Makefile was written for. Keep in sync with the Dockerfile.
+  ETCH_MIRROR: http://archive.debian.org/debian
+  ETCH_DEBS: |
+    pool/main/g/gcc-3.4/gcc-3.4-base_3.4.6-5_i386.deb
+    pool/main/g/gcc-3.4/cpp-3.4_3.4.6-5_i386.deb
+    pool/main/g/gcc-3.4/gcc-3.4_3.4.6-5_i386.deb
+    pool/main/g/gcc-3.4/g++-3.4_3.4.6-5_i386.deb
+    pool/main/g/gcc-3.4/libstdc++6-dev_3.4.6-5_i386.deb
+    pool/main/g/gcc-4.1/gcc-4.1-base_4.1.1-21_i386.deb
+    pool/main/g/gcc-4.1/libgcc1_4.1.1-21_i386.deb
+    pool/main/g/gcc-4.1/libstdc++6_4.1.1-21_i386.deb
+    pool/main/g/gcc-3.3/libstdc++5_3.3.6-15_i386.deb
+    pool/main/b/binutils/binutils_2.17-3+etch1_i386.deb
+    pool/main/g/glibc/libc6_2.3.6.ds1-13etch10+b1_i386.deb
+    pool/main/g/glibc/libc6-dev_2.3.6.ds1-13etch10+b1_i386.deb
+    pool/main/l/linux-kernel-headers/linux-kernel-headers_2.6.18-7_i386.deb
+    pool/main/b/bash/bash_3.1dfsg-8_i386.deb
+    pool/main/m/make-dfsg/make_3.81-2_i386.deb
+    pool/main/c/coreutils/coreutils_5.97-5.3_i386.deb
+    pool/main/s/sed/sed_4.1.5-1_i386.deb
+    pool/main/d/debianutils/debianutils_2.17_i386.deb
+    pool/main/f/findutils/findutils_4.2.28-1etch1_i386.deb
+    pool/main/g/gzip/gzip_1.3.5-15+etch1_i386.deb
+    pool/main/n/ncurses/libncurses5_5.5-5_i386.deb
+    pool/main/a/acl/libacl1_2.2.41-1_i386.deb
+    pool/main/a/attr/libattr1_2.4.32-1_i386.deb
+    pool/main/libs/libselinux/libselinux1_1.32-3_i386.deb
+    pool/main/libs/libsepol/libsepol1_1.14-2_i386.deb
 
 jobs:
   build:
     name: Compile server_i486.so (GCC 3.4.6)
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 45
+    env:
+      ETCH: /opt/etch
+      JOBS: ${{ inputs.jobs || '4' }}
+      EXTRA_CFLAGS: ${{ inputs.extra_cflags }}
+      REBUILD_LIBS: ${{ inputs.libs && '1' || '0' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Downloading the 25 Etch packages is the slowest part of the setup, so
+      # keep them between runs. The key changes whenever this file (and with it
+      # the package list) or the Dockerfile changes.
+      - name: Cache Etch packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/etch-debs
+          key: etch-debs-${{ hashFiles('.github/workflows/build.yml', 'Dockerfile') }}
+
       # This code base only compiles with GCC <= 3.4.6 (it includes <new.h> and
       # other pre-C++11 headers), and the binary must be 32-bit i386 to match
       # the game's tier0/vstdlib libraries. Modern runners have neither, so we
       # assemble an i386 Debian Etch sysroot from the archived packages and
-      # compile inside a chroot of it. The package set is exactly gcc/g++ 3.4.6
-      # with glibc 2.3.6 - the same era toolchain the Makefile was written for.
+      # compile inside a chroot of it.
       - name: Set up Debian Etch (GCC 3.4.6) chroot
         run: |
           set -eu
-          BASE=http://archive.debian.org/debian
-          DEBS="
-            pool/main/g/gcc-3.4/gcc-3.4-base_3.4.6-5_i386.deb
-            pool/main/g/gcc-3.4/cpp-3.4_3.4.6-5_i386.deb
-            pool/main/g/gcc-3.4/gcc-3.4_3.4.6-5_i386.deb
-            pool/main/g/gcc-3.4/g++-3.4_3.4.6-5_i386.deb
-            pool/main/g/gcc-3.4/libstdc++6-dev_3.4.6-5_i386.deb
-            pool/main/g/gcc-4.1/gcc-4.1-base_4.1.1-21_i386.deb
-            pool/main/g/gcc-4.1/libgcc1_4.1.1-21_i386.deb
-            pool/main/g/gcc-4.1/libstdc++6_4.1.1-21_i386.deb
-            pool/main/g/gcc-3.3/libstdc++5_3.3.6-15_i386.deb
-            pool/main/b/binutils/binutils_2.17-3+etch1_i386.deb
-            pool/main/g/glibc/libc6_2.3.6.ds1-13etch10+b1_i386.deb
-            pool/main/g/glibc/libc6-dev_2.3.6.ds1-13etch10+b1_i386.deb
-            pool/main/l/linux-kernel-headers/linux-kernel-headers_2.6.18-7_i386.deb
-            pool/main/b/bash/bash_3.1dfsg-8_i386.deb
-            pool/main/m/make-dfsg/make_3.81-2_i386.deb
-            pool/main/c/coreutils/coreutils_5.97-5.3_i386.deb
-            pool/main/s/sed/sed_4.1.5-1_i386.deb
-            pool/main/d/debianutils/debianutils_2.17_i386.deb
-            pool/main/f/findutils/findutils_4.2.28-1etch1_i386.deb
-            pool/main/g/gzip/gzip_1.3.5-15+etch1_i386.deb
-            pool/main/n/ncurses/libncurses5_5.5-5_i386.deb
-            pool/main/a/acl/libacl1_2.2.41-1_i386.deb
-            pool/main/a/attr/libattr1_2.4.32-1_i386.deb
-            pool/main/libs/libselinux/libselinux1_1.32-3_i386.deb
-            pool/main/libs/libsepol/libsepol1_1.14-2_i386.deb
-          "
-          work=$(mktemp -d)
-          cd "$work"
-          for f in $DEBS; do
+          debs="$HOME/.cache/etch-debs"
+          mkdir -p "$debs"
+          for f in $ETCH_DEBS; do
+            out="$debs/$(basename "$f")"
+            if [ -f "$out" ]; then
+              continue
+            fi
             echo "Downloading $f"
-            curl -fsSLO --retry 5 --retry-delay 5 "$BASE/$f"
+            curl -fsSL --retry 5 --retry-delay 5 -o "$out.tmp" "$ETCH_MIRROR/$f"
+            mv "$out.tmp" "$out"
           done
-          sudo mkdir -p /opt/etch
-          for d in *.deb; do
-            sudo dpkg-deb -x "$d" /opt/etch
+
+          sudo mkdir -p "$ETCH"
+          for d in "$debs"/*.deb; do
+            sudo dpkg-deb -x "$d" "$ETCH"
           done
-          sudo mkdir -p /opt/etch/tmp /opt/etch/proc /opt/etch/dev /opt/etch/build
-          sudo chmod 1777 /opt/etch/tmp
-          sudo mount -t proc proc /opt/etch/proc
-          sudo mount --bind /dev /opt/etch/dev
-          sudo mount --bind "$GITHUB_WORKSPACE" /opt/etch/build
+          sudo mkdir -p "$ETCH"/tmp "$ETCH"/proc "$ETCH"/dev "$ETCH"/build
+          sudo chmod 1777 "$ETCH/tmp"
+
+          # The stock Makefile expects Valve's historical crosstool: compiler
+          # names i686-unknown-linux-gnu-* and static libstdc++/libgcc_eh under
+          # /opt/crosstool. Point them at the extracted GCC 3.4.6, exactly as
+          # the Dockerfile does, so the Makefile runs unmodified (which is also
+          # what makes `make libs` possible here).
+          sudo mkdir -p "$ETCH/usr/local/bin" \
+            "$ETCH/opt/crosstool/gcc-3.4.6-glibc-2.3.6/i686-unknown-linux-gnu/i686-unknown-linux-gnu/lib" \
+            "$ETCH/opt/crosstool/gcc-3.4.6-glibc-2.3.6/i686-unknown-linux-gnu/lib/gcc/i686-unknown-linux-gnu/3.4.6"
+          sudo ln -sf /usr/bin/gcc-3.4 "$ETCH/usr/local/bin/i686-unknown-linux-gnu-gcc"
+          sudo ln -sf /usr/bin/g++-3.4 "$ETCH/usr/local/bin/i686-unknown-linux-gnu-g++"
+          sudo ln -sf /usr/bin/ar "$ETCH/usr/local/bin/i686-unknown-linux-gnu-ar"
+          sudo ln -sf /usr/lib/gcc/i486-linux-gnu/3.4.6/libstdc++.a \
+            "$ETCH/opt/crosstool/gcc-3.4.6-glibc-2.3.6/i686-unknown-linux-gnu/i686-unknown-linux-gnu/lib/libstdc++.a"
+          sudo ln -sf /usr/lib/gcc/i486-linux-gnu/3.4.6/libgcc_eh.a \
+            "$ETCH/opt/crosstool/gcc-3.4.6-glibc-2.3.6/i686-unknown-linux-gnu/lib/gcc/i686-unknown-linux-gnu/3.4.6/libgcc_eh.a"
+
+          sudo mount -t proc proc "$ETCH/proc"
+          sudo mount --bind /dev "$ETCH/dev"
+          sudo mount --bind "$GITHUB_WORKSPACE" "$ETCH/build"
 
       - name: Compile server_i486.so
         run: |
           set -eu
-          sudo chroot /opt/etch /bin/bash -s <<'CHROOT'
+          sudo env JOBS="$JOBS" EXTRA_CFLAGS="$EXTRA_CFLAGS" REBUILD_LIBS="$REBUILD_LIBS" \
+            chroot "$ETCH" /bin/bash -s <<'CHROOT'
           set -eux
           export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           cd /build/src/linux_sdk
-          # The Makefile's stock compiler names point at a crosstool install we
-          # do not have; override them for the Etch toolchain. CPP_LIB keeps the
-          # original behavior of statically linking libstdc++/libgcc_eh so the
-          # released binary does not depend on a particular libstdc++ at
-          # runtime. (The literal quotes are part of the value the Makefile
-          # expects - see how CPP_LIB is passed through BASE_DEFINES.)
-          make -j4 \
-            CC=gcc-3.4 CPLUS=g++-3.4 CLINK=gcc-3.4 \
-            'CPP_LIB="/usr/lib/gcc/i486-linux-gnu/3.4.6/libstdc++.a /usr/lib/gcc/i486-linux-gnu/3.4.6/libgcc_eh.a"'
+          i686-unknown-linux-gnu-g++ --version | sed -n 1p
+
+          # Etch's coreutils has no nproc, so the job count comes from the host.
+          flags=(-j"$JOBS")
+          if [ -n "${EXTRA_CFLAGS:-}" ]; then
+            flags+=("USER_CFLAGS=-ffast-math -fomit-frame-pointer $EXTRA_CFLAGS")
+          fi
+          if [ "${REBUILD_LIBS:-0}" = "1" ]; then
+            make "${flags[@]}" libs
+          fi
+          make "${flags[@]}"
           CHROOT
-          sudo chown "$(id -u):$(id -g)" src/linux_sdk/server_i486.so
-          file src/linux_sdk/server_i486.so
-          file src/linux_sdk/server_i486.so | grep -q 'ELF 32-bit.*Intel 80386'
+
+      - name: Verify the binary
+        run: |
+          set -eu
+          so=src/linux_sdk/server_i486.so
+          sudo chown "$(id -u):$(id -g)" "$so"
+          type=$(file -b "$so")
+          echo "$type"
+          case "$type" in
+            *"ELF 32-bit LSB shared object"*"Intel 80386"*) ;;
+            *) echo "unexpected binary type: $type" >&2; exit 1 ;;
+          esac
+          size=$(stat -c%s "$so")
+          if [ "$size" -lt 1000000 ]; then
+            echo "binary is suspiciously small: $size bytes" >&2
+            exit 1
+          fi
+          echo "size: $size bytes"
 
       - name: Collect artifacts
         run: |
           set -eu
+          so=src/linux_sdk/server_i486.so
           mkdir -p dist
-          cp src/linux_sdk/server_i486.so dist/
-          (cd dist && sha256sum server_i486.so > SHA256SUMS.txt)
+          cp "$so" dist/
+          if [ -f "${so}_map.txt" ]; then
+            cp "${so}_map.txt" dist/
+          fi
+          ( cd dist && sha256sum server_i486.so > SHA256SUMS.txt )
           cat dist/SHA256SUMS.txt
-          ls -la dist
 
-      - name: Create GitHub release
+          {
+            echo "commit: $(git rev-parse HEAD)"
+            echo "ref: $GITHUB_REF"
+            echo "event: $GITHUB_EVENT_NAME"
+            echo "jobs: $JOBS"
+            echo "extra_cflags: ${EXTRA_CFLAGS:-none}"
+            echo "rebuilt libs: $REBUILD_LIBS"
+            echo "size: $(stat -c%s "$so") bytes"
+            echo "built: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > dist/build-info.txt
+          cat dist/build-info.txt
+
+          {
+            echo "### server_i486.so"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit | \`$(git rev-parse --short HEAD)\` |"
+            echo "| Size | $(stat -c%s "$so") bytes |"
+            echo "| SHA-256 | \`$(cut -d' ' -f1 dist/SHA256SUMS.txt)\` |"
+            echo "| Jobs | $JOBS |"
+            echo "| Extra flags | \`${EXTRA_CFLAGS:-none}\` |"
+            echo "| Archives | $([ "$REBUILD_LIBS" = "1" ] && echo 'rebuilt from source' || echo 'shipped prebuilt') |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: server_i486-${{ github.sha }}-${{ github.run_attempt }}
+          path: dist/*
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.publish == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: server_i486-${{ github.sha }}-${{ github.run_attempt }}
+          path: dist
+
+      - name: Create or refresh the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           INPUT_TAG: ${{ inputs.tag }}
           INPUT_PRERELEASE: ${{ inputs.prerelease }}
         run: |
           set -eu
-          if [ -n "$INPUT_TAG" ]; then
-            TAG="$INPUT_TAG"
+          ls -la dist
+          tag="$INPUT_TAG"
+          if [ -z "$tag" ]; then
+            tag="v34-$(date -u +%Y%m%d)-r${{ github.run_number }}"
+          fi
+          assets="dist/server_i486.so dist/SHA256SUMS.txt dist/build-info.txt"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists, refreshing its assets"
+            gh release upload "$tag" $assets --clobber
           else
-            TAG="v34-$(date -u +%Y%m%d)-r${{ github.run_number }}"
+            args=(--target "$GITHUB_SHA" --title "$tag" --notes-file dist/build-info.txt)
+            if [ "$INPUT_PRERELEASE" = "true" ]; then
+              args+=(--prerelease)
+            fi
+            gh release create "$tag" $assets "${args[@]}"
           fi
-          extra=()
-          if [ "$INPUT_PRERELEASE" = "true" ]; then
-            extra+=(--prerelease)
-          fi
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists, refreshing its assets"
-            gh release upload "$TAG" dist/server_i486.so dist/SHA256SUMS.txt --clobber
-          else
-            gh release create "$TAG" dist/server_i486.so dist/SHA256SUMS.txt \
-              --target "$GITHUB_SHA" \
-              --title "$TAG" \
-              --notes "Counter-Strike: Source v34 dedicated server binary (server_i486.so), compiled with GCC 3.4.6 from $(git rev-parse --short HEAD)." \
-              "${extra[@]}"
-          fi
-          echo "Released $TAG"
+          {
+            echo "### Released $tag"
+            echo ""
+            echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$tag"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -225,10 +225,26 @@ Notes:
 
 ### Building with GitHub Actions
 
-No local setup needed: **Actions** → **Build and Release** → **Run workflow**.
-The workflow compiles the code in the same Debian Etch chroot and publishes a
-release containing `server_i486.so` and a `SHA256SUMS.txt`. You can optionally
-enter a release tag (otherwise one is generated) and tick the prerelease box.
+No local setup needed: the [workflow](.github/workflows/build.yml) compiles the
+code in the same Debian Etch chroot used by the Docker image. It runs
+automatically on every push to `main` and on pull requests (the Etch packages
+are cached between runs), and every run uploads its `server_i486.so`,
+`SHA256SUMS.txt`, linker map and `build-info.txt` as a downloadable artifact.
+
+A manual run (**Actions** → **Build and Release** → **Run workflow**) adds a few
+options:
+
+| Input | Meaning |
+|---|---|
+| `publish` | Create the GitHub release. Unticked, the run only builds. |
+| `tag` | Release tag; empty generates `v34-<date>-r<run>`. |
+| `prerelease` | Mark the release as a pre-release. |
+| `jobs` | Parallel compile jobs (default `4`). |
+| `libs` | Also rebuild `tier1`/`mathlib`/`choreoobjects` from source. |
+| `extra_cflags` | Extra compiler flags, e.g. `-g` for debug info. |
+
+Nothing is ever published implicitly: the release job only runs when `publish`
+is ticked.
 
 ### Building natively
 
