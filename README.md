@@ -174,6 +174,12 @@ The convars below belong to the netcode and physics work in this tree; the
 * `sv_enablebunnyhopping <0>` — Allow player speed to exceed maximum running speed
 * `se_shootpositionfix <0>` — Fire from the eye position the player aimed from (start of the command) instead of the post-movement one. Off by default; enable it with `se_shootpositionfix 1` in `server.cfg`. The default has to stay `0`: a replicated convar left at its default is not sent to connecting clients, so ClientMod clients would keep their own `0` and predict hits without the fix.
 
+**Scripting** (branch `vscript`)
+
+* `sv_vscript_enable <0>` - Enable the server-side Squirrel VScript subsystem (`logic_script`, map `vscripts` keyvalues, `script_execute`). Off by default; `docs/VSCRIPT_COMPAT.md` lists the supported API and every known gap
+* `sv_vscript_allow_convars <0>` - Allow scripts to change convars with `Convars.SetValue`
+* `sv_vscript_warn_ms <50>` - Report a single script call that takes longer than this many milliseconds
+
 **Gameplay**
 
 * `cs_enable_player_physics_box <1>` — Allow to create physical objects for players
@@ -375,7 +381,7 @@ binary lands in the working directory. `make`, `make -j8`, `make libs` and
 
 ```text
 src/
-  linux_sdk/        makefiles, the prebuilt tier1/mathlib/choreoobjects
+  src/linux_sdk/        makefiles, the prebuilt tier1/mathlib/choreoobjects
                     archives, the engine libraries it links against, and
                     check_undefined.sh with its symbol allowlist
   game/server/      game DLL sources (entities, physics, AI, players)

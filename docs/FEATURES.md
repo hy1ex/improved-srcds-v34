@@ -160,12 +160,19 @@
 | `sv_turbophysics_c4` | `1` | [47. Turbo-physics +USE gates](#47-turbo-physics-use-gates) | 1 = +USE can shove `weapon_c4` / `planted_c4` |
 | `sv_spray_check` | `1` | [48. Spray validation and decal gate](#48-spray-validation-and-decal-gate) | validate and quarantine sprays under `downloads/`; 1 by default, stock CS:S checks nothing |
 | `sv_spray_enable` | `1` | [48. Spray validation and decal gate](#48-spray-validation-and-decal-gate) | 0 = never broadcast a `Player Decal` |
+| `sv_vscript_enable` | `0` | [49. Server-side VScript](#49-server-side-vscript) | master switch; `0` keeps stock CS:S behaviour and costs one branch |
+| `sv_vscript_debug` | `0` | [49. Server-side VScript](#49-server-side-vscript) | reserved for binding-call logging |
+| `sv_vscript_warn_ms` | `50` | [49. Server-side VScript](#49-server-side-vscript) | report a single script call slower than this |
+| `sv_vscript_allow_convars` | `0` | [49. Server-side VScript](#49-server-side-vscript) | allow `Convars.SetValue` from scripts |
 
 ## Command index
 
 | Command | Feature | Notes |
 | --- | --- | --- |
 | `dm_reset_spawns` | [10. Random deathmatch spawns](#10-random-deathmatch-spawns) | rebuild the generated spawn points from the current nav mesh |
+| `script_execute <file>` | [49. Server-side VScript](#49-server-side-vscript) | `FCVAR_CHEAT`, run a `.nut` from `scripts/vscripts` in the global scope |
+| `script_reload` | [49. Server-side VScript](#49-server-side-vscript) | `FCVAR_CHEAT`, re-run every map-shipped script |
+| `script_help [filter]` | [49. Server-side VScript](#49-server-side-vscript) | list the bound API |
 
 ---
 
@@ -2418,3 +2425,66 @@ reason. Format/version checks alone are much less likely to misfire.
 `src/game/server/player.cpp` (`ImpulseCommands`, impulse 201), `src/game/server/util.cpp`
 (`UTIL_PlayerDecalTrace`), `src/game/server/gameinterface.cpp` (game system registration, scan on
 `ClientConnect`), `src/linux_sdk/Makefile.server_cstrike`.
+
+# 49. Server-side VScript
+
+**Origin:** Valve's VScript (Source 2013, TF2 branch) as documented for current Steam CS:S. The
+engine side of VScript was never released and this v34 engine has no scripting interface at all, so
+the VM lives inside the game DLL.
+
+**What stock CS:S v34 does.** Nothing: no `script_*` commands, no `logic_script`, no per-entity
+script scopes, no Squirrel. This tree had no scripting code either.
+
+**What it does here.** A server-side scripting subsystem, off by default:
+
+* Squirrel 3.1 is vendored under `src/thirdparty/squirrel/` (MIT, unmodified) and linked into
+  `server_i486.so`. It builds with the project's GCC 3.4.6 i386 toolchain.
+* `src/game/server/vscript/` holds the VM facade, the binding registry and the game system:
+  * `vscript_vm.cpp` - VM lifetime, the handle table (entity handles over `EHANDLE`, per-entity
+    scopes), compiling/running files and code, calling script functions from C++, native dispatch,
+    error reporting, game-event payloads.
+  * `vscript_bind.cpp` - the script-visible API: output, time, `Vector`, `Entities`, `Convars`,
+    `NetProps`, `CBaseEntity` methods.
+  * `vscript_system.cpp` - the `IGameSystemPerFrame`: map/level lifecycle, map-shipped `vscripts`,
+    think functions, the deferred `EntFire` queue, gameplay hooks and game-event listeners.
+  * `logic_script.cpp` - the `logic_script` entity (`RunScriptCode`, `RunScriptFile`,
+    `CallScriptFunction`).
+* Map-shipped scripts work for **any** entity: `CBaseEntity::KeyValue` recognises a `vscripts`
+  keyvalue, and `DispatchSpawn` loads those files when the entity exists. Files are read through
+  `filesystem->ReadFile`, so a `.nut` packed inside a BSP is found like a loose one.
+* Entity callbacks `Precache`, `OnPostSpawn`, `ConnectOutputs`, think functions, and
+  `OnGameEvent_<name>` listeners are dispatched; global hooks `OnMapSpawn`, `OnPlayerSpawn`,
+  `OnPlayerKilled`, `OnRoundStart`, `OnRoundEnd` come from the existing spawn/kill/event paths.
+* `NetProps` resolves names by walking the entity's server send table and refuses a write whose
+  property is missing or has the wrong type, so a script cannot corrupt a live entity.
+* `EntFire` with delay 0 is deferred to the end of the frame, like map logic, so a script cannot
+  reenter its own think function.
+
+**Compatibility.** Nothing changes on the wire: no netprop, entity class, usermessage or client
+file is added, and every hook is `if ( VScript_IsActive() )` so a server with scripting off pays one
+branch. Scripts can drive only entities and fields a stock v34 client already understands.
+
+**Limits.** Client-side scripting is impossible with a stock v34 client, and so is any script-only
+replicated state. `Input<Name>` hooks, `OnTakeDamage`, traces, `SpawnEntityFromTable`, netprop
+arrays and save/restore are not implemented yet. A runaway script can stall a frame: the VM cannot
+preempt. `docs/VSCRIPT_COMPAT.md` lists every symbol and gap.
+
+**Convars**
+
+| Convar | Default | Values | Meaning |
+| --- | --- | --- | --- |
+| `sv_vscript_enable` | `0` | `0`/`1` | Master switch; `0` is stock CS:S |
+| `sv_vscript_debug` | `0` | `0`/`1` | Reserved for per-call logging |
+| `sv_vscript_warn_ms` | `50` | ms | Report script calls slower than this |
+| `sv_vscript_allow_convars` | `0` | `0`/`1` | Allow `Convars.SetValue` from scripts |
+
+**Risk:** medium. The subsystem is new code with no runtime test yet in this environment (the local
+boot harness has no `/proc` or `/dev` in the build chroot); it is build-verified only, and it is
+developed on `vscript`, not `main`, until it has been booted and exercised.
+
+**Files:** `src/game/server/vscript/vscript.h`, `vscript_vm.cpp`, `vscript_bind.cpp`, `vscript_system.cpp`,
+`vscript_system.h`, `logic_script.cpp`, `src/thirdparty/squirrel/` (vendored),
+`src/game/shared/baseentity_shared.cpp` (`vscripts` keyvalue), `src/game/server/util.cpp` (`DispatchSpawn`),
+`src/game/server/cstrike/cs_player.cpp` (spawn/kill hooks), `src/game/server/gameinterface.cpp` (game system),
+`src/linux_sdk/Makefile.server_cstrike`, `src/linux_sdk/undefined_symbols.allow`,
+`docs/VSCRIPT_COMPAT.md`.
