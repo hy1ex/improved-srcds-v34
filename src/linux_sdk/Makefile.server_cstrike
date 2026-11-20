@@ -32,8 +32,12 @@ CSTRIKE_HOSTAGE_SRC_DIR=./../game/server/cstrike/hostage
 CSTRIKE_HOSTAGE_OBJ_DIR=obj/$(NAME)_$(ARCH)/cstrike/hostage
 HL2_SRC_DIR=./../game/server/hl2
 HL2_OBJ_DIR=obj/$(NAME)_$(ARCH)/hl2
+VSCRIPT_SRC_DIR=./../game/server/vscript
+VSCRIPT_OBJ_DIR=obj/$(NAME)_$(ARCH)/vscript
+SQUIRREL_SRC_DIR=./../thirdparty/squirrel
+SQUIRREL_OBJ_DIR=obj/$(NAME)_$(ARCH)/thirdparty/squirrel
 
-INCLUDES=-I./.. -I./../common -I./../game/server -I./../game/server/cstrike -I./../game/server/cstrike/bot -I./../game/server/cstrike/bot/states -I./../game/server/cstrike/hostage -I./../game/shared -I./../game/shared/cstrike -I./../game/shared/cstrike/bot -I./../public -I./../public/tier0 -I./../public/tier1 -DGAME_DLL -DVECTOR -DBOTS -DCSTRIKE_DLL
+INCLUDES=-I./.. -I./../common -I./../game/server -I./../game/server/cstrike -I./../game/server/cstrike/bot -I./../game/server/cstrike/bot/states -I./../game/server/cstrike/hostage -I./../game/shared -I./../game/shared/cstrike -I./../game/shared/cstrike/bot -I./../public -I./../public/tier0 -I./../public/tier1 -I./../game/server/vscript -I./../thirdparty/squirrel/include -DGAME_DLL -DVECTOR -DBOTS -DCSTRIKE_DLL
 
 DO_CC=$(CPLUS) -w $(INCLUDES) $(CFLAGS) $(DEPFLAGS) -o $@ -c $<
 
@@ -579,6 +583,26 @@ CSTRIKE_BOT_STATES_OBJS= \
 CSTRIKE_HOSTAGE_OBJS= \
 	$(CSTRIKE_HOSTAGE_OBJ_DIR)/cs_simple_hostage.o \
 
+VSCRIPT_OBJS= \
+	$(VSCRIPT_OBJ_DIR)/logic_script.o \
+	$(VSCRIPT_OBJ_DIR)/vscript_bind.o \
+	$(VSCRIPT_OBJ_DIR)/vscript_system.o \
+	$(VSCRIPT_OBJ_DIR)/vscript_vm.o \
+
+SQUIRREL_OBJS= \
+	$(SQUIRREL_OBJ_DIR)/sqapi.o \
+	$(SQUIRREL_OBJ_DIR)/sqbaselib.o \
+	$(SQUIRREL_OBJ_DIR)/sqclass.o \
+	$(SQUIRREL_OBJ_DIR)/sqcompiler.o \
+	$(SQUIRREL_OBJ_DIR)/sqdebug.o \
+	$(SQUIRREL_OBJ_DIR)/sqfuncstate.o \
+	$(SQUIRREL_OBJ_DIR)/sqlexer.o \
+	$(SQUIRREL_OBJ_DIR)/sqmem.o \
+	$(SQUIRREL_OBJ_DIR)/sqobject.o \
+	$(SQUIRREL_OBJ_DIR)/sqstate.o \
+	$(SQUIRREL_OBJ_DIR)/sqtable.o \
+	$(SQUIRREL_OBJ_DIR)/sqvm.o \
+
 HL2_OBJS= \
 	$(HL2_OBJ_DIR)/Func_Monitor.o \
 	$(HL2_OBJ_DIR)/te_gaussexplosion.o \
@@ -591,7 +615,8 @@ ALL_OBJS=$(SERVER_OBJS) $(COMMON_OBJS) $(GAME_SHARED_OBJS) \
 	$(GAME_SHARED_CSTRIKE_OBJS) $(GAME_SHARED_CSTRIKE_BOT_OBJS) $(GAME_SHARED_HL2_OBJS) \
 	$(GAME_SHARED_PORTAL_OBJS) $(PUBLIC_OBJS) $(PUBLIC_HAPTICS_OBJS) $(PUBLIC_KEYFRAME_OBJS) \
 	$(PUBLIC_TIER0_OBJS) $(PUBLIC_VGUI_CONTROLS_OBJS) $(CSTRIKE_OBJS) $(CSTRIKE_BOT_OBJS) \
-	$(CSTRIKE_BOT_STATES_OBJS) $(CSTRIKE_HOSTAGE_OBJS) $(HL2_OBJS)
+	$(CSTRIKE_BOT_STATES_OBJS) $(CSTRIKE_HOSTAGE_OBJS) $(HL2_OBJS) \
+	$(VSCRIPT_OBJS) $(SQUIRREL_OBJS)
 
 all: dirs $(NAME)_$(ARCH).$(SHLIBEXT) undefinedcheck
 
@@ -628,6 +653,8 @@ dirs:
 	-mkdir -p $(CSTRIKE_BOT_STATES_OBJ_DIR)
 	-mkdir -p $(CSTRIKE_HOSTAGE_OBJ_DIR)
 	-mkdir -p $(HL2_OBJ_DIR)
+	-mkdir -p $(VSCRIPT_OBJ_DIR)
+	-mkdir -p $(SQUIRREL_OBJ_DIR)
 
 # Static archives the link pulls in (see LDFLAGS in the top-level Makefile).
 # Listed as prerequisites so rebuilding them with `make libs` relinks the DLL
@@ -686,6 +713,12 @@ $(CSTRIKE_HOSTAGE_OBJ_DIR)/%.o: $(CSTRIKE_HOSTAGE_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
 $(HL2_OBJ_DIR)/%.o: $(HL2_SRC_DIR)/%.cpp | dirs
+	$(DO_CC)
+
+$(VSCRIPT_OBJ_DIR)/%.o: $(VSCRIPT_SRC_DIR)/%.cpp | dirs
+	$(DO_CC)
+
+$(SQUIRREL_OBJ_DIR)/%.o: $(SQUIRREL_SRC_DIR)/%.cpp | dirs
 	$(DO_CC)
 
 clean:

@@ -8,6 +8,7 @@
 #include "cbase.h"
 #include "saverestore.h"
 #include "spraycheck.h"
+#include "vscript/vscript.h"
 #include "globalstate.h"
 #include <stdarg.h>
 #include "shake.h"
@@ -1866,6 +1867,11 @@ int DispatchSpawn( CBaseEntity *pEntity )
 
 		if ( pEntSafe == NULL || pEntity->IsMarkedForDeletion() )
 			return -1;
+
+		// Give map-shipped scripts a chance to attach now that the entity exists.
+		// Inert (one branch) unless sv_vscript_enable is on.
+		if ( VScript_IsActive() )
+			VScript_EntitySpawned( pEntity );
 
 		if ( pEntity->m_iGlobalname != NULL_STRING ) 
 		{

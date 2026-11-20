@@ -76,6 +76,7 @@ __gxx_personality_v0
 __strtod_internal
 __strtol_internal
 __strtoul_internal
+_setjmp
 close
 connect
 cosf
@@ -86,6 +87,7 @@ dlsym
 fclose
 fopen
 fread
+free
 fseek
 ftell
 g_ClockSpeedMillisecondsMultiplier
@@ -100,7 +102,13 @@ gethostname
 gettext
 inet_addr
 isalnum
+isalpha
+iscntrl
+isdigit
 isspace
+isxdigit
+longjmp
+malloc
 mbstowcs
 memchr
 memcpy
@@ -115,8 +123,10 @@ pthread_mutex_unlock
 pthread_mutexattr_init
 pthread_mutexattr_settype
 qsort
+realloc
 recv
 send
+snprintf
 socket
 sprintf
 sscanf

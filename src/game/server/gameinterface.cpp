@@ -7,6 +7,7 @@
 //=============================================================================//
 
 #include "cbase.h"
+#include "vscript/vscript_system.h"
 #include "gamestringpool.h"
 #include "mapentities_shared.h"
 #include "game.h"
@@ -573,6 +574,9 @@ bool CServerGameDLL::DLLInit(CreateInterfaceFn engineFactory,
 
 	// Validate client sprays and gate the decal broadcast
 	IGameSystem::Add( SprayCheckSystem() );
+
+	// Server-side VScript (dormant unless sv_vscript_enable is 1)
+	IGameSystem::Add( VScriptSystem() );
 
 #ifdef _WIN32
 	// Startup vgui

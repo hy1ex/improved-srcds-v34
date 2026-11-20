@@ -6,6 +6,7 @@
 //=============================================================================//
 
 #include "cbase.h"
+#include "vscript/vscript.h"
 #include "cs_player.h"
 #include "cs_gamerules.h"
 #include "mapinfo.h"
@@ -893,6 +894,10 @@ void CCSPlayer::Spawn()
 	ResetSpawnImmunityRender();
 
 	StockPlayerAmmo();
+
+	// Server-side VScript hook; a single branch when scripting is off.
+	if ( VScript_IsActive() )
+		VScript_OnPlayerSpawn( this );
 }
 
 void CCSPlayer::ShowViewPortPanel( const char * name, bool bShow, KeyValues *data )
@@ -1156,6 +1161,13 @@ void CCSPlayer::Event_Killed( const CTakeDamageInfo &info )
 		RememberLoadoutForRespawn();
 
 	DropWeapons();
+
+	// Server-side VScript hook; a single branch when scripting is off.
+	if ( VScript_IsActive() )
+	{
+		CBaseCombatWeapon *pWeapon = dynamic_cast<CBaseCombatWeapon *>( info.GetInflictor() );
+		VScript_OnPlayerKilled( this, info.GetAttacker(), pWeapon ? pWeapon->GetClassname() : "" );
+	}
 
 	// Just in case the progress bar is on screen, kill it.
 	SetProgressBarTime( 0 );

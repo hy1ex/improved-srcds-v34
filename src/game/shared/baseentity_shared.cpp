@@ -6,6 +6,7 @@
 //=============================================================================//
 
 #include "cbase.h"
+#include "vscript/vscript.h"
 
 #include "decals.h"
 #include "effect_dispatch_data.h"
@@ -317,6 +318,11 @@ bool CBaseEntity::KeyValue( const char *szKeyName, const char *szValue )
 	{
 		*s = '\0';
 	}
+
+	// Map-shipped scripts: any entity may carry a `vscripts` keyvalue, not just
+	// logic_script, which is how community maps attach theirs.
+	if ( VScript_IsActive() && VScript_HandleEntityKeyValue( this, szKeyName, szValue ) )
+		return true;
 
 	if ( FStrEq( szKeyName, "rendercolor" ) || FStrEq( szKeyName, "rendercolor32" ))
 	{
